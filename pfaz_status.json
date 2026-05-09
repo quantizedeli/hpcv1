@@ -1,0 +1,69 @@
+{
+  "_note": "TRUBA repo — temiz başlangıç. PFAZ 01-02 yeniden çalıştırılacak (HPC'de daha hızlı). 2026-05-07 sıfırlandı.",
+  "pfaz_01": {
+    "status": "pending",
+    "progress": 0,
+    "last_update": "2026-05-07T00:00:00"
+  },
+  "pfaz_02": {
+    "status": "pending",
+    "progress": 0,
+    "last_update": "2026-05-07T00:00:00"
+  },
+  "pfaz_03": {
+    "status": "pending",
+    "progress": 0,
+    "last_update": "2026-05-07T00:00:00"
+  },
+  "pfaz_04": {
+    "status": "pending",
+    "progress": 0,
+    "last_update": "2026-05-07T00:00:00"
+  },
+  "pfaz_05": {
+    "status": "pending",
+    "progress": 0,
+    "last_update": "2026-05-07T00:00:00"
+  },
+  "pfaz_06": {
+    "status": "pending",
+    "progress": 0,
+    "last_update": "2026-05-07T00:00:00"
+  },
+  "pfaz_07": {
+    "status": "pending",
+    "progress": 0,
+    "last_update": "2026-05-07T00:00:00"
+  },
+  "pfaz_08": {
+    "status": "pending",
+    "progress": 0,
+    "last_update": "2026-05-07T00:00:00"
+  },
+  "pfaz_09": {
+    "status": "pending",
+    "progress": 0,
+    "last_update": "2026-05-07T00:00:00"
+  },
+  "pfaz_10": {
+    "status": "pending",
+    "progress": 0,
+    "last_update": "2026-05-07T00:00:00"
+  },
+  "pfaz_11": {
+    "status": "skipped",
+    "progress": 0,
+    "last_update": "2026-05-07T00:00:00",
+    "note": "Production/Docker — kalıcı olarak devre dışı"
+  },
+  "pfaz_12": {
+    "status": "pending",
+    "progress": 0,
+    "last_update": "2026-05-07T00:00:00"
+  },
+  "pfaz_13": {
+    "status": "pending",
+    "progress": 0,
+    "last_update": "2026-05-07T00:00:00"
+  }
+}
