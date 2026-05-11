@@ -1166,6 +1166,74 @@ class ANFISParallelTrainerV2:
 
         dataset_paths = self.discover_datasets()
         logger.info(f"Found {len(dataset_paths)} datasets")
+        
+        # BUG-16 fix (Sprint 5): ANFISDatasetSelector aktive edildi.
+        # Belge (faz-03-anfis-egitimi.md §11.1) "AKTIF 2026-05-08" diyor ama kod
+        # 'deactivated' log basiyor (KURAL 18 vakasi). Bu commit selector'u
+        # gercekten aktif ediyor.
+        #
+        # Strateji (tez §3.4):
+        #   - Top tier (R2_test >= 0.90): 50 dataset
+        #   - Mid tier (0.80 <= R2_test < 0.90): 50 dataset
+        #   - Low tier (R2_test < 0.80): 100 dataset  <-- "ML basarisiz -> ANFIS dene"
+        #   Toplam: 200 dataset/target (MM + QM)
+        #
+        # Dual R2 overfit filtresi PFAZ 02'de zaten uygulaniyor (Shang 2023,
+        # Utama 2016); selector'a temizlenmis liste geliyor. Detay:
+        # tez-yazim-not-defteri.md Sprint 5 §"Akademik Karar 1".
+        #
+        # Adaptive deficit redistribution kodu (sat. 130-158) bos tier
+        # senaryosunda graceful davranir; quota dolmazsa diger tier'lardan
+        # round-robin ile tamamlanir.
+        try:
+            from .anfis_dataset_selector import ANFISDatasetSelector
+            # PFAZ02 ciktilarinin oldugu dizini bul
+            _ai_results_dir = self.output_dir.parent / 'trained_models'
+            if not _ai_results_dir.exists():
+                _ai_results_dir = self.output_dir.parent.parent / 'trained_models'
+            
+            _selector = ANFISDatasetSelector(
+                ai_results_dir=str(_ai_results_dir),
+                output_dir=str(self.output_dir / 'selected_datasets')
+            )
+            _selector.load_ai_results()
+            _selections = _selector.select_both_methods(
+                targets=['MM', 'QM'],
+                n_datasets=200,
+                n_top_quota=50,
+                n_mid_quota=50,
+                n_low_quota=100,
+            )
+            
+            # Selector'in sectigi dataset isimlerini topla (Method 1 = Layered)
+            _selected_names = set()
+            for _tgt, _methods in _selections.items():
+                _m1_df = _methods.get('method1')
+                if _m1_df is not None and not _m1_df.empty and 'Dataset' in _m1_df.columns:
+                    _selected_names.update(_m1_df['Dataset'].astype(str).tolist())
+            
+            if _selected_names:
+                # dataset_paths'i selector ciktisina gore filtrele
+                _filtered = [dp for dp in dataset_paths if dp.name in _selected_names]
+                if _filtered:
+                    logger.info(f"[BUG-16] ANFISDatasetSelector aktif: "
+                                f"{len(dataset_paths)} -> {len(_filtered)} dataset secildi "
+                                f"(Top=50/Mid=50/Low=100)")
+                    dataset_paths = _filtered
+                else:
+                    logger.warning("[WARNING] Selector sonuc verdi ama dataset eslesmesi yok; "
+                                   "tum datasetler kullanilacak")
+            else:
+                logger.warning("[WARNING] Selector secim yapamadi; tum datasetler kullanilacak")
+        except FileNotFoundError:
+            logger.warning("[WARNING] PFAZ02 ciktisi (training_summary.xlsx) bulunamadi; "
+                           "tum datasetler kullanilacak (fallback)")
+        except ImportError as _se:
+            logger.warning(f"[WARNING] ANFISDatasetSelector import edilemedi: {_se}; "
+                           "tum datasetler kullanilacak (fallback)")
+        except Exception as _se:
+            logger.warning(f"[WARNING] ANFISDatasetSelector calismadi: {_se}; "
+                           "tum datasetler kullanilacak (fallback)")
 
         # Split configs into pilot (2MF) and advanced (3MF + SubClust)
         PILOT_IDS = {'CFG_Grid_2MF_Trap', 'CFG_Grid_2MF_Bell',
@@ -1424,8 +1492,8 @@ class ANFISParallelTrainerV2:
         except Exception as _e:
             logger.warning(f"[WARNING] ANFISAdaptiveStrategy basarisiz (devam): {_e}")
 
-        # ANFISDatasetSelector: deactivated — ANFIS 3-phase strategy covers all datasets
-        logger.info("[INFO] ANFISDatasetSelector: deactivated (3-phase pilot strategy active)")
+        # BUG-16 fix (Sprint 5): ANFISDatasetSelector artik egitim oncesi aktif
+        # (yukarida, dataset_paths filtrelemesi yapildi). Burada bir sey yapmiyoruz.
 
         # ---- NuclearPatternAnalyzer: ANFIS sonrasi nuklear desen analizi ----
         try:
