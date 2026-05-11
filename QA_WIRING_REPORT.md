@@ -1,8 +1,8 @@
 # QA Wiring Report — Dead Code Audit & Resolution
-**Tarih:** 2026-04-30 (guncellendi; ilk: 2026-04-13)
+**Tarih:** 2026-05-12 (guncellendi; onceki: 2026-04-30; ilk: 2026-04-13)
 **Rol:** QA Engineer  
-**Proje:** Nuclear Physics AI Pipeline (nucdatav1)  
-**Durum:** TAMAMLANDI + HPC BUG FIXES EKLENDI
+**Proje:** Nuclear Physics AI Pipeline (nucdatav2-truba)  
+**Durum:** TAMAMLANDI + HPC BUG FIXES + SPRINT 6 WIRING BULGULARI EKLENDI
 
 ---
 
@@ -44,6 +44,38 @@ Tam liste ve fix detaylari: `V10_QA_BUG_REPORT.md` ve `PFAZ_DEVELOPMENT_NOTES.md
 | `hpc_slurm_job.sh` | Hazir SLURM job scripti |
 | `CODING_RULES.md` | Claude Code icin kodlama kurallari |
 | `HPC_DEPLOYMENT_CHECKLIST.md` | HPC gondermeden once kontrol listesi |
+
+---
+
+## 2026-05-12 Sprint 6 — Wiring Bulgulari
+
+Sprint 6 kapsaminda 8 kategori paralel agent taramasi yapildi.
+Wiring ile ilgili yeni bulgular:
+
+### Yeni Sorunlar (Sprint 6)
+
+| BUG # | Dosya | Wiring Durumu | Aciklama |
+|-------|-------|---------------|----------|
+| BUG-47 | `analysis_modules/real_data_integration_manager.py:28-29` | BROKEN | `sys.path.insert('/home/claude')` + `'/mnt/user-data/outputs'` — TRUBA'da bu path'ler yok, modül import edilemez |
+| BUG-48 | `visualization_modules/visualization_integration.py:31` | BROKEN | `sys.path.insert('/mnt/user-data/outputs')` — TRUBA'da bu path yok, visualization wiring coker |
+| BUG-49 | `pfaz02_ai_training/advanced_models_extended.py:16-20` | BROKEN | `torch` 5 satir hard import — torch yoksa `advanced_models_extended` modulu import edilemez, `AdvancedModelsExtended` wire edilemez |
+| BUG-51 | `pfaz08/visualization_master_system.py:1492` | MISMATCH | sheet adi `'Robustness_CV_Results'` != PFAZ6'nin yazdigi `'Robustness_CV'` — orphan read, data hic okunamaz |
+
+### Temiz Kalan Kategoriler (Sprint 6)
+
+- `n_jobs=-1` nested context: 0 kaldi (2026-04-30 fix'leri gecerli)
+- `open()` encoding eksik: 0 kaldi (2026-04-30 fix'leri gecerli)
+
+### Etkilenen Modüller
+
+| Modul | Onceki Durum | Sprint 6 Sonrasi |
+|-------|--------------|-----------------|
+| `RealDataIntegrationManager` | WIRED (2026-04-30) | BROKEN — sys.path fix gerekli (BUG-47) |
+| `VisualizationIntegration` | WIRED (2026-04-30) | BROKEN — sys.path fix gerekli (BUG-48) |
+| `AdvancedModelsExtended` (torch) | WIRED (2026-04-30) | BROKEN — try/except olmadan import fail (BUG-49) |
+| Robustness CV grafigi (PFAZ8) | WIRED | ORPHAN READ — sheet adi degismis (BUG-51) |
+
+Duzeltme plani: `docs/thesis-toolkit/sprints/sprint-07-bug-fixes.md`
 
 ---
 

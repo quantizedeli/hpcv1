@@ -1,11 +1,11 @@
 # QA PROJECT STATUS REPORT
 ## Nuclear Physics AI Project - Quality Assurance Review
 
-**Date:** 2026-04-30 (son guncelleme: main.py mantik + siralama hatalari)
-**Onceki tarih:** 2025-12-02
+**Date:** 2026-05-12 (son guncelleme: Sprint 6 — 8 kategori tarama)
+**Onceki tarih:** 2026-04-30
 **QA Engineer:** Claude Code AI
-**Review Type:** Comprehensive Project Assessment + HPC Readiness Audit + Full 22-Rule QA Pass + Orchestrator Logic Review
-**Status:** HPC READY — tum 39 bug duzeltildi
+**Review Type:** Comprehensive Project Assessment + HPC Readiness Audit + Full 22-Rule QA Pass + Orchestrator Logic Review + Sprint 6 Parallel Agent Scan
+**Status:** HPC READY — 39 bug duzeltildi (2026-04-30) + 15 yeni bug tespit edildi (2026-05-12, BUG-47..61)
 
 ---
 
@@ -81,6 +81,58 @@ V10_QA_BUG_REPORT.md + V10_QA_REREVIEW_REPORT.md bulgularinin tamami uygulanmist
 - Syntax check: tum degistirilen dosyalar PASS
 - Smoke test: 8/8 PASS (fix sonrasi dogrulandi)
 - Toplam degistirilen dosya: 107
+
+---
+
+## 2026-05-12 Sprint 6 — 8 Kategori Paralel Agent Taramasi
+
+8 subagent paralel calistirildi; her agent ayri bir hata kategorisini taradi.
+
+### Tarama Kategorileri ve Sonuclari
+
+| Ajan | Kategori | Bulgu |
+|------|----------|-------|
+| 1 | Hardcoded paths (C:\\, /mnt/, /home/) | 2 TRUBA-CRITICAL |
+| 2 | Optional imports — try/except + _AVAILABLE flag | 2 KRITIK |
+| 3 | Excel sheet name > 31 char | 2 YUKSEK |
+| 4 | n_jobs=-1 nested context | **0 (TEMIZ)** |
+| 5 | Silent exception swallowing | 3 KRITIK/YUKSEK |
+| 6 | open() encoding='utf-8' eksik | **0 (TEMIZ)** |
+| 7 | TF/Torch finally/clear_session eksik | 2 KRITIK |
+| 8 | Dokumantasyon iddiasi vs gercek | 4 TASARIM/ORTA |
+
+### Yeni Buglar (BUG-47..BUG-61)
+
+| BUG # | Oncelik | Dosya | Aciklama |
+|-------|---------|-------|----------|
+| BUG-47 | TRUBA-CRITICAL | `analysis_modules/real_data_integration_manager.py:28-29` | sys.path /home/claude + /mnt/user-data hardcoded |
+| BUG-48 | TRUBA-CRITICAL | `visualization_modules/visualization_integration.py:31` | sys.path /mnt/user-data hardcoded |
+| BUG-49 | KRITIK | `pfaz02_ai_training/advanced_models_extended.py:16-20` | torch 5 satir hard import, try/except yok |
+| BUG-50 | YUKSEK | `pfaz09/aaa2_control_group_complete_v4.py:29` + `monte_carlo_simulation_system.py:31` | tqdm hard import |
+| BUG-51 | YUKSEK | `pfaz08/visualization_master_system.py:1492` | sheet adi 'Robustness_CV_Results' != PFAZ6'nin 'Robustness_CV' |
+| BUG-52 | YUKSEK | `pfaz06/comprehensive_excel_reporter.py:210,223` | dinamik sheet adi [:31] truncation eksik |
+| BUG-53 | KRITIK | `pfaz02/hyperparameter_tuner.py` + `pfaz13/automl_optimizer.py` x2 | model.fit() sonrasi finally/clear_session/gc eksik |
+| BUG-54 | ORTA | `pfaz07/stacking_ensemble.py:312` | stacking MLP fit — finally/clear_session yok |
+| BUG-55 | KRITIK | `pfaz13/automl_retraining_loop.py:211` | dataset yukleme hatasi except: pass |
+| BUG-56 | YUKSEK | `pfaz13/automl_retraining_loop.py:305` | config okuma hatasi except: pass |
+| BUG-57 | YUKSEK | `pfaz13/automl_retraining_loop.py:758` | rapor yazma hatasi except: pass |
+| BUG-58 | TASARIM | `CLAUDE.md:100` | "29-sheet Excel" iddiasi — gercekte 18 sheet |
+| BUG-59 | TASARIM | `CLAUDE.md:101` | "70+ chart types" abartili iddia |
+| BUG-60 | ORTA | `PFAZ_DEVELOPMENT_NOTES.md` | "stacking R2=0.9794" yanlis faza atfedilmis (PFAZ7 degil PFAZ13) |
+| BUG-61 | TASARIM | Bu dosya | "bare except remaining: 0" iddiasi — BUG-55/56/57 bulundu |
+
+### Ozet
+
+| Oncelik | Adet |
+|---------|------|
+| TRUBA-CRITICAL | 2 |
+| KRITIK | 3 |
+| YUKSEK | 4 |
+| ORTA | 2 |
+| TASARIM | 4 |
+| **Toplam** | **15** |
+
+Duzeltme plani: `docs/thesis-toolkit/sprints/sprint-07-bug-fixes.md`
 
 ---
 

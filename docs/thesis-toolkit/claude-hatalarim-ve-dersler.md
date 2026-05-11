@@ -603,5 +603,84 @@ her major degisiklik sonrasi calistirilmali, ardindan dinamik test (pytest).
 
 ---
 
-*Claude-Hatalarim-ve-Dersler v1.7 | 2026-05-11*
-*Guncelleme: KURAL 19 eklendi — inter-PFAZ data flow audit zorunlu (statik test yetmez)*
+---
+
+## KURAL 20: Paralel Agent Tarama Metodolojisi (2026-05-12)
+
+**Kural:** Codebase'i 8+ kategori boyunca taramak gerektiginde, her kategori icin
+ayri bir subagent olustur ve hepsini **ayni mesajda** background=true ile paralel
+baslat. Sonuclari tek tek bekle; hepsinin tamamlandigini gorursen konsolide et.
+
+### Dogru Kullanim
+
+```
+# 8 agent ayni anda baslatilir — hepsi background=True
+Agent(category1, run_in_background=True)
+Agent(category2, run_in_background=True)
+...
+Agent(category8, run_in_background=True)
+# Notifikasyon gelince consolidate et
+```
+
+### Neden Onemli
+
+| Yaklasim | Sure | Kapsam |
+|----------|------|--------|
+| Seriyal (1-1) | ~40 dk | Ayni |
+| Paralel (8 agent) | ~8 dk | Ayni |
+| Elle grep + okuma | ~90 dk | Eksik kalir |
+
+- Her agent kendi kategorisine odaklanir → daha derin tarama
+- Ana context window korunur (agent sonuclari ozetlenir)
+- Kategori ajanlar bagi yoksa paralel calistirmak guvenli
+
+### Ne Zaman Kullanilir
+
+- "X kategorisini tara" + "Y kategorisini tara" gibi bagimsiz gorevler varsa
+- 3+ dosyadan fazlasini etkileyecek cross-cutting scan gerektiginde
+- Sprint basindaki bulk tarama (orphan scan, encoding scan, n_jobs scan...)
+
+### Hata: Agentlari sira ile baslatmak
+
+Agentlari tek tek baslatip birinin bitmesini bekleyip sonra digerini baslatmak
+gereksiz yavas. `run_in_background=True` + tek mesajda tum Agent cagirilari.
+
+---
+
+## KURAL 21: Sprint Sonu Belge Guncelleme Disiplini (2026-05-12)
+
+**Kural:** Herhangi bir sprint tamamlandiginda asagidaki **7 belge tipi** guncellenmeli.
+Bunlardan birini atlamak = sprint yarim kalmis demektir. Kullanici bunu ileride fark eder
+ve o oturumda zaman kaybedilir.
+
+### Zorunlu 7 Belge
+
+| # | Dosya | Ne Guncellenmeli |
+|---|-------|-----------------|
+| 1 | `pipeline-hatalari.md` | Yeni bug bloklari (BUG-XX) |
+| 2 | `tez-yazim-not-defteri.md` | Sprint ozeti bolumu, versiyon guncelle |
+| 3 | `claude-hatalarim-ve-dersler.md` | Yeni KURAL (eger o sprintte ders alindiysa) |
+| 4 | `sprints/SPRINT-PLAN.md` | Sprint durumu TAMAMLANDI, yeni sprint satiri ekle |
+| 5 | `sprints/sprint-XX-*.md` | O sprintin detay belgesi (CREATE veya UPDATE) |
+| 6 | `QA_PROJECT_STATUS_REPORT.md` | Sprint bulgu ozeti bolumu ekle |
+| 7 | `QA_WIRING_REPORT.md` | Wiring statusu degistiyse guncelle |
+
+### Hata Bu Oturumda
+
+Sprint 6 tamamlandiginda sadece 2 dosya guncellendi (pipeline-hatalari + tez-not-defteri).
+Diger 5 dosya atlanmisti. Kullanici yeni sohbette bunu fark etti ve oturum zaman kaybi
+yasadi.
+
+**Cozum:** Sprint sonu checklist olarak bu 7 maddeyi kontrol et. Hepsini yapmadan
+sprint'i "tamamlandi" olarak isaretleme.
+
+### Ne Zaman Atlanabilir
+
+- Sprint 5 ve oncesinde bu kural yoktu → geri doldurmak zorunda degilsin
+- Mikro duzeltme (tek satir fix) → sadece 1/2/4 yeterli, 3/5/6/7 opsiyonel
+- "Hizli hotfix" → en az 1 + 4 zorunlu
+
+---
+
+*Claude-Hatalarim-ve-Dersler v1.8 | 2026-05-12*
+*Guncelleme: KURAL 20 (paralel agent tarama) + KURAL 21 (sprint sonu 7 belge disiplini) eklendi*
