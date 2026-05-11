@@ -1321,7 +1321,7 @@ statik analiz ile yakalanmayan 5 yeni bug tespit edilmistir. Detay icin
 
 ---
 
-### BUG-13 [YUKSEK] PFAZ 08 model_comparison_dashboard -- Kolon Adi Uyumsuzlugu
+### BUG-42 [YUKSEK] PFAZ 08 model_comparison_dashboard -- Kolon Adi Uyumsuzlugu
 
 | Alan | Deger |
 |------|-------|
@@ -1368,7 +1368,7 @@ kalma sebebidir. Pipeline 13 fazdan 5'i sessizce eksik kalmis.
 
 ---
 
-### BUG-14 [YUKSEK] main.py Flat Config Key'leri Cogu PFAZ'da Okumuyor
+### BUG-43 [YUKSEK] main.py Flat Config Key'leri Cogu PFAZ'da Okumuyor
 
 | Alan | Deger |
 |------|-------|
@@ -1432,7 +1432,7 @@ faydali.
 
 ---
 
-### BUG-15 [ORTA] Dataset Sizes -- `267` int vs `'ALL'` str Uyumsuzlugu
+### BUG-44 [ORTA] Dataset Sizes -- `267` int vs `'ALL'` str Uyumsuzlugu
 
 | Alan | Deger |
 |------|-------|
@@ -1487,7 +1487,7 @@ PFAZ 01 yeniden calistirilmali.
 
 ---
 
-### BUG-16 [ORTA] ANFISDatasetSelector -- Kod ile Belge Uyumsuzlugu (Drift)
+### BUG-45 [ORTA] ANFISDatasetSelector -- Kod ile Belge Uyumsuzlugu (Drift)
 
 | Alan | Deger |
 |------|-------|
@@ -1551,7 +1551,7 @@ Sprint 5 bolumu.
 
 ---
 
-### BUG-17 [YUKSEK] Training Summary -- Uc Farkli Dosya Adi Aranıyor
+### BUG-46 [YUKSEK] Training Summary -- Uc Farkli Dosya Adi Aranıyor
 
 | Alan | Deger |
 |------|-------|
@@ -1573,7 +1573,7 @@ Uc PFAZ ucu de farkli dosya adi kullaniyor:
 | 10 (thesis okur) | JSON | `training_summary.json` (var) | `pfaz10_content_generator.py:66` |
 
 **Etki:**
-- PFAZ 03 selector aktif edilirse (BUG-16 fix sonrasi) `FileNotFoundError` firlatir
+- PFAZ 03 selector aktif edilirse (BUG-45 fix sonrasi) `FileNotFoundError` firlatir
 - PFAZ 08 viz "summary bulunamadi -- atlaniyor" warning'i basar ve baska bir cikti
   uretmez
 - PFAZ 10 sadece JSON okudugu icin etkilenmez
@@ -1614,7 +1614,7 @@ if summary_file is None:
     summary_file = next((p for p in candidates if p.exists()), candidates[0])
 ```
 
-**Yeniden Egitim Gerekli:** HAYIR — yalnizca raporlama dosya adi. Ancak BUG-16
+**Yeniden Egitim Gerekli:** HAYIR — yalnizca raporlama dosya adi. Ancak BUG-45
 selector aktive edilince bu fix yapilmadan PFAZ 03 baslayamaz.
 
 ---
@@ -1665,4 +1665,4 @@ def __init__(self, ..., n_samples_per_level: int = 1000, ...):
 
 ---
 
-*Sprint 5 raporu sonu | 5 yeni bug (BUG-13 ... BUG-17) + BUG-38 tamamlama | Toplam: 8 yeni audit kalemi*
+*Sprint 5 raporu sonu | 5 yeni bug (BUG-42 ... BUG-46) + BUG-38 tamamlama | Toplam: 8 yeni audit kalemi*

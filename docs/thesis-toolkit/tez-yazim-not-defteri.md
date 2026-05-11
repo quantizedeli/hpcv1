@@ -862,17 +862,17 @@ ifadesine güvenmek yanlış — kod gerçek doğrulama gerekiyor. Sprint 5 BUG-
 yarısını tamamlıyor: `Bootstrap.__init__` (sat. 194) ve `Sensitivity.__init__` (sat. 288)
 default'ları 100 → 1000 güncelleniyor.
 
-### Yeni Tespit Edilen Bug'lar (BUG-13 ... BUG-17)
+### Yeni Tespit Edilen Bug'lar (BUG-42 ... BUG-46)
 
 Detaylar `pipeline-hatalari.md` dosyasına eklendi. Özet:
 
 | ID | Öncelik | Faz | Etki | Tez Notu |
 |----|---------|-----|------|----------|
-| BUG-13 | YUKSEK | PFAZ 08 | `model_comparison_dashboard.py` `R2_test` kolonu arıyor; PFAZ 02 `Test_R2` yazıyor → tüm karşılaştırma dashboard'ları KeyError | **Bu, pc error.md'de PFAZ 8'in `pending` kalma sebebi.** |
-| BUG-14 | YUKSEK | main.py | Yalnızca PFAZ 02 hem flat (`pfaz02_ai_training`) hem nested config okuyor; PFAZ 01, 03-13 sadece nested okuyor → config.json'daki ayarlar göz ardı ediliyor | **MATLAB engine ayarı, GPU off ayarı vs. etkisiz hale geliyor!** |
-| BUG-15 | ORTA | PFAZ 01 | `config.json` `dataset_sizes=[100,150,200,267]` (int) ama kod `'ALL'` (str) bekliyor; `NOANOMALY_SIZES={150,200,'ALL'}` set'inde 267 yok | NoAnomaly varyantları üretilmiyor olabilir |
-| BUG-16 | ORTA | PFAZ 03 | `ANFISDatasetSelector` belgede "aktif (2026-05-08)" ama kodda `anfis_parallel_trainer_v2.py:1427-1428` hala `deactivated` log basıyor | **Belge-kod drift'i (KURAL 18 vakası)** |
-| BUG-17 | YUKSEK | PFAZ 02→03→08 | Üç farklı dosya adı aranıyor: PFAZ 02 `training_results_summary.xlsx` yazıyor, PFAZ 03 selector `training_summary.xlsx`, PFAZ 08 `training_summary.xlsx` veya `ai_training_summary.xlsx` arıyor | Selector aktif edilse bile FileNotFound |
+| BUG-42 | YUKSEK | PFAZ 08 | `model_comparison_dashboard.py` `R2_test` kolonu arıyor; PFAZ 02 `Test_R2` yazıyor → tüm karşılaştırma dashboard'ları KeyError | **Bu, pc error.md'de PFAZ 8'in `pending` kalma sebebi.** |
+| BUG-43 | YUKSEK | main.py | Yalnızca PFAZ 02 hem flat (`pfaz02_ai_training`) hem nested config okuyor; PFAZ 01, 03-13 sadece nested okuyor → config.json'daki ayarlar göz ardı ediliyor | **MATLAB engine ayarı, GPU off ayarı vs. etkisiz hale geliyor!** |
+| BUG-44 | ORTA | PFAZ 01 | `config.json` `dataset_sizes=[100,150,200,267]` (int) ama kod `'ALL'` (str) bekliyor; `NOANOMALY_SIZES={150,200,'ALL'}` set'inde 267 yok | NoAnomaly varyantları üretilmiyor olabilir |
+| BUG-45 | ORTA | PFAZ 03 | `ANFISDatasetSelector` belgede "aktif (2026-05-08)" ama kodda `anfis_parallel_trainer_v2.py:1427-1428` hala `deactivated` log basıyor | **Belge-kod drift'i (KURAL 18 vakası)** |
+| BUG-46 | YUKSEK | PFAZ 02→03→08 | Üç farklı dosya adı aranıyor: PFAZ 02 `training_results_summary.xlsx` yazıyor, PFAZ 03 selector `training_summary.xlsx`, PFAZ 08 `training_summary.xlsx` veya `ai_training_summary.xlsx` arıyor | Selector aktif edilse bile FileNotFound |
 
 ### Akademik Karar — Selector R² Stratejisi (Tez Katkısı)
 
@@ -953,17 +953,17 @@ Düzeltme gerekmiyor. Yalnızca akademik şeffaflık için tez §3.4'te şu cüm
 | # | Dosya | Düzeltme | İlgili Bug |
 |---|-------|----------|------------|
 | 1 | `pfaz09/monte_carlo_simulation_system.py` sat. 194, 288 | `n_bootstrap=100` ve `n_samples_per_level=100` → 1000 (sınıf default'ları) | BUG-38 (tamamlama) |
-| 2 | `pfaz08/model_comparison_dashboard.py` | 15+ yerde `R2_test`/`RMSE_test`/`MAE_test` → `Test_R2`/`Test_RMSE`/`Test_MAE` rename | BUG-13 |
-| 3 | `main.py` | `_get_pfaz_config(pfaz_id)` helper eklenecek; hem flat hem nested config birleştirilecek | BUG-14 |
-| 4 | `pfaz01/dataset_generation_pipeline_v2.py` | `267` ve `'ALL'` eşdeğer kabul edilecek; `NOANOMALY_SIZES`'a 267 eklenecek | BUG-15 |
-| 5 | `pfaz03/anfis_parallel_trainer_v2.py` sat. 1427-1428 | Selector aktif edilecek; `train_all_anfis_parallel` içinde `ANFISDatasetSelector` çağrılacak (Top=50/Mid=50/Low=100) | BUG-16 |
-| 6 | `pfaz03/anfis_dataset_selector.py` | Kolon adları `R2_test` → `Test_R2`; dosya adı `training_summary.xlsx` → ayrıca `training_results_summary.xlsx` dener | BUG-17 |
-| 7 | `pfaz02/parallel_ai_trainer.py` sat. 1657 | Hem `training_results_summary.xlsx` hem `training_summary.xlsx` yazılacak (geri uyumluluk) | BUG-17 |
+| 2 | `pfaz08/model_comparison_dashboard.py` | 15+ yerde `R2_test`/`RMSE_test`/`MAE_test` → `Test_R2`/`Test_RMSE`/`Test_MAE` rename | BUG-42 |
+| 3 | `main.py` | `_get_pfaz_config(pfaz_id)` helper eklenecek; hem flat hem nested config birleştirilecek | BUG-43 |
+| 4 | `pfaz01/dataset_generation_pipeline_v2.py` | `267` ve `'ALL'` eşdeğer kabul edilecek; `NOANOMALY_SIZES`'a 267 eklenecek | BUG-44 |
+| 5 | `pfaz03/anfis_parallel_trainer_v2.py` sat. 1427-1428 | Selector aktif edilecek; `train_all_anfis_parallel` içinde `ANFISDatasetSelector` çağrılacak (Top=50/Mid=50/Low=100) | BUG-45 |
+| 6 | `pfaz03/anfis_dataset_selector.py` | Kolon adları `R2_test` → `Test_R2`; dosya adı `training_summary.xlsx` → ayrıca `training_results_summary.xlsx` dener | BUG-46 |
+| 7 | `pfaz02/parallel_ai_trainer.py` sat. 1657 | Hem `training_results_summary.xlsx` hem `training_summary.xlsx` yazılacak (geri uyumluluk) | BUG-46 |
 
 ### Sprint 5 Sonucu
 
 - BUG-38 tam düzeltildi (sınıf default'ları dahil)
-- 5 yeni bug (BUG-13...BUG-17) tespit ve düzeltme planlandı
+- 5 yeni bug (BUG-42...BUG-46) tespit ve düzeltme planlandı
 - Tez §3.4 için **iki akademik savunma argümanı** belgelendi:
   1. Dual R² PFAZ 2 katmanında uygulandığı için PFAZ 3'te tekrarlanmıyor (literatür destekli)
   2. Adaptive quota redistribution kotaların doldurulamaması durumunu graceful ele alıyor
