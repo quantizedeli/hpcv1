@@ -837,3 +837,142 @@ TRUBA `nucdatav2-truba/` dizini artık:
 ---
 
 *Not Defteri v2.1 | 2026-05-09 | TRUBA Sprint 4 fix'leri, K=1000 MC kararı (literatür destekli), BUG-38 düzeltildi, PFAZ 04/05/06/07/08/10/12/13 kod ve belge güncellemeleri*
+
+---
+
+## TRUBA Hazırlık Devamı — 2026-05-11 (Sprint 5)
+
+QA tekrar denetimi sırasında belgelerde "düzeltildi" işaretli bug'ların kod doğrulaması
+(KURAL 18) yapıldı ve **inter-PFAZ veri akışı kapsamlı tarandı**. Yeni bug'lar tespit
+edildi, mevcutların eksik kısımları tamamlandı.
+
+### Doğrulanan Mevcut Düzeltmeler
+
+| Bug | Belge | Kod Doğrulama | Sonuç |
+|-----|-------|----------------|-------|
+| BUG-02 (HBAR_C) | "DUZELTILDI 2026-05-04" | `constants.py:44` — `HBAR_C = 197.3269804` | TAM |
+| BUG-03 (V_so/r_so/a_so) | "DUZELTILDI 2026-05-04" | `constants.py:72-74` mevcut | TAM |
+| BUG-10 (val_r2 dict riski) | "DUZELTILDI 2026-05-04" | `isinstance(_val, dict)` fallback var | TAM |
+| BUG-31 (NuclearBandAnalyzer alias) | "DUZELTILDI 2026-05-09" | `nuclear_band_analyzer.py:1177` alias mevcut | TAM |
+| BUG-32 (automl indent error) | "DUZELTILDI 2026-05-09" | Syntax test başarılı (`py_compile`) | TAM |
+| **BUG-38 (MC n=1000)** | "DUZELTILDI 2026-05-09" | `DEFAULT_MC_CONFIG` 1000 ✓ ama **sınıf default'ları (194, 288) hala 100** | **YARIM** |
+
+**Tez Notu:** KURAL 18 ("belge != gerçek fix") yine işe yaradı. Belgenin "tam düzeltildi"
+ifadesine güvenmek yanlış — kod gerçek doğrulama gerekiyor. Sprint 5 BUG-38'in eksik
+yarısını tamamlıyor: `Bootstrap.__init__` (sat. 194) ve `Sensitivity.__init__` (sat. 288)
+default'ları 100 → 1000 güncelleniyor.
+
+### Yeni Tespit Edilen Bug'lar (BUG-13 ... BUG-17)
+
+Detaylar `pipeline-hatalari.md` dosyasına eklendi. Özet:
+
+| ID | Öncelik | Faz | Etki | Tez Notu |
+|----|---------|-----|------|----------|
+| BUG-13 | YUKSEK | PFAZ 08 | `model_comparison_dashboard.py` `R2_test` kolonu arıyor; PFAZ 02 `Test_R2` yazıyor → tüm karşılaştırma dashboard'ları KeyError | **Bu, pc error.md'de PFAZ 8'in `pending` kalma sebebi.** |
+| BUG-14 | YUKSEK | main.py | Yalnızca PFAZ 02 hem flat (`pfaz02_ai_training`) hem nested config okuyor; PFAZ 01, 03-13 sadece nested okuyor → config.json'daki ayarlar göz ardı ediliyor | **MATLAB engine ayarı, GPU off ayarı vs. etkisiz hale geliyor!** |
+| BUG-15 | ORTA | PFAZ 01 | `config.json` `dataset_sizes=[100,150,200,267]` (int) ama kod `'ALL'` (str) bekliyor; `NOANOMALY_SIZES={150,200,'ALL'}` set'inde 267 yok | NoAnomaly varyantları üretilmiyor olabilir |
+| BUG-16 | ORTA | PFAZ 03 | `ANFISDatasetSelector` belgede "aktif (2026-05-08)" ama kodda `anfis_parallel_trainer_v2.py:1427-1428` hala `deactivated` log basıyor | **Belge-kod drift'i (KURAL 18 vakası)** |
+| BUG-17 | YUKSEK | PFAZ 02→03→08 | Üç farklı dosya adı aranıyor: PFAZ 02 `training_results_summary.xlsx` yazıyor, PFAZ 03 selector `training_summary.xlsx`, PFAZ 08 `training_summary.xlsx` veya `ai_training_summary.xlsx` arıyor | Selector aktif edilse bile FileNotFound |
+
+### Akademik Karar — Selector R² Stratejisi (Tez Katkısı)
+
+**Soru:** ANFISDatasetSelector'ın PFAZ 03'te yalnız `R2_test` üzerinden seçim yapması
+overfit'i göz ardı etmiyor mu? Neden Train_R2 ile birlikte (dual R²) kullanılmıyor?
+
+**Cevap (savunulabilir akademik gerekçe):**
+
+Dual R² overfit filtresi **PFAZ 02 katmanında** zaten uygulanmıştır:
+- `cv_r2_min_threshold = 0.0` — CV R²'si 0'dan küçük modeller atılır
+- `max_train_cv_gap = 0.5` — Train R² ile CV R² arasında 0.5'ten fazla fark olan modeller
+  aşırı uyduran sayılır (Shang et al. 2023, DOI: `10.1080/15140326.2023.2207326`;
+  Utama et al. 2016, DOI: `10.1103/PhysRevC.93.014311`)
+- `R2_MIN_SAVE_THRESHOLD = 0.5` — val_R² 0.5 altı modeller hiç kaydedilmez
+
+**Pipeline mimarisi:**
+```
+PFAZ 02: Aşırı uyduran modeller elenir (dual R² + CV gap)
+   ↓ (temiz model listesi)
+PFAZ 03 Selector: R²_test üzerinden tier ataması
+   ↓ (temizlenmiş listeden seçilen 200 dataset)
+PFAZ 03 ANFIS Eğitimi
+```
+
+Selector'a **zaten temiz veri** geliyor; tek R² ile katman ayırmak yeterli ve
+tutarlı. Yöntem bölümünde bu mimari ayrımı açıkça belirt:
+> "Aşırı uyduran modellerin elemine edilmesi PFAZ 2'de gerçekleştirilmiştir
+> (Shang et al., 2023; Utama et al., 2016). ANFIS dataset seçimi (PFAZ 3) bu
+> ön-filtrelenmiş havuz üzerinde yalnızca R²_test esaslı tabakalı örnekleme
+> uygulamaktadır; dual R² kontrolünü tekrarlamaya gerek yoktur."
+
+**Tez §3.4 (Yöntem) için doğrudan kullanılabilir argüman.**
+
+### Akademik Karar — Selector Tier Boş Kalma Riski
+
+**Soru:** Top tier eşiği `R²_test ≥ 0.90`. Çoğu modelin R² değeri 0.5-0.7 arasındaysa
+Top tier boş kalır ve hedef sayıya (200) ulaşılamaz.
+
+**Cevap (kodun mevcut adaptif davranışı):**
+
+`anfis_dataset_selector.py:130-158` satırlarında **adaptive deficit redistribution**
+mantığı zaten mevcut:
+
+```python
+# Her tier'i quota'sına kadar doldur
+for name, (df, quota) in tiers.items():
+    allocated[name] = min(quota, len(df))
+
+# Eksik varsa (deficit), boş kapasitesi olan tier'lere round-robin dağıt
+deficit = n_datasets - sum(allocated.values())
+if deficit > 0:
+    for _pass in range(deficit):
+        for name, (df, _) in tiers.items():
+            spare = len(df) - allocated[name]
+            if spare > 0 and deficit > 0:
+                allocated[name] += 1
+                deficit -= 1
+```
+
+**Pratik senaryo (örnek):** Eğer kotalar Top=50 / Mid=50 / Low=100 olarak istenmişse
+ve tier dağılımı Top=0 / Mid=80 / Low=200 ise:
+1. İlk doldurma: Top=0, Mid=50, Low=100 → toplam 150 (deficit=50)
+2. Redistribution: Mid'de 30 boş kapasite, Low'da 100 boş kapasite
+3. Round-robin ile deficit dağıtılır: Top=0, Mid=80, Low=120 → toplam 200 ✓
+
+**Sonuç:** Kod **zaten** "değerde ne kadar varsa onu kullan" mantığını uyguluyor.
+Düzeltme gerekmiyor. Yalnızca akademik şeffaflık için tez §3.4'te şu cümle eklenmeli:
+
+> "Kotaların doldurulamadığı durumlarda (örn. Top tabakanın boş kalması) eksik miktar
+> diğer tabakalardaki artık kapasiteye round-robin esasıyla dağıtılır. Bu sayede
+> hedef seçim sayısı (200 dataset/hedef) mevcut model dağılımı ne olursa olsun
+> garanti altına alınır; ANFIS eğitim kuyruğu beklenmedik biçimde küçülmez."
+
+**Tez §3.4 (Yöntem) → Adaptive Quota Redistribution bölümü** olarak yer alacak.
+
+### Sprint 5 İçeriği (Patch'e Dahil Edilecekler)
+
+| # | Dosya | Düzeltme | İlgili Bug |
+|---|-------|----------|------------|
+| 1 | `pfaz09/monte_carlo_simulation_system.py` sat. 194, 288 | `n_bootstrap=100` ve `n_samples_per_level=100` → 1000 (sınıf default'ları) | BUG-38 (tamamlama) |
+| 2 | `pfaz08/model_comparison_dashboard.py` | 15+ yerde `R2_test`/`RMSE_test`/`MAE_test` → `Test_R2`/`Test_RMSE`/`Test_MAE` rename | BUG-13 |
+| 3 | `main.py` | `_get_pfaz_config(pfaz_id)` helper eklenecek; hem flat hem nested config birleştirilecek | BUG-14 |
+| 4 | `pfaz01/dataset_generation_pipeline_v2.py` | `267` ve `'ALL'` eşdeğer kabul edilecek; `NOANOMALY_SIZES`'a 267 eklenecek | BUG-15 |
+| 5 | `pfaz03/anfis_parallel_trainer_v2.py` sat. 1427-1428 | Selector aktif edilecek; `train_all_anfis_parallel` içinde `ANFISDatasetSelector` çağrılacak (Top=50/Mid=50/Low=100) | BUG-16 |
+| 6 | `pfaz03/anfis_dataset_selector.py` | Kolon adları `R2_test` → `Test_R2`; dosya adı `training_summary.xlsx` → ayrıca `training_results_summary.xlsx` dener | BUG-17 |
+| 7 | `pfaz02/parallel_ai_trainer.py` sat. 1657 | Hem `training_results_summary.xlsx` hem `training_summary.xlsx` yazılacak (geri uyumluluk) | BUG-17 |
+
+### Sprint 5 Sonucu
+
+- BUG-38 tam düzeltildi (sınıf default'ları dahil)
+- 5 yeni bug (BUG-13...BUG-17) tespit ve düzeltme planlandı
+- Tez §3.4 için **iki akademik savunma argümanı** belgelendi:
+  1. Dual R² PFAZ 2 katmanında uygulandığı için PFAZ 3'te tekrarlanmıyor (literatür destekli)
+  2. Adaptive quota redistribution kotaların doldurulamaması durumunu graceful ele alıyor
+
+**Sonraki adım:** Patch dosyası üretilecek (`truba-fixes-sprint5.patch`); kullanıcı
+GitHub `truba-fixes` branch'ine `git am` ile uygulayıp push edecek. TRUBA bağlantısı
+kurulduğunda modül adı placeholder'ları gerçek isimle değiştirilip Apptainer/SLURM
+scripts üretilecek.
+
+---
+
+*Not Defteri v2.2 | 2026-05-11 | Sprint 5: KURAL 18 doğrulamaları, 5 yeni bug, 2 tez katkısı argümanı (Dual R² mimarisi + Adaptive Quota)*

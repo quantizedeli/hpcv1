@@ -1310,3 +1310,359 @@ Dogru import: `anfis_parallel_trainer_v2.py` icindeki `TakagiSugenoANFIS` sinifi
 `feature_set_builder.py` "Physics" adinda bir feature set tanimlamiyor (PFAZ01 import hatasi riski).
 
 **Fix:** `feature_sets: null` olarak degistirildi — hedef-bazli otomatik set secimi (TARGET_RECOMMENDED_SETS).
+
+---
+
+## 2026-05-11 — Sprint 5: Inter-PFAZ Veri Akisi Audit Sonucu Yeni Bug'lar
+
+QA tekrar denetimi sirasinda (commit cd25f42) **inter-PFAZ veri akisi** sistematik taranmis,
+statik analiz ile yakalanmayan 5 yeni bug tespit edilmistir. Detay icin
+`claude-hatalarim-ve-dersler.md` KURAL 19'a bakilabilir.
+
+---
+
+### BUG-13 [YUKSEK] PFAZ 08 model_comparison_dashboard -- Kolon Adi Uyumsuzlugu
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `pfaz_modules/pfaz08_visualization/model_comparison_dashboard.py` |
+| Oncelik | [YUKSEK] |
+| Faz | PFAZ 08 |
+| Tespit | 2026-05-11 inter-PFAZ data flow audit |
+| Durum | Bekliyor (Sprint 5 patch) |
+
+**Sorun:**
+PFAZ 02 `parallel_ai_trainer.py:1648` cikti Excel'inde kolon adlari `Train_R2`,
+`Val_R2`, `Test_R2` (CamelCase) seklinde. Ancak PFAZ 08
+`model_comparison_dashboard.py` 15+ farkli yerde `df['R2_test']`,
+`df['RMSE_test']`, `df['MAE_test']` (snake_case) ariyor:
+
+- Sat. 186: `'R2_test': ['mean', 'std', 'min', 'max', 'count']`
+- Sat. 227-228: `df[df['Model'] == model1]['R2_test'].dropna()`
+- Sat. 268, 275, 309, 334, 366, 374, 393, 418, 457, 489, 495, 519, 521, 543, 652
+
+**Etki:** PFAZ 08 dashboard olusturulurken `KeyError: 'R2_test'` firlatir → tum
+karsilastirma grafikleri uretilemez → `pc error.md` log'unda PFAZ 08 `pending`
+kalir.
+
+**Dogrulama komutu:**
+```bash
+grep -n "R2_test\|Test_R2" pfaz_modules/pfaz02_ai_training/parallel_ai_trainer.py
+grep -cn "R2_test\|Test_R2" pfaz_modules/pfaz08_visualization/model_comparison_dashboard.py
+```
+
+**Fix:**
+```python
+# pfaz08/model_comparison_dashboard.py 15+ yerde:
+# YANLIS:
+df['R2_test']     -> df['Test_R2']
+df['RMSE_test']   -> df['Test_RMSE']
+df['MAE_test']    -> df['Test_MAE']
+df['Training_Time']  -> df['Training_Time_s']
+```
+
+**Yeniden Egitim Gerekli:** HAYIR — yalnizca raporlama/gorsellestirme katmani.
+
+**Tez Notu:** Bu bug `pc error.md` (2026-05-04 Elif K) log'unda PFAZ 08 pending
+kalma sebebidir. Pipeline 13 fazdan 5'i sessizce eksik kalmis.
+
+---
+
+### BUG-14 [YUKSEK] main.py Flat Config Key'leri Cogu PFAZ'da Okumuyor
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `main.py` (run_pfaz_01, 03, 04, 05, 06, 07, 08, 09, 10, 12, 13) |
+| Oncelik | [YUKSEK] |
+| Faz | Tum PFAZ'lar |
+| Tespit | 2026-05-11 config audit |
+| Durum | Bekliyor (Sprint 5 patch) |
+
+**Sorun:**
+`config.json` iki seviye config tutuyor:
+- **Flat:** `pfaz01_dataset_generation`, `pfaz02_ai_training`, ..., `pfaz13_automl` (kullanicinin elle duzenledigi)
+- **Nested:** `pfaz_config[1]`, `pfaz_config[2]`, ..., `pfaz_config[13]` (varsayilan, kod tarafindan)
+
+`main.py:554` icinde **yalnizca PFAZ 02** her ikisini birden okuyor:
+```python
+_pfaz02_cfg = self.config.get('pfaz02_ai_training', {})
+config = self.config['pfaz_config'][pfaz_id]
+```
+
+Diger PFAZ'lar (PFAZ 01, 03-13) yalnizca nested okuyor:
+```python
+config = self.config['pfaz_config'][pfaz_id]
+```
+
+**Etki:** Kullanici `config.json`'da `pfaz03_anfis_training.matlab_engine.enabled =
+true` yapsa bile, main.py default `use_matlab: false` ile gider. Ayni durum GPU
+ayari, n_workers, dataset_sizes, vb. icin de gecerli.
+
+**Ozelikle TRUBA'ya kritik:** TRUBA icin yapilan tum config ozellestirmeleri (GPU off,
+n_workers=16, MATLAB on) sessizce **ignore** edilir.
+
+**Dogrulama komutu:**
+```bash
+grep -n "self\.config\.get('pfaz0\|self\.config\['pfaz_config'\]" main.py | head -20
+```
+
+**Fix:** main.py'ye `_get_pfaz_config(pfaz_id)` helper ekle:
+```python
+def _get_pfaz_config(self, pfaz_id: int) -> Dict:
+    """Hem nested hem flat config'i birlestirir; flat oncelikli."""
+    flat_keys = {
+        1: 'pfaz01_dataset_generation', 2: 'pfaz02_ai_training',
+        3: 'pfaz03_anfis_training', 4: 'pfaz04_unknown_predictions',
+        5: 'pfaz05_cross_model_analysis', 6: 'pfaz06_final_reporting',
+        7: 'pfaz07_ensemble', 8: 'pfaz08_visualization',
+        9: 'pfaz09_aaa2_monte_carlo', 10: 'pfaz10_thesis_compilation',
+        11: 'pfaz11_production_deployment', 12: 'pfaz12_advanced_analytics',
+        13: 'pfaz13_automl'
+    }
+    nested = self.config.get('pfaz_config', {}).get(pfaz_id, {})
+    flat = self.config.get(flat_keys.get(pfaz_id, ''), {})
+    return {**nested, **flat}  # flat oncelikli
+```
+
+Tum `run_pfaz_*` fonksiyonlarinda `config = self._get_pfaz_config(pfaz_id)` kullanilir.
+
+**Yeniden Egitim Gerekli:** Cogu durumda HAYIR (default'larla zaten gitmis). Ama
+GPU/MATLAB/dataset_sizes degisiklikleri yapilmissa bu fix sonrasi tekrar calistirmak
+faydali.
+
+---
+
+### BUG-15 [ORTA] Dataset Sizes -- `267` int vs `'ALL'` str Uyumsuzlugu
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `config.json` (pfaz01_dataset_generation.dataset_sizes) + `pfaz_modules/pfaz01_dataset_generation/dataset_generation_pipeline_v2.py:154` |
+| Oncelik | [ORTA] |
+| Faz | PFAZ 01 |
+| Tespit | 2026-05-11 type consistency check |
+| Durum | Bekliyor (Sprint 5 patch) |
+
+**Sorun:**
+`config.json`:
+```json
+"dataset_sizes": [100, 150, 200, 267]
+```
+
+`dataset_generation_pipeline_v2.py:154`:
+```python
+self.NOANOMALY_SIZES: set = {150, 200, 'ALL'}
+```
+
+`267` integer iken NOANOMALY_SIZES set'inde `'ALL'` string var. Set kontrolu
+`267 in {150, 200, 'ALL'}` -> `False` doner.
+
+**Etki:** NoAnomaly varyantlari yalnizca 150 ve 200 boyutlari icin uretilir; 267
+(ALL) boyutu icin uretilmez. Tezde "tum boyutlar icin NoAnomaly varyanti var" iddiasi
+gerceklesmiyor.
+
+**Dogrulama komutu:**
+```bash
+grep -n "NOANOMALY_SIZES\|'ALL'\|267" pfaz_modules/pfaz01_dataset_generation/dataset_generation_pipeline_v2.py
+python3 -c "import json; c=json.load(open('config.json')); print(c['pfaz01_dataset_generation']['dataset_sizes'])"
+```
+
+**Fix:**
+Iki secenek (ikisi de uygulanabilir):
+
+A) Kodda esdegerlik garanti et:
+```python
+ALL_SIZES = {267, 'ALL'}
+self.NOANOMALY_SIZES: set = {150, 200, 267, 'ALL'}  # her iki temsil de
+```
+
+B) Config'i kodla hizala:
+```json
+"dataset_sizes": [100, 150, 200, "ALL"]   // string olarak
+```
+
+**Onerilen:** A — kod tarafinda esdegerlik kur (kullanicinin int yazimini bozma).
+
+**Yeniden Egitim Gerekli:** EVET — NoAnomaly varyantlari eksik uretildiyse 267 icin
+PFAZ 01 yeniden calistirilmali.
+
+---
+
+### BUG-16 [ORTA] ANFISDatasetSelector -- Kod ile Belge Uyumsuzlugu (Drift)
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `pfaz_modules/pfaz03_anfis_training/anfis_parallel_trainer_v2.py:1427-1428` |
+| Oncelik | [ORTA] |
+| Faz | PFAZ 03 |
+| Tespit | 2026-05-11 kod-belge tutarlilik kontrolu |
+| Durum | Bekliyor (Sprint 5 patch) |
+
+**Sorun:**
+`docs/thesis-toolkit/phases/faz-03-anfis-egitimi.md` belgesi:
+> "11.1 ANFISDatasetSelector -- AKTIF (2026-05-08)
+> `train_all_anfis_parallel` icinde `discover_datasets()` hemen sonrasina entegre
+> edildi. Kota: Top=50, Mid=50, Low=100 (toplam 200/target)."
+
+Kodda gercek durum:
+```python
+# anfis_parallel_trainer_v2.py:1427-1428
+# ANFISDatasetSelector: deactivated - ANFIS 3-phase strategy covers all datasets
+logger.info("[INFO] ANFISDatasetSelector: deactivated (3-phase pilot strategy active)")
+```
+
+**Etki:** Belgenin iddia ettigi tabakali secim aslinda **devre disi**. PFAZ 03 tum
+848 dataset uzerinde calismaya devam ediyor. Belge ileri donuk niyeti not almis ama
+kod hicbir zaman aktive edilmemis. Bu klasik KURAL 18 vakasi.
+
+**Dogrulama komutu:**
+```bash
+grep -n "ANFISDatasetSelector\|deactivated" pfaz_modules/pfaz03_anfis_training/anfis_parallel_trainer_v2.py
+```
+
+**Fix:**
+```python
+# anfis_parallel_trainer_v2.py:1427-1428 yerine:
+try:
+    from .anfis_dataset_selector import ANFISDatasetSelector
+    selector = ANFISDatasetSelector(
+        ai_results_dir=str(self.output_dir.parent / 'trained_models'),
+        output_dir=str(self.output_dir / 'selected_datasets')
+    )
+    selector.load_ai_results()
+    selections = selector.select_both_methods(
+        targets=['MM', 'QM'],
+        n_datasets=200,
+        n_top_quota=50, n_mid_quota=50, n_low_quota=100
+    )
+    # selections kullanilarak dataset listesi filtrele
+    logger.info(f"[OK] ANFISDatasetSelector aktif: {sum(len(v['method1']) for v in selections.values())} dataset secildi")
+except FileNotFoundError:
+    logger.warning("[WARN] PFAZ 02 ciktisi bulunamadi, tum datasetler kullanilacak (fallback)")
+except Exception as e:
+    logger.warning(f"[WARN] Selector calismadi: {e}; tum datasetler kullanilacak")
+```
+
+**Tez Notu:** Tier kotalari (Top=50, Mid=50, Low=100) **akademik olarak savunulabilir**:
+Low tier kotasinin yuksek (100) olmasi "ML basarisiz olan dataset'lerde ANFIS
+performansi" hipotezini test etmek icindir. Detay: `tez-yazim-not-defteri.md`
+Sprint 5 bolumu.
+
+**Yeniden Egitim Gerekli:** EVET — PFAZ 03 yeniden calistirilmali.
+
+---
+
+### BUG-17 [YUKSEK] Training Summary -- Uc Farkli Dosya Adi Aranıyor
+
+| Alan | Deger |
+|------|-------|
+| Dosyalar | PFAZ 02 yaziyor; PFAZ 03 selector ariyor; PFAZ 08 visualizer ariyor |
+| Oncelik | [YUKSEK] |
+| Faz | PFAZ 02 -> PFAZ 03 -> PFAZ 08 |
+| Tespit | 2026-05-11 inter-PFAZ file flow audit |
+| Durum | Bekliyor (Sprint 5 patch) |
+
+**Sorun:**
+Uc PFAZ ucu de farkli dosya adi kullaniyor:
+
+| PFAZ | Islem | Dosya Adi | Konum |
+|------|-------|-----------|-------|
+| 02 (yazar) | Excel | `training_results_summary.xlsx` | `parallel_ai_trainer.py:1657` |
+| 02 (yazar) | JSON | `training_summary.json` | `parallel_ai_trainer.py:1582` |
+| 03 (selector okur) | Excel | `training_summary.xlsx` (yok!) | `anfis_dataset_selector.py:66` |
+| 08 (viz okur) | Excel | `training_summary.xlsx` veya `ai_training_summary.xlsx` | `visualization_master_system.py:4340-4342` |
+| 10 (thesis okur) | JSON | `training_summary.json` (var) | `pfaz10_content_generator.py:66` |
+
+**Etki:**
+- PFAZ 03 selector aktif edilirse (BUG-16 fix sonrasi) `FileNotFoundError` firlatir
+- PFAZ 08 viz "summary bulunamadi -- atlaniyor" warning'i basar ve baska bir cikti
+  uretmez
+- PFAZ 10 sadece JSON okudugu icin etkilenmez
+
+**Dogrulama komutu:**
+```bash
+grep -rn "training_summary\|training_results_summary" --include="*.py" pfaz_modules/
+```
+
+**Fix:**
+PFAZ 02'de **iki dosya** yaz (yeni isim + eski isim, geri uyumluluk):
+
+```python
+# pfaz02/parallel_ai_trainer.py:1655-1664
+if rows:
+    df = pd.DataFrame(rows)
+    excel_files = [
+        self.output_dir / 'training_results_summary.xlsx',  # legacy
+        self.output_dir / 'training_summary.xlsx',          # canonical
+    ]
+    for excel_file in excel_files:
+        with pd.ExcelWriter(excel_file, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='All_Results', index=False)
+            for mtype in df['Model_Type'].unique():
+                sub = df[df['Model_Type'] == mtype]
+                sheet = mtype[:31]
+                sub.to_excel(writer, sheet_name=sheet, index=False)
+    logger.info(f"[OK] Excel ozet raporu: training_summary.xlsx + training_results_summary.xlsx")
+```
+
+Selector tarafinda (`anfis_dataset_selector.py:66`) da fallback ekle:
+```python
+if summary_file is None:
+    candidates = [
+        self.ai_results_dir / 'training_summary.xlsx',
+        self.ai_results_dir / 'training_results_summary.xlsx',  # fallback
+    ]
+    summary_file = next((p for p in candidates if p.exists()), candidates[0])
+```
+
+**Yeniden Egitim Gerekli:** HAYIR — yalnizca raporlama dosya adi. Ancak BUG-16
+selector aktive edilince bu fix yapilmadan PFAZ 03 baslayamaz.
+
+---
+
+### BUG-38 (TAMAMLAMA) [DUSUK] MonteCarlo Sinif Default'lari -- 100 Hala
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `pfaz_modules/pfaz09_aaa2_monte_carlo/monte_carlo_simulation_system.py:194, 288` |
+| Oncelik | [DUSUK] |
+| Faz | PFAZ 09 |
+| Tespit | 2026-05-11 KURAL 18 dogrulamasi |
+| Durum | YARIM duzeltildi 2026-05-09; Sprint 5'te tamamlanacak |
+
+**Sorun:**
+2026-05-09 Sprint 4'te `DEFAULT_MC_CONFIG`'de `n_bootstrap` ve `n_samples_per_level`
+100'den 1000'e cikartildi (Efron & Tibshirani 1993). Ancak sinif tanimlarinda
+default parametre degerleri **hala 100**:
+
+```python
+# sat. 194: class Bootstrap:
+def __init__(self, n_bootstrap: int = 100, stratified: bool = True):
+
+# sat. 288: class Sensitivity:
+def __init__(self, ..., n_samples_per_level: int = 100, ...):
+```
+
+**Etki:** `MonteCarloSimulationSystem(config=DEFAULT_MC_CONFIG)` cagrildiginda 1000
+kullanilir (config dict gecer). Ama dogrudan `Bootstrap()` veya `Sensitivity()`
+cagrilirsa 100 default ile baslar. Pipeline icinde her ikisi de mevcut.
+
+**Dogrulama komutu:**
+```bash
+grep -n "n_bootstrap.*=\|n_samples_per_level.*=" pfaz_modules/pfaz09_aaa2_monte_carlo/monte_carlo_simulation_system.py
+```
+
+**Fix:**
+```python
+# sat. 194:
+def __init__(self, n_bootstrap: int = 1000, stratified: bool = True):
+
+# sat. 288:
+def __init__(self, ..., n_samples_per_level: int = 1000, ...):
+```
+
+**Yeniden Egitim Gerekli:** HAYIR (config dict ile cagrilmissa zaten 1000); EVET
+(dogrudan sinif cagrilmissa).
+
+---
+
+*Sprint 5 raporu sonu | 5 yeni bug (BUG-13 ... BUG-17) + BUG-38 tamamlama | Toplam: 8 yeni audit kalemi*

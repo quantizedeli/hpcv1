@@ -526,3 +526,70 @@ Kanit olmadan "duzeltildi" yazma. Belge niyeti degil gercegi yansitmali.
 
 *Claude-Hatalarim-ve-Dersler v1.6 | 2026-05-09*
 *Guncelleme: KURAL 18 eklendi — belgedeki "duzeltildi" != gercek fix; kod dogrulama zorunlu*
+
+---
+
+## KURAL 19: Inter-PFAZ Veri Akisi Audit — Statik Test Yetmez
+
+### Hata (2026-05-11 oturumu)
+
+Onceki QA turlarinda "import OK", "syntax OK", "py_compile OK" testleri yapilmis;
+hepsi gecmis. Ancak runtime'da PFAZ 02 → PFAZ 03 → PFAZ 08 veri akisinda **kolon adi
+ve dosya adi uyumsuzluklari** (BUG-13, BUG-17) silent KeyError/FileNotFoundError
+ureten 5 yeni bug ortaya cikti. Bunlar **statik analiz ile asla yakalanmaz** —
+yalnizca pipeline ucuna kadar gercek run veya inter-PFAZ entegrasyon testi gosterir.
+
+Ornek: PFAZ 02 `parallel_ai_trainer.py:1648` `'Test_R2'` yaziyor; PFAZ 08
+`model_comparison_dashboard.py:186` `'R2_test'` ariyor → 15+ yerde KeyError; PFAZ 8
+sessizce "pending" kaliyor.
+
+### Ders
+
+Major degisiklik veya yeni PFAZ eklendiginde **Inter-PFAZ Data Flow Audit** sart:
+
+```bash
+# 1) Yazilan dosyalar
+grep -rn "to_excel\|to_csv\|json\.dump" --include="*.py" pfaz_modules/ > /tmp/writes.txt
+
+# 2) Okunan dosyalar
+grep -rn "read_excel\|read_csv\|json\.load" --include="*.py" pfaz_modules/ > /tmp/reads.txt
+
+# 3) Yazilan vs okunan dosya adi karsilastirmasi (orphan reads = bug)
+# Dosya adi tutarli mi? PFAZ X'in yazdigi adi PFAZ Y ariyor mu?
+
+# 4) Kolon adi tutarlilik
+grep -rn "'R2_test'\|'Test_R2'\|'R2_train'\|'Train_R2'" --include="*.py" pfaz_modules/
+
+# 5) Config flat (pfaz0X_*) vs nested (pfaz_config[id]) kullanim
+python3 -c "
+import json
+c = json.load(open('config.json'))
+print('FLAT:', [k for k in c if k.startswith('pfaz')])
+print('NESTED:', list(c.get('pfaz_config', {}).keys()))
+"
+# main.py'de hem flat hem nested okunuyor mu kontrol et
+```
+
+### Kontrol noktasi
+
+- "Test passed" demeden once: 5 grep komutunu calistir, ciktilari analiz et
+- Yazilan dosya adi != okunan dosya adi varsa = BUG (orphan read)
+- Aynı veri icin farkli kolon adi (`R2_test` vs `Test_R2`) varsa = BUG
+- Config'de flat key var ama main.py sadece nested okuyorsa = BUG (silent ignore)
+
+### Statik vs Dinamik Test Farki
+
+| Test Tipi | Yakalar | Yakalamaz |
+|-----------|---------|-----------|
+| `py_compile` | Syntax error, IndentationError | Runtime KeyError, FileNotFoundError |
+| `import test` | ImportError, NameError | Inter-module data flow bug |
+| Unit test (izole PFAZ) | Modul ici hatalar | PFAZ X → Y entegrasyon hatasi |
+| **Inter-PFAZ audit (yeni)** | Kolon/dosya adi tutarsizligi, config drift | - |
+
+Statik testler **gerekli ama yetersiz**. Inter-PFAZ audit **ek katman** olarak
+her major degisiklik sonrasi calistirilmali.
+
+---
+
+*Claude-Hatalarim-ve-Dersler v1.7 | 2026-05-11*
+*Guncelleme: KURAL 19 eklendi — inter-PFAZ data flow audit zorunlu (statik test yetmez)*
