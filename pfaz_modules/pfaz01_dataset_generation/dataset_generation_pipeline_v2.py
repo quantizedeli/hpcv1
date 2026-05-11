@@ -151,7 +151,14 @@ class DatasetGenerationPipelineV2:
         self.feature_sets = feature_sets  # None -> target-specific, list -> tum targetlar icin ayni
 
         # NoAnomaly varyanti uretilecek boyutlar
-        self.NOANOMALY_SIZES: set = {150, 200, 'ALL'}
+        # BUG-15 fix (Sprint 5): config.json'da 267 (int), kodda 'ALL' (str)
+        # kullaniliyordu; set match basarisizdi. Iki temsil de eklendi.
+        self.NOANOMALY_SIZES: set = {150, 200, 267, 'ALL'}
+        
+        # BUG-15 fix (Sprint 5): "tum cekirdekleri kullan" semantigini tasiyan
+        # girdiler. 'ALL' string'i, 267 (n_available) int'i veya None hepsi
+        # ayni anlama gelir. _is_full_set() helper'i ile karsilastirma yapilir.
+        self._FULL_SET_MARKERS: set = {'ALL', 267, None}
 
         # Scenario(s): tek string veya liste desteklenir
         # scenarios=['S70','S80'] -> her ikisi de uretilir (iki kat dataset)
@@ -212,6 +219,24 @@ class DatasetGenerationPipelineV2:
         logger.info(f"Scenario: {self.scenario}")  # [FAZ 2]
         logger.info(f"Scaling: {self.scaling}")  # [FAZ 2]
         logger.info(f"Sampling: {self.sampling}")  # [FAZ 2]
+    
+    def _is_full_set(self, n_nuclei, n_available: int = None) -> bool:
+        """
+        BUG-15 fix (Sprint 5): 'ALL', 267, None ve n_available'a esit int
+        girisleri "tum cekirdek setini kullan" olarak yorumlar.
+        
+        Args:
+            n_nuclei: Kullanicinin/config'in istedigi cekirdek sayisi
+            n_available: Mevcut toplam cekirdek sayisi (opsiyonel)
+        
+        Returns:
+            True: tum cekirdekleri kullan; False: alt-ornekleme yap
+        """
+        if n_nuclei in self._FULL_SET_MARKERS:
+            return True
+        if isinstance(n_nuclei, int) and n_available is not None and n_nuclei >= n_available:
+            return True
+        return False
     
     def run_complete_pipeline(self) -> Dict:
         """
@@ -679,7 +704,8 @@ class DatasetGenerationPipelineV2:
                 for n_nuclei in self.nucleus_counts:
                     # --- Küçük dataset kısıtı ---
                     # 75/100 çekirdek: yalnızca S70 senaryosunda üret, diğerini atla
-                    effective_count = n_nuclei if n_nuclei != 'ALL' else 9999
+                    # BUG-15 fix: 'ALL' veya 267 -> full-set sayilir
+                    effective_count = n_nuclei if not self._is_full_set(n_nuclei, n_available) else 9999
                     if (isinstance(effective_count, int) and
                             effective_count <= self.SMALL_NUCLEUS_THRESHOLD and
                             current_scenario != self.SMALL_NUCLEUS_SCENARIO):
@@ -687,7 +713,8 @@ class DatasetGenerationPipelineV2:
                                     f"küçük dataset sadece {self.SMALL_NUCLEUS_SCENARIO}'de üretilir")
                         continue
                     # Boyut hesabi
-                    if n_nuclei == 'ALL':
+                    # BUG-15 fix: 'ALL' string'i veya 267 int'i ayni anlama gelir
+                    if self._is_full_set(n_nuclei, n_available):
                         effective_n = n_available
                         size_label = f"ALL_{n_available}"
                         forced_size_label = 'ALL'
@@ -843,7 +870,9 @@ class DatasetGenerationPipelineV2:
             Dataset metadata dictionary
         """
         # Sampling
-        if n_nuclei == 'ALL':
+        # BUG-15 fix (Sprint 5): 'ALL' veya 267 (n_available) ayni anlama gelir
+        n_avail_local = len(source_df)
+        if self._is_full_set(n_nuclei, n_avail_local):
             sampled_df = source_df.copy()
             actual_n = len(sampled_df)
             size_label = forced_size_label if forced_size_label else f"ALL_{actual_n}"
@@ -1018,7 +1047,8 @@ class DatasetGenerationPipelineV2:
         """Tek bir dataset oluştur ve train/val/test olarak böl"""
 
         # Handle 'ALL' case
-        if n_nuclei == 'ALL':
+        # BUG-15 fix (Sprint 5): 'ALL' veya 267 ayni anlama gelir
+        if self._is_full_set(n_nuclei, len(source_df)):
             sampled_df = source_df.copy()
             actual_n = len(sampled_df)
             dataset_name = f"{target}_ALL_{actual_n}nuclei"

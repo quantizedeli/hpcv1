@@ -87,6 +87,32 @@ class ModelComparisonDashboard:
         
         all_results = []
         
+        # BUG-13 fix (Sprint 5): PFAZ2 yeni kolon adlari (Test_R2/Train_R2/Val_R2 +
+        # Test_RMSE/Test_MAE) ile bu dashboard'un eski kolon adlari (R2_test/RMSE_test
+        # vb.) arasinda uyumsuzluk vardi. Kolon adlarini yukleme sirasinda
+        # normalize ediyoruz; geri uyumluluk korunuyor.
+        def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
+            rename_map = {
+                'Test_R2':    'R2_test',
+                'Test_RMSE':  'RMSE_test',
+                'Test_MAE':   'MAE_test',
+                'Val_R2':     'R2_val',
+                'Val_RMSE':   'RMSE_val',
+                'Val_MAE':    'MAE_val',
+                'Train_R2':   'R2_train',
+                'Train_RMSE': 'RMSE_train',
+                'Train_MAE':  'MAE_train',
+                'Training_Time_s': 'Training_Time',
+                'Dataset':    'Dataset_Name',  # opsiyonel, gerekirse kullanilir
+            }
+            # Yalnizca hedef kolon adi yoksa rename uygula (cakismayi onler)
+            actual_renames = {k: v for k, v in rename_map.items()
+                              if k in df.columns and v not in df.columns}
+            if actual_renames:
+                df = df.rename(columns=actual_renames)
+                logger.info(f"  [BUG-13] Kolon adi normalize: {list(actual_renames.keys())} -> dashboard formati")
+            return df
+        
         # Load AI results
         if ai_results_file and Path(ai_results_file).exists():
             logger.info(f"  Loading AI results: {ai_results_file}")
@@ -96,6 +122,7 @@ class ModelComparisonDashboard:
             else:
                 ai_df = pd.read_csv(ai_results_file)
             
+            ai_df = _normalize_columns(ai_df)
             ai_df['Model_Category'] = 'AI'
             all_results.append(ai_df)
         
@@ -108,6 +135,7 @@ class ModelComparisonDashboard:
             else:
                 anfis_df = pd.read_csv(anfis_results_file)
             
+            anfis_df = _normalize_columns(anfis_df)
             anfis_df['Model_Category'] = 'ANFIS'
             all_results.append(anfis_df)
         
