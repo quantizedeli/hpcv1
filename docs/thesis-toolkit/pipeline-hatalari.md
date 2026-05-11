@@ -1666,3 +1666,439 @@ def __init__(self, ..., n_samples_per_level: int = 1000, ...):
 ---
 
 *Sprint 5 raporu sonu | 5 yeni bug (BUG-42 ... BUG-46) + BUG-38 tamamlama | Toplam: 8 yeni audit kalemi*
+
+---
+
+## 2026-05-12 -- Sprint 6: 8 Kategori Kapsamli Tarama
+
+8 paralel sub-agent ile 165+ Python dosyasi taranmis; 15 yeni bug (BUG-47...BUG-61) tespit edilmistir.
+Kategoriler: Hardcoded Path, Optional Import, Excel Sheet Name, n_jobs Nested Parallelism,
+Silent Exception, Encoding, Memory Leak, Doc vs Artifact.
+
+### Ozet Tablo
+
+| ID | Oncelik | Kategori | Faz | Fix Durumu |
+|----|---------|----------|-----|------------|
+| BUG-47 | [TRUBA-CRITICAL] | Hardcoded Path | analysis_modules | Bekliyor |
+| BUG-48 | [TRUBA-CRITICAL] | Hardcoded Path | visualization_modules | Bekliyor |
+| BUG-49 | [YUKSEK] | Optional Import | PFAZ 02 | Bekliyor |
+| BUG-50 | [ORTA] | Optional Import | PFAZ 09 | Bekliyor |
+| BUG-51 | [YUKSEK] | Excel Sheet Name | PFAZ 06/08 | Bekliyor |
+| BUG-52 | [ORTA] | Excel Sheet Name | PFAZ 06 | Bekliyor |
+| BUG-53 | [KRITIK] | Memory Leak | PFAZ 02/13 | Bekliyor |
+| BUG-54 | [ORTA] | Memory Leak | PFAZ 02 | Bekliyor |
+| BUG-55 | [YUKSEK] | Silent Exception | PFAZ 04 | Bekliyor |
+| BUG-56 | [YUKSEK] | Silent Exception | PFAZ 06 | Bekliyor |
+| BUG-57 | [KRITIK] | Silent Exception | PFAZ 13 | Bekliyor |
+| BUG-58 | [ORTA] | n_jobs Parallelism | PFAZ 02 | Bekliyor |
+| BUG-59 | [TASARIM] | Doc vs Artifact | PFAZ 06 | Bekliyor |
+| BUG-60 | [TASARIM] | Doc vs Artifact | PFAZ 07 | Bekliyor |
+| BUG-61 | [TASARIM] | Doc vs Artifact | PFAZ 10 | Bekliyor |
+
+**Not:** Encoding (Kategori 10) temiz cikti -- 0 bug. n_jobs=-1 hardcoded YOK; _inner_n_jobs() dogru kullaniliyor.
+
+---
+
+### BUG-47 [TRUBA-CRITICAL] Hardcoded /home/claude sys.path -- real_data_integration_manager
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `analysis_modules/real_data_integration_manager.py:28-29` |
+| Oncelik | [TRUBA-CRITICAL] |
+| Tespit | 2026-05-12 Sprint 6 path taramasi |
+
+**Sorun:**
+```python
+sys.path.insert(0, '/home/claude')           # sat. 28 -- Claude.ai artifact ortami
+sys.path.insert(0, '/mnt/user-data/outputs') # sat. 29 -- Claude.ai artifact mount point
+```
+Bu iki satir modul seviyesinde (her import aninda) calisiyor. `/home/claude` TRUBA'da mevcut degil.
+`from ensemble_model_builder import EnsembleModelBuilder` bu path'e bagimli.
+
+**Etki:** Bu modul import edildiginde `ImportError` riski. TRUBA'da her pipeline calistirmasinda crash.
+
+**Fix:**
+```python
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+# /mnt/user-data/outputs satiri tamamen kaldirilmali
+```
+
+**Yeniden Egitim Gerekli:** HAYIR -- import duzeltmesi.
+
+---
+
+### BUG-48 [TRUBA-CRITICAL] Hardcoded /mnt/user-data/outputs sys.path -- visualization_integration
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `visualization_modules/visualization_integration.py:31` |
+| Oncelik | [TRUBA-CRITICAL] |
+| Tespit | 2026-05-12 Sprint 6 path taramasi |
+
+**Sorun:**
+```python
+sys.path.insert(0, '/mnt/user-data/outputs')  # sat. 31
+```
+Bu modul `reports_visualization_integration.py:205`'den try/except icinde import ediliyor;
+tam crash olmaz ama gorsellestime tamamen devre disi kalir.
+
+**Etki:** PFAZ 08 TRUBA'da gorsellestime ciktisi uretemiyor; tez sekilleri eksik.
+
+**Fix:** Satir 31 kaldirilmali; importlar tam package path ile yapilmali.
+
+**Yeniden Egitim Gerekli:** HAYIR.
+
+---
+
+### BUG-49 [YUKSEK] torch Hard Import -- advanced_models_extended.py
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `pfaz_modules/pfaz02_ai_training/advanced_models_extended.py:16-20` |
+| Oncelik | [YUKSEK] |
+| Faz | PFAZ 02 |
+| Tespit | 2026-05-12 Sprint 6 optional import taramasi |
+
+**Sorun:**
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.utils.data import TensorDataset, DataLoader
+```
+5 torch import korumasiz (try/except yok, TORCH_AVAILABLE flag yok). Oysa ayni PFAZ'in
+`advanced_models.py:15-28` dosyasi tam dogru patterni kullaniyor.
+
+**Karsilastirma -- Dogru Pattern:**
+```python
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    torch = None
+    TORCH_AVAILABLE = False
+```
+
+**Etki:** TRUBA'da PyTorch kurulu degilse import aninda `ModuleNotFoundError`. PFAZ 02 baslamiyor.
+
+**Fix:** `advanced_models_extended.py:16-31` araligini try/except + TORCH_AVAILABLE ile sar.
+
+**Yeniden Egitim Gerekli:** HAYIR -- import duzeltmesi.
+
+---
+
+### BUG-50 [ORTA] tqdm Hard Import -- pfaz09 (2 dosya)
+
+| Alan | Deger |
+|------|-------|
+| Dosyalar | `pfaz_modules/pfaz09_aaa2_monte_carlo/aaa2_control_group_complete_v4.py:29` |
+|          | `pfaz_modules/pfaz09_aaa2_monte_carlo/monte_carlo_simulation_system.py:31` |
+| Oncelik | [ORTA] |
+| Faz | PFAZ 09 |
+| Tespit | 2026-05-12 Sprint 6 optional import taramasi |
+
+**Sorun:**
+```python
+from tqdm import tqdm   # korumasiz
+```
+Her iki dosyada da try/except yok, TQDM_AVAILABLE flag yok.
+
+**Fix (her iki dosya):**
+```python
+try:
+    from tqdm import tqdm
+    TQDM_AVAILABLE = True
+except ImportError:
+    tqdm = None
+    TQDM_AVAILABLE = False
+```
+Kullanim noktalarinda: `if TQDM_AVAILABLE: iterator = tqdm(items) else: iterator = items`
+
+**Yeniden Egitim Gerekli:** HAYIR.
+
+---
+
+### BUG-51 [YUKSEK] Excel Sheet Name Uyumsuzlugu -- Robustness_CV_Results vs Robustness_CV
+
+| Alan | Deger |
+|------|-------|
+| Yazan | `pfaz_modules/pfaz06_final_reporting/pfaz6_final_reporting.py:746` |
+| Okuyan | `pfaz_modules/pfaz08_visualization/visualization_master_system.py:1492` |
+| Oncelik | [YUKSEK] |
+| Faz | PFAZ 06 -> PFAZ 08 |
+| Tespit | 2026-05-12 Sprint 6 sheet name taramasi |
+
+**Sorun:**
+- PFAZ 06 yazar: `sheet_name='Robustness_CV'`
+- PFAZ 08 okur: `sheet_name='Robustness_CV_Results'`
+
+Sheet adi uyumsuzlugu. PFAZ 08 bu sheet'i bulamazsa sessizce None doner; robustness grafikleri uretilmez.
+
+**Fix:** PFAZ 08 okuma kismini `sheet_name='Robustness_CV'` olarak guncelle:
+```python
+# visualization_master_system.py:1492
+df = pd.read_excel(excel_path, sheet_name='Robustness_CV')  # 'Results' kaldirildi
+```
+
+**Yeniden Egitim Gerekli:** HAYIR -- yalnizca gorsellestime kodu.
+
+---
+
+### BUG-52 [ORTA] Dinamik Sheet Name -- Truncation Eksik (comprehensive_excel_reporter.py)
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `pfaz_modules/pfaz06_final_reporting/comprehensive_excel_reporter.py:210, 223` |
+| Oncelik | [ORTA] |
+| Faz | PFAZ 06 |
+| Tespit | 2026-05-12 Sprint 6 sheet name taramasi |
+
+**Sorun:**
+```python
+sheet_name = f'{target}_Sonuclar'     # sat. 210 -- [:31] yok
+sheet_name = f'{config_id}_Detay'     # sat. 223 -- [:31] yok
+```
+Mevcut data degerleriyle 31 siniri asilmiyor. Ancak beklenmedik data gelirse openpyxl crash eder.
+
+**Fix:**
+```python
+sheet_name = f'{target}_Sonuclar'[:31]
+sheet_name = f'{config_id}_Detay'[:31]
+```
+
+**Yeniden Egitim Gerekli:** HAYIR.
+
+---
+
+### BUG-53 [KRITIK] TF Memory Leak -- Optuna Trial Dongulerinde clear_session Eksik
+
+| Alan | Deger |
+|------|-------|
+| Dosyalar | `pfaz_modules/pfaz02_ai_training/hyperparameter_tuner.py:423, 436` |
+|          | `pfaz_modules/pfaz13_automl/automl_optimizer.py:289` |
+|          | `pfaz_modules/pfaz13_automl/automl_hyperparameter_optimizer.py:276` |
+| Oncelik | [KRITIK] |
+| Faz | PFAZ 02, 13 |
+| Tespit | 2026-05-12 Sprint 6 memory leak taramasi |
+
+**Sorun:**
+Optuna her trial'da yeni Keras modeli olusturuyor ve `model.fit()` cagiriyor. Her fit sonrasinda
+`tf.keras.backend.clear_session()` cagrilmiyor. 30+ trial x n_datasets GPU VRAM birikmesi.
+
+Karsilastirma: `parallel_ai_trainer.py:1468-1483` dogru patterni kullaniyor (projede tek yer).
+
+**Etki:** TRUBA'da GPU bellek tukenirse `ResourceExhaustedError`; PFAZ 02/13 ortasinda durur.
+
+**Fix (her uc dosyada _train_dnn metoduna finally blogu ekle):**
+```python
+try:
+    history = model.fit(...)
+finally:
+    try:
+        import tensorflow as tf
+        tf.keras.backend.clear_session()
+    except Exception:
+        pass
+    import gc
+    gc.collect()
+```
+
+**Yeniden Egitim Gerekli:** HAYIR -- temizlik kod iyilestirmesi.
+
+---
+
+### BUG-54 [ORTA] TF Memory Leak -- model_trainer.py Eski Trainer
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `pfaz_modules/pfaz02_ai_training/model_trainer.py:489` |
+| Oncelik | [ORTA] |
+| Faz | PFAZ 02 |
+| Tespit | 2026-05-12 Sprint 6 memory leak taramasi |
+
+**Sorun:**
+`DNNTrainer.train()` icinde `model.fit()` cagrisinda finally blogu ve clear_session yok.
+Bu eski trainer dogrudan cagrilirsa (main pipeline disinda) TF grafikleri birikir.
+
+**Fix:** BUG-53 ile ayni pattern -- finally + clear_session ekle.
+
+**Yeniden Egitim Gerekli:** HAYIR.
+
+---
+
+### BUG-55 [YUKSEK] Silent Exception -- PFAZ 04 Model Yukleme Koru
+
+| Alan | Deger |
+|------|-------|
+| Dosyalar | `pfaz_modules/pfaz04_unknown_predictions/unknown_nuclei_predictor.py:149, 190, 240` |
+|          | `pfaz_modules/pfaz04_unknown_predictions/single_nucleus_predictor.py:423, 455, 485` |
+| Oncelik | [YUKSEK] |
+| Faz | PFAZ 04 |
+| Tespit | 2026-05-12 Sprint 6 silent exception taramasi |
+
+**Sorun:**
+```python
+except Exception:
+    pass   # metrics_*.json okuma hatasi sessiz
+except Exception:
+    return {'r2': None, 'rmse': None, 'mae': None}  # metrik hesaplama sessiz
+except Exception:
+    continue  # model tarama dongusunde sessiz atla
+```
+Model yukleme, metrik okuma, ve CI hesaplamasi hatalari hic loglanmiyor.
+Top-25 konsensus listesi eksik model iceriyor ama sebep bilinmiyor.
+
+**Fix (her noktada):**
+```python
+except Exception as e:
+    get_tracker().warn(f"[PFAZ04] Model scan/metric read failed: {e}", category="WARNING")
+    continue  # veya return None
+```
+
+**Yeniden Egitim Gerekli:** HAYIR -- loglama iyilestirmesi.
+
+---
+
+### BUG-56 [YUKSEK] Silent Exception -- PFAZ 06 Rapor JSON Okumalari
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `pfaz_modules/pfaz06_final_reporting/pfaz6_final_reporting.py:375, 406, 470, 532, 1415` |
+| Oncelik | [YUKSEK] |
+| Faz | PFAZ 06 |
+| Tespit | 2026-05-12 Sprint 6 silent exception taramasi |
+
+**Sorun:**
+```python
+except Exception:
+    continue  # AI metrics_*.json okuma hatasi
+except Exception:
+    pass      # CV results JSON okuma
+except Exception:
+    continue  # ANFIS metrics_*.json okuma
+except Exception:
+    pass      # robustness CV JSON
+except Exception:
+    pass      # Excel sheet yazma hatasi
+```
+Excel raporunda eksik satirlar/sayfalar olustugunda kullanici hic fark etmez.
+
+**Fix:** Her bloga `get_tracker().warn(f"[PFAZ06] {dosya_adi} read failed: {e}", ...)` ekle.
+
+**Yeniden Egitim Gerekli:** HAYIR.
+
+---
+
+### BUG-57 [KRITIK] Silent Exception -- PFAZ 13 AutoML Dataset Yukleme
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `pfaz_modules/pfaz13_automl/automl_retraining_loop.py:211, 305, 758` |
+| Oncelik | [KRITIK] |
+| Faz | PFAZ 13 |
+| Tespit | 2026-05-12 Sprint 6 silent exception taramasi |
+
+**Sorun:**
+```python
+except Exception:
+    pass  # veri yukleme hatasi
+except Exception:
+    pass  # config.json okuma hatasi
+except Exception:
+    pass  # bos rapor JSON yazma hatasi
+```
+AutoML dongusu calismiyor ama hata izi birakmadan None donuyor. PFAZ 13 gibi
+gorunuyor ama hicbir model optimize edilmiyor.
+
+**Fix:**
+```python
+except Exception as e:
+    get_tracker().warn(f"[PFAZ13] Dataset load/config read failed: {e}", category="ERROR")
+```
+
+**Yeniden Egitim Gerekli:** HAYIR -- loglama; sonrasinda PFAZ 13 yeniden calistir.
+
+---
+
+### BUG-58 [ORTA] ProcessPoolExecutor -- _PFAZ_PARALLEL_ACTIVE Flag Eksik
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `pfaz_modules/pfaz02_ai_training/model_trainer.py:607` |
+| Sinif | `ParallelTrainer.train_all_parallel()` |
+| Oncelik | [ORTA] |
+| Faz | PFAZ 02 |
+| Tespit | 2026-05-12 Sprint 6 n_jobs taramasi |
+
+**Sorun:**
+`ProcessPoolExecutor` kullanilirken oncesinde `os.environ['_PFAZ_PARALLEL_ACTIVE'] = '1'` set edilmiyor.
+`_inner_n_jobs()` bu flag olmadan -1 dondurur; child process'lerde RF/XGB'de nested parallelism riski.
+Not: ProcessPoolExecutor child process'leri fork sonrasi env'yi inherit etmeyebilir.
+
+**Fix onerileri (ikisi de gecerli):**
+- A) ProcessPoolExecutor -> ThreadPoolExecutor degistir (env shared olur)
+- B) ProcessPool initializer fonksiyonu ile flag set et
+
+**Yeniden Egitim Gerekli:** HAYIR -- parallelism kodu degisikligi.
+
+---
+
+### BUG-59 [TASARIM] PFAZ 6 Sheet Sayisi -- Her Iki CLAUDE.md Yanlis
+
+| Alan | Deger |
+|------|-------|
+| Dosyalar | `CLAUDE.md` (kok), `docs/thesis-toolkit/CLAUDE.md` |
+| Oncelik | [TASARIM] |
+| Faz | PFAZ 06 |
+| Tespit | 2026-05-12 Sprint 6 doc vs artifact taramasi |
+
+**Sorun:**
+- Kok CLAUDE.md: "18-sheet Excel" -- YANLIS
+- docs/thesis-toolkit/CLAUDE.md: "29-sheet Excel workbook" -- YANLIS
+- `pfaz6_final_reporting.py` gercekte **22-29 sheet** uretiyor (konfigurasyona gore degisken).
+- Eski `comprehensive_excel_reporter.py` 18 sheet uretiyor (ancak ana rapor bu dosya degil).
+
+**Fix:** Her iki CLAUDE.md'yi "22-29 sheet (konfigurasyona gore)" seklinde guncelle.
+
+---
+
+### BUG-60 [TASARIM] PFAZ 7 Stacking Sayisi Yanlis Belgelenmis
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `docs/thesis-toolkit/CLAUDE.md` |
+| Oncelik | [TASARIM] |
+| Faz | PFAZ 07 |
+| Tespit | 2026-05-12 Sprint 6 doc vs artifact taramasi |
+
+**Sorun:**
+CLAUDE.md: "5 voting + 6 stacking + AdaBoost"
+Gercek `EnsemblePipeline._run_stacking()`: **4 meta-model** (Ridge, Lasso, RF, GBM).
+MLP ve ElasticNet yalnizca `stacking_meta_learner.py`'de tanimli, ana pipeline'da cagrilmiyor.
+
+**Fix:** Dokumantasyonu "5 voting + 4 stacking + AdaBoost" seklinde guncelle.
+
+---
+
+### BUG-61 [TASARIM] Kok CLAUDE.md PFAZ 10 Bolum Sayisi Yanlis
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `CLAUDE.md` (kok) |
+| Oncelik | [TASARIM] |
+| Faz | PFAZ 10 |
+| Tespit | 2026-05-12 Sprint 6 doc vs artifact taramasi |
+
+**Sorun:**
+- Kok CLAUDE.md: "11 chapters + 2 appendices" -- YANLIS (eski v2.0)
+- docs/thesis-toolkit/CLAUDE.md: "14 chapters + 4 appendices" -- DOGRU
+- `pfaz10_master_integration.py:394-418`: 14 ana bolum (01-14) + 4 ek (A-D)
+
+**Fix:** Kok CLAUDE.md'yi "14 chapters + 4 appendices" olarak guncelle.
+
+---
+
+*Sprint 6 raporu sonu | 15 yeni bug (BUG-47...BUG-61) | 2 TRUBA-CRITICAL, 3 KRITIK, 4 YUKSEK, 4 ORTA, 3 TASARIM | Encoding: 0 bug (temiz) | n_jobs: hardcoded -1 YOK*

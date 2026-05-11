@@ -16,10 +16,11 @@
 | Sprint 3 | `sprint-03-belge-sync.md` | Faz belgeleri + pipeline-hatalari.md sync | ORTA | **TAMAMLANDI** 2026-05-09 |
 | Sprint 4 | `sprint-04-truba-hazirlik.md` | TRUBA hazırlık + BUG-02/03/31/32/38/39/20 fix | YUKSEK | **TAMAMLANDI** 2026-05-11 |
 | Sprint 5 | `sprint-05-inter-pfaz-audit.md` | Inter-PFAZ data flow audit (KURAL 19) + BUG-42..46 | YUKSEK | **TAMAMLANDI** 2026-05-11 |
-| Sprint 6 | `sprint-06-8-kategori-tarama.md` (sonra) | 8 kategori paralel agent taraması (F1) | ORTA | **BEKLIYOR** |
-| Sprint 7 | (sonra) | TRUBA slurm scripts + Apptainer (modül adı gelince) | YUKSEK | **TRUBA bekliyor** |
+| Sprint 6 | `sprint-06-8-kategori-tarama.md` | 8 kategori paralel agent taraması — 15 yeni bug (BUG-47..61) | ORTA | **TAMAMLANDI** 2026-05-12 |
+| Sprint 7 | `sprint-07-bug-fixes.md` | BUG-47..61 fix: TRUBA-CRITICAL önce, sonra CRITICAL/HIGH | YUKSEK | **BEKLIYOR** |
+| Sprint 8 | (sonra) | TRUBA slurm scripts + Apptainer container hazırlığı | YUKSEK | **TRUBA bekliyor** |
 
-**Uygulama sırası:** Sprint 1 → 2 → 3 → 4 → 5 — HEPSİ TAMAMLANDI; Sprint 6 → 7 bekliyor.
+**Uygulama sırası:** Sprint 1 → 2 → 3 → 4 → 5 → 6 — HEPSİ TAMAMLANDI; Sprint 7 → 8 bekliyor.
 
 ---
 
