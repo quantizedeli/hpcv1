@@ -396,6 +396,48 @@ class NuclearPhysicsAIOrchestrator:
         }
     
     # ========================================================================
+    # CONFIG HELPER -- BUG-14 fix (Sprint 5)
+    # ========================================================================
+    
+    # PFAZ id -> config.json flat key mapping
+    _PFAZ_FLAT_KEYS = {
+        1:  'pfaz01_dataset_generation',
+        2:  'pfaz02_ai_training',
+        3:  'pfaz03_anfis_training',
+        4:  'pfaz04_unknown_predictions',
+        5:  'pfaz05_cross_model_analysis',
+        6:  'pfaz06_final_reporting',
+        7:  'pfaz07_ensemble',
+        8:  'pfaz08_visualization',
+        9:  'pfaz09_aaa2_monte_carlo',
+        10: 'pfaz10_thesis_compilation',
+        11: 'pfaz11_production_deployment',
+        12: 'pfaz12_advanced_analytics',
+        13: 'pfaz13_automl',
+    }
+    
+    def _get_pfaz_config(self, pfaz_id: int) -> Dict:
+        """
+        BUG-14 fix (Sprint 5): config.json'da hem flat key (pfaz0X_*) hem nested
+        (pfaz_config[id]) bulunabilir. Daha onceleri yalnizca PFAZ 02 her ikisini
+        okuyordu; diger PFAZ'lar sadece nested okudugu icin config.json'daki
+        kullanici ayarlari (MATLAB on/off, GPU on/off, n_workers vb.) sessizce
+        ignore ediliyordu.
+        
+        Bu helper iki seviyeyi birlestirir: flat oncelikli (kullanicinin yazdigi
+        ayarlar default'lari ezer).
+        
+        Returns:
+            {**nested_defaults, **user_flat}  -- flat key oncelikli
+        """
+        nested = self.config.get('pfaz_config', {}).get(pfaz_id, {}) or {}
+        flat_key = self._PFAZ_FLAT_KEYS.get(pfaz_id, '')
+        flat = self.config.get(flat_key, {}) or {}
+        # Flat ezerek default'lari override eder
+        merged = {**nested, **flat}
+        return merged
+    
+    # ========================================================================
     # PFAZ 1: DATASET GENERATION
     # ========================================================================
     
@@ -433,7 +475,7 @@ class NuclearPhysicsAIOrchestrator:
             self.status_manager.update_pfaz(pfaz_id, 'running', 30)
 
             # Initialize
-            config = self.config['pfaz_config'][pfaz_id]
+            config = self._get_pfaz_config(pfaz_id)  # BUG-14: hibrit flat+nested
             data_file = self.config.get('data_file', 'aaa2.txt')
             data_file_path = Path(data_file)
             if not data_file_path.is_absolute():
@@ -541,7 +583,7 @@ class NuclearPhysicsAIOrchestrator:
 
             self.status_manager.update_pfaz(pfaz_id, 'running', 30)
 
-            config = self.config['pfaz_config'][pfaz_id]
+            config = self._get_pfaz_config(pfaz_id)  # BUG-14: hibrit flat+nested
 
             # GPU manager: merkezi algilama + TF bellek yapilandirmasi
             from utils.gpu_manager import get_gpu_manager
@@ -551,7 +593,7 @@ class NuclearPhysicsAIOrchestrator:
             _n_workers = _gm.optimal_workers(mode='ai')
             logger.info(f"[GPU] PFAZ2 gpu={_gpu_available}, workers={_n_workers}")
 
-            _pfaz02_cfg = self.config.get('pfaz02_ai_training', {})
+            _pfaz02_cfg = config  # BUG-14: helper zaten flat+nested birlestirdi
             trainer = ParallelAITrainer(
                 datasets_dir=str(self.pfaz_outputs[1]),
                 models_dir=str(self.pfaz_outputs[2]),
@@ -620,7 +662,7 @@ class NuclearPhysicsAIOrchestrator:
 
             self.status_manager.update_pfaz(pfaz_id, 'running', 30)
 
-            config = self.config['pfaz_config'][pfaz_id]
+            config = self._get_pfaz_config(pfaz_id)  # BUG-14: hibrit flat+nested
 
             from utils.gpu_manager import get_gpu_manager
             _gm = get_gpu_manager()
@@ -736,7 +778,7 @@ class NuclearPhysicsAIOrchestrator:
             # Use the complete cross-model analysis pipeline
             from pfaz_modules.pfaz05_cross_model.faz5_cross_model_analysis import CrossModelAnalysisPipeline
 
-            config = self.config['pfaz_config'][pfaz_id]
+            config = self._get_pfaz_config(pfaz_id)  # BUG-14: hibrit flat+nested
 
             self.status_manager.update_pfaz(pfaz_id, 'running', 50)
 
@@ -781,7 +823,7 @@ class NuclearPhysicsAIOrchestrator:
             self.status_manager.update_pfaz(pfaz_id, 'running', 50)
             from pfaz_modules.pfaz06_final_reporting.pfaz6_final_reporting import FinalReportingPipeline
 
-            config = self.config['pfaz_config'][pfaz_id]
+            config = self._get_pfaz_config(pfaz_id)  # BUG-14: hibrit flat+nested
 
             reporter = FinalReportingPipeline(
                 output_dir=str(self.pfaz_outputs[6]),
@@ -970,7 +1012,7 @@ class NuclearPhysicsAIOrchestrator:
                 MasterThesisIntegration
             )
 
-            config = self.config['pfaz_config'].get(pfaz_id, {})
+            config = self._get_pfaz_config(pfaz_id)  # BUG-14: hibrit flat+nested
             compile_pdf = config.get('compile_pdf', False)
 
             # Build metadata from config
@@ -1276,7 +1318,7 @@ class NuclearPhysicsAIOrchestrator:
             self.status_manager.update_pfaz(pfaz_id, 'running', 30)
 
             # ---- Run AutoML per target --------------------------------------
-            config = self.config['pfaz_config'].get(pfaz_id, {})
+            config = self._get_pfaz_config(pfaz_id)  # BUG-14: hibrit flat+nested
             n_trials     = int(config.get('n_trials', 30))
             model_types  = config.get('model_types', ['rf', 'xgb', 'lgb'])
             automl_results = {}
