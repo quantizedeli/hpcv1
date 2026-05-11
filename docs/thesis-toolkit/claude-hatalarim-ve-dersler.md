@@ -535,7 +535,7 @@ Kanit olmadan "duzeltildi" yazma. Belge niyeti degil gercegi yansitmali.
 
 Onceki QA turlarinda "import OK", "syntax OK", "py_compile OK" testleri yapilmis;
 hepsi gecmis. Ancak runtime'da PFAZ 02 → PFAZ 03 → PFAZ 08 veri akisinda **kolon adi
-ve dosya adi uyumsuzluklari** (BUG-13, BUG-17) silent KeyError/FileNotFoundError
+ve dosya adi uyumsuzluklari** (BUG-42, BUG-46) silent KeyError/FileNotFoundError
 ureten 5 yeni bug ortaya cikti. Bunlar **statik analiz ile asla yakalanmaz** —
 yalnizca pipeline ucuna kadar gercek run veya inter-PFAZ entegrasyon testi gosterir.
 
@@ -595,7 +595,7 @@ print('NESTED:', list(c.get('pfaz_config', {}).keys()))
 | **Uygulanan (test)** | "Bu testleri calistir" -- gercek calistirma | `pytest tests/test_smoke -v` ciktisi |
 
 Sprint 5 kapsaminda:
-- Kavramsal: KURAL 19 (bu doc) **uygulandi** -- 5 yeni bug bulundu (BUG-13...17)
+- Kavramsal: KURAL 19 (bu doc) **uygulandi** -- 5 yeni bug bulundu (BUG-42...17)
 - Uygulanan: pytest **patch sonrasi** kullanici tarafinda calistirilacak
 
 Statik testler **gerekli ama yetersiz**. Inter-PFAZ audit **ek katman** olarak
