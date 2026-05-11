@@ -129,7 +129,7 @@ DEFAULT_MC_CONFIG = {
 class MCDropoutSimulator:
     """Monte Carlo Dropout for DNN uncertainty estimation"""
     
-    def __init__(self, n_samples: int = 100):
+    def __init__(self, n_samples: int = 1000):  # BUG-38: 100->1000 (Efron & Tibshirani 1993)
         self.n_samples = n_samples
         
         if not TF_AVAILABLE:
@@ -383,7 +383,7 @@ class NoiseSimulator:
 class FeatureDropoutSimulator:
     """Feature dropout Monte Carlo for feature importance uncertainty"""
     
-    def __init__(self, dropout_probs: List[float] = None, n_samples: int = 500):
+    def __init__(self, dropout_probs: List[float] = None, n_samples: int = 1000):  # BUG-38: 500->1000
         self.dropout_probs = dropout_probs or [0.1, 0.2, 0.3]
         self.n_samples = n_samples
     

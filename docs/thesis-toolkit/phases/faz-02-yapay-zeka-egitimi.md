@@ -18,7 +18,7 @@
 | CV Stratejisi | 5-fold (CrossValidationAnalyzer) |
 | Paralel | ThreadPoolExecutor |
 | Seed | 42 sabit (parallel_ai_trainer.py:1363) |
-| R2 Kayit Esigi | val_R2 >= 0.5 (POOR_R2_FILTER) + cv_R2 >= 0.0 + gap < 0.5 (DUAL_FILTER) |
+| R2 Kayit Esigi | val_R2 >= 0.5 (POOR_R2_FILTER) + cv_R2 >= 0.0 + gap < 0.6 (DUAL_FILTER) |
 
 ---
 
@@ -251,14 +251,17 @@ val_R2 hesapla
                              |
                              +-- cv_R2 < 0.0  -> DUAL_FILTER_RET, PKL kaydedilmez
                              |
-                             +-- gap >= 0.5   -> DUAL_FILTER_RET, PKL kaydedilmez
+                             +-- gap >= 0.6   -> DUAL_FILTER_RET, PKL kaydedilmez
                              |
                              +-- tum kriterler gecti -> PKL kaydet + metrikleri yaz
 ```
 
 **Cift R2 Filtresi Literatur Destegi:**
 - cv_R2 >= 0.0: Shang et al. (2022) — nukleer ozellik tahmininde val R2 tek basina yetersiz
-- gap < 0.5: Utama et al. (2016) — nukleer kutle BNN calismasi; train-test R2 fark analizi
+- gap < 0.6: Utama et al. (2016) — nukleer kutle BNN calismasi; train-test R2 fark analizi
+  *(Not: Sprint 8'de 0.5'ten 0.6'ya revize edildi. N<100 dataset'lerde 3-fold CV yuksek
+  varyans uretiyor; 0.5 esigi bu durumlarda yanlis alarm veriyordu. Vabalas et al. 2019
+  kucuk orneklem CV varyansi referans. gap >= 0.6 hala guclu overfit olarak isaretlenir.)*
 
 Bu filtre, log analizinde tespit edilen asiri uyum modellerinin (train_R2=0.99 ama cv_R2=-0.31)
 ileri fazlara tasmasini onler. [DUAL_FILTER] log mesajlari: KABUL/RET bilgisi verir.
@@ -316,7 +319,7 @@ hesaplandigi icin kucuk N'de yaniltici olabilir.
 **Log Mesajlari:**
 - `[DUAL_FILTER] ... KABUL` — 3 kriter geçildi, model kaydedildi
 - `[DUAL_FILTER_RET] ... cv_R2=X < 0.0` — cv_R2 eşiği geçilemedi
-- `[DUAL_FILTER_RET] ... gap=X >= 0.5` — gap eşiği geçilemedi
+- `[DUAL_FILTER_RET] ... gap=X >= 0.6` — gap eşiği geçilemedi
 
 **Tez Notu:** Cift filtrenin istatistiksel gerekçesi Metodoloji §3.5'e girmeli.
 Seckili cumle: "cv_R2 >= 0.0 kosulu Shang et al. (2022) metodolojisini temel alir..."

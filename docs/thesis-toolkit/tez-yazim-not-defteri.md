@@ -652,7 +652,7 @@ capraz dogrulama varyansini dusurur. Her iki strateji de uygulanmis ve karsilast
 
 ### Cift R2 Filtresi -- Literatir ve Karar
 
-**Karar:** Mevcut tek `val_R2 >= 0.5` filtresine ek olarak `cv_R2 >= 0.0` ve `gap < 0.5`
+**Karar:** Mevcut tek `val_R2 >= 0.5` filtresine ek olarak `cv_R2 >= 0.0` ve `gap < 0.6`
 kriterleri eklendi (Sprint 1 — TAMAMLANDI 2026-05-08).
 
 **Literatir Destegi:**
@@ -689,7 +689,7 @@ sorusunu yanıtlamaya yardimci olur."
 ## Sprint Özeti — 2026-05-08/09
 
 ### Sprint 1: Çift R² Filtresi (TAMAMLANDI 2026-05-08)
-- `parallel_ai_trainer.py` — CV kayıt öncesine taşındı; `cv_R2 >= 0.0` + `gap < 0.5` koşulları eklendi
+- `parallel_ai_trainer.py` — CV kayıt öncesine taşındı; `cv_R2 >= 0.0` + `gap < 0.6` koşulları eklendi
 - Adaptif fold: N < 150 → 3-fold, N ≥ 150 → 5-fold (Shang et al. 2022)
 - `[DUAL_FILTER] KABUL/RET` log mesajları eklendi
 - `config.json` / `config_desktop.json` / TRUBA `config.json`: ilgili threshold'lar eklendi
@@ -1085,4 +1085,72 @@ Sprint 6'da tespit edilen 15 bug Sprint 7'de tamamen kapatildi.
 Hardcoded path grep: 0 bulgu.
 
 *Not Defteri v2.4 | 2026-05-12 | Sprint 7: 15 bug kapandi, TRUBA-CRITICAL temizlendi*
+---
 
+## Sprint 8 Hazirlik Notu -- max_train_cv_gap Karar Degisikligi (2026-05-12)
+
+### Karar
+`max_train_cv_gap`: 0.5 --> **0.6** (hpcv1 icin)
+
+### Neden 0.5 Degisti?
+
+Sprint 6/7 sonrasi Claude Code analizi ortaya koydu ki hpcv1'de CV gate kodu yoktu
+(parametreler constructor'a geciliyordu ama kullanilmiyordu). Gate hpcv1'e eklenecek.
+
+Eklerken 0.5 mi yoksa 0.6 mi kullanilmali?
+
+**0.5 ile sorun:** N=75-100 gibi kucuk dataset'lerde CV fold'lari cok noisy.
+Ornek: 75 ornekli dataset, 3-fold CV = her fold sadece 25 ornek.
+25 orneklik test setinde tek bir zorlu cekirdegin tahmin hatasi CV R2'yi 0.4-0.5 puan
+dusurur. Bu durum gercek overfit degil, kucuk orneklem varyansidir.
+Sonuc: val_R2=0.85 olan saglam bir model gap=0.52 ile yanlis reddedilebilir.
+
+**0.6 ile:** gap in [0.5, 0.6) araligi artik kurtarilir. Gercekten kotu overfit
+(gap >= 0.6, yani train-CV farki %60+) hala reddedilir.
+
+### Tez Icin Arguman
+
+> ''Kucuk orneklem boyutlarinin (N<100) cross-validation varyansini artirdigi
+> bilinmektedir (Vabalas et al. 2019). Bu nedenle max_train_cv_gap esigi 0.5 yerine
+> 0.6 olarak belirlenmistir; bu deger N=75-100 datasetlerinde yanlis alarm uretimini
+> azaltirken gercek asiri uyumu (gap >= 0.6) hala yakalar.''
+
+### Etkilenen Tablo (sprint-01'den guncellenmis)
+
+| Durum | train_R2 | cv_R2 | gap | 0.5 ile | 0.6 ile |
+|-------|----------|-------|-----|---------|---------|
+| Ideal | 0.90 | 0.88 | 0.02 | KAYIT | KAYIT |
+| Hafif overfit | 0.90 | 0.42 | 0.48 | KAYIT | KAYIT |
+| Kucuk N gürültüsü | 0.85 | 0.30 | 0.55 | RET (yanlis alarm) | KAYIT |
+| Sinir | 0.90 | 0.30 | 0.60 | RET | RET |
+| Guclu overfit | 0.95 | 0.20 | 0.75 | RET | RET |
+
+*Not Defteri v2.5 | 2026-05-12 | Sprint 8 hazirlik: CV gap 0.5->0.6 karar gerekce*
+
+---
+
+## Sprint 8 -- Eksik Fix Tamamlama (2026-05-12)
+
+Claude Code analizi ile Sprint 1/2/4'te belgelenmis ama koda yansimamis 3 eksiklik tespit edildi.
+
+### BUG-62: CV Gate Gercekten Aktif Degil (Sprint 1 eksigi)
+
+Sprint 1 belgesi "cv_R2 >= 0.0 + gap < 0.5 filtresi eklendi" diyordu.
+Gercekte ParallelAITrainer constructor bu parametreleri kabul etmiyordu.
+main.py 5 parametreyi geciriyordu ama hepsi sessizce kayboluyordu.
+Tum modeller kaydediliyordu -- filtre hic calismiyor.
+
+Sprint 8'de duzeltildi: constructor imzasina parametreler eklendi, gate
+blogu kayit oncesine tasindi, max_train_cv_gap=0.6 (bkz. Sprint 8 hazirlik notu).
+
+**Tez katkisi:** Dual R2 filtresinin gercekten uygulandigi dogrulandiktan sonra
+"overfitting kontrolü CV ile saglandi" iddiasi savunulabilir hale geldi.
+
+### BUG-63: _configurations_note (Sprint 2 eksigi)
+config.json'a dokumantasyon notu eklendi.
+
+### BUG-64: MC sinif default'lari (Sprint 4 BUG-38 eksigi)
+MCDropoutSimulator 100->1000, FeatureDropoutSimulator 500->1000.
+Tum MC simülasyonlari artik K=1000 standardinda (Efron & Tibshirani 1993).
+
+*Not Defteri v2.6 | 2026-05-12 | Sprint 8: CV gate gercekten aktif, MC K=1000 tam*

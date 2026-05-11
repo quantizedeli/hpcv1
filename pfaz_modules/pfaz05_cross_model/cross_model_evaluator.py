@@ -128,7 +128,12 @@ class CrossModelEvaluator:
         logger.info(f"{'='*80}")
         
         if len(self.predictions) == 0:
-            raise ValueError("No predictions added! Use add_predictions() first.")
+            raise ValueError(
+                "No predictions added! Use add_predictions() first. "
+                "Eger PFAZ02 tamamlandi ama model yoksa: Dual R2 filtresi "
+                "(cv_R2>=0 + gap<0.6) tum modelleri reddetmis olabilir. "
+                "PFAZ02 DUAL_FILTER_RET log'larini kontrol et (Shang 2022, Utama 2016)."
+            )
         
         # Get common nuclei across all models
         common_nuclei = self._get_common_nuclei()

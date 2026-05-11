@@ -48,8 +48,8 @@ gap     <  0.5  (yeni — train_R2 - cv_R2 farkı)
 ```json
 "r2_min_threshold": 0.5,
 "cv_r2_min_threshold": 0.0,
-"max_train_cv_gap": 0.5,
-"_dual_r2_note": "Literatur destegi: Shang et al. 2022, Utama et al. 2016. cv_R2 >= 0 = en az ortalamadan iyi. gap < 0.5 = aşırı uyum sınırı."
+"max_train_cv_gap": 0.6,
+"_dual_r2_note": "Literatur destegi: Shang et al. 2022, Utama et al. 2016. cv_R2 >= 0 = en az ortalamadan iyi. gap < 0.6 = aşırı uyum sınırı."
 ```
 
 ### Adım 2: `config_desktop.json` — Aynı Threshold'ları Ekle
@@ -57,7 +57,7 @@ gap     <  0.5  (yeni — train_R2 - cv_R2 farkı)
 `nucdatav2-desktop/config_desktop.json` → `pfaz02_ai_training` bölümüne ekle:
 ```json
 "cv_r2_min_threshold": 0.0,
-"max_train_cv_gap": 0.5
+"max_train_cv_gap": 0.6
 ```
 
 ### Adım 3: `parallel_ai_trainer.py` — Model Kayıt Akışını Yeniden Yapılandır

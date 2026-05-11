@@ -247,10 +247,10 @@ ama kodda aktif.
 
 **Degisiklik:**
 - CV blogu model kaydinin ONCESINE tasindi (onceden SONRASINDAYDI)
-- Yeni filtre: cv_R2 >= 0.0 (Shang et al. 2022) + gap < 0.5 (Utama et al. 2016)
+- Yeni filtre: cv_R2 >= 0.0 (Shang et al. 2022) + gap < 0.6 (Utama et al. 2016)
 - Adaptif fold sayisi: N<150 -> 3-fold, N>=150 -> 5-fold
 - [DUAL_FILTER] log mesajlari: KABUL/RET gorulur
-- config.json ve config_desktop.json: cv_r2_min_threshold=0.0, max_train_cv_gap=0.5 eklendi
+- config.json ve config_desktop.json: cv_r2_min_threshold=0.0, max_train_cv_gap=0.6 eklendi
 
 **Yeniden Egitim Gerekli:** EVET -- mevcut kayitli modeller yeni filtreye tabi tutulmadi.
 
@@ -1206,7 +1206,7 @@ gercek aktif model listesi yazildi. Bu modellerin eklenmesi kullanicinin kararin
 
 | ID | Dosya | Degisiklik | Tarih |
 |----|-------|-----------|-------|
-| SPRINT-1 | `pfaz02/parallel_ai_trainer.py` | Cift R2 filtresi: cv_R2>=0.0 + gap<0.5 eklendi; CV kayit oncesine tasindi | 2026-05-08 |
+| SPRINT-1 | `pfaz02/parallel_ai_trainer.py` | Cift R2 filtresi: cv_R2>=0.0 + gap<0.5 eklendi (Sprint 8: gap<0.6 revize edildi); CV kayit oncesine tasindi | 2026-05-08 |
 | SPRINT-2 | `config.json + main.py + truba/desktop` | Robust scaling + N=75 tum config'lerden kaldirildi | 2026-05-09 |
 
 ### WARN-03: Robust Scaling QM Icin Basarisiz
@@ -1253,7 +1253,7 @@ IQR normallesirmesi simetrik olmayan QM dagilmiyla uyumsuz.
 15 ornek ile val_R2 yuksek varyans gosterir; train_R2=0.99 ama cv_R2=-0.31 olan modeller
 POOR filtresini GECEBILIYORdu (val_R2=0.84 gorunuyordu).
 
-**Fix (Sprint 1):** CV kayit oncesine tasindi; cv_R2 >= 0.0 AND gap < 0.5 zorunlu.
+**Fix (Sprint 1):** CV kayit oncesine tasindi; cv_R2 >= 0.0 AND gap < 0.6 zorunlu.
 
 ---
 
@@ -2102,3 +2102,59 @@ MLP ve ElasticNet yalnizca `stacking_meta_learner.py`'de tanimli, ana pipeline'd
 ---
 
 *Sprint 6 raporu sonu | 15 yeni bug (BUG-47...BUG-61) | 2 TRUBA-CRITICAL, 3 KRITIK, 4 YUKSEK, 4 ORTA, 3 TASARIM | Encoding: 0 bug (temiz) | n_jobs: hardcoded -1 YOK*
+---
+
+## 2026-05-12 -- Sprint 8: Sprint 1/2/4 Eksik Uygulamalar
+
+Sprint 1/2/4 belgede "TAMAMLANDI" yaziyordu ancak kod gerçegi farkliydi (KURAL 18).
+Claude Code analizi bu üç eksikligi tespit etti.
+
+### BUG-62 [KRITIK] CV Gate Kodda Yoktu -- parallel_ai_trainer.py
+
+| Alan | Deger |
+|------|-------|
+| Dosya | pfaz_modules/pfaz02_ai_training/parallel_ai_trainer.py |
+| Sprint | Sprint 1 (belge), Sprint 8 (gercek fix) |
+| Durum | **DUZELTILDI 2026-05-12** |
+
+**Sorun:** Sprint 1 belgesi "cv_R2 >= 0.0 + gap < 0.5 gate eklendi" diyordu.
+Gercekte: constructor bu parametreleri kabul etmiyordu (imzada yoktu).
+main.py parametreleri geciriyordu ama constructor sessizce görmezden geliyordu.
+Pipeline tum modelleri kaydediyordu -- gate hic calismiyor.
+
+**Fix:** Constructor imzasina 5 parametre eklendi. DUAL_FILTER blogu kayit
+oncesine tasindi. Adaptif fold (N<150 -> 3-fold, N>=150 -> 5-fold) aktif.
+max_train_cv_gap: 0.6 (Sprint 8 karari: kucuk N icin 0.5 yanlis alarm).
+
+---
+
+### BUG-63 [DUSUK] _configurations_note config'e Eklenmemis -- Sprint 2
+
+| Alan | Deger |
+|------|-------|
+| Dosya | config.json pfaz03_anfis_training |
+| Sprint | Sprint 2 (belge), Sprint 8 (gercek fix) |
+| Durum | **DUZELTILDI 2026-05-12** |
+
+**Sorun:** Sprint 2 belgesi _configurations_note ekleneceği yazyordu. Eklenmemis.
+
+**Fix:** config.json pfaz03_anfis_training altina _configurations_note eklendi.
+
+---
+
+### BUG-64 [ORTA] MC Sinif Default'lari 100/500 Kalmis -- Sprint 4 BUG-38 Eksik
+
+| Alan | Deger |
+|------|-------|
+| Dosyalar | monte_carlo_simulation_system.py: MCDropoutSimulator.__init__ (sat 132), FeatureDropoutSimulator.__init__ (sat 386) |
+| Sprint | Sprint 4 (belge), Sprint 8 (gercek fix) |
+| Durum | **DUZELTILDI 2026-05-12** |
+
+**Sorun:** Sprint 4/BUG-38 DEFAULT_MC_CONFIG'u 1000'e cikardi ama sinif __init__
+default'lari (MCDropoutSimulator: 100, FeatureDropoutSimulator: 500) guncellenmedi.
+
+**Fix:** MCDropoutSimulator.__init__ n_samples=100->1000, FeatureDropoutSimulator n_samples=500->1000.
+
+---
+
+*Sprint 8 raporu | 3 eksik fix (BUG-62/63/64) + Dual R2 bağlam mesajlari*
