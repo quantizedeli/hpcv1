@@ -684,3 +684,47 @@ sprint'i "tamamlandi" olarak isaretleme.
 
 *Claude-Hatalarim-ve-Dersler v1.8 | 2026-05-12*
 *Guncelleme: KURAL 20 (paralel agent tarama) + KURAL 21 (sprint sonu 7 belge disiplini) eklendi*
+---
+
+## KURAL 22: Constructor Imzasini Oku -- Parametre Gecirmek Yetmez
+
+### Hata (2026-05-12 Sprint 8)
+
+Sprint 1'de "Dual R2 filtresi eklendi" dedim. main.py ParallelAITrainer'a
+5 parametre geciriyordu. "Calisiyor" dedim.
+
+Gercekte: ParallelAITrainer.__init__ bu parametreleri **imzasinda kabul etmiyordu**.
+Python'da constructor imzasinda olmayan keyword arg sessizce **TypeError** verir,
+ya da **kwargs ile yutulur. Bu durumda parametreler yok sayildi.
+CV gate Sprint 1'den Sprint 8'e kadar **hic calismadi**.
+
+### Ders
+
+Bir fonksiyona parametre gecirdigimde su iki soruyu sor:
+
+1. **Fonksiyon imzasinda bu parametre var mi?**
+   `grep -n "def __init__" dosya.py` -> imzayi oku, tek tek karsilastir
+2. **Parametre self.xxx = xxx ile ataniyor mu?**
+   Imzada olsa bile atanmiyorsa kullanilmiyor demektir.
+
+```bash
+# Kontrol komutu:
+grep -n "cv_r2_min_threshold\|max_train_cv_gap" pfaz_modules/pfaz02_ai_training/parallel_ai_trainer.py
+# Hem __init__ imzasinda hem self.xxx = xxx satiri gorunmeli
+```
+
+### Kontrol noktasi
+
+Yeni parametre eklendiginde veya mevcut parametreyi dogruladigimda:
+- [ ] Fonksiyon imzasinda var mi? (def __init__ satiri)
+- [ ] self.parametre = parametre atamasi var mi?
+- [ ] Atanan deger kodun ilerleyen yerinde KULLANILIYOR mu? (grep ile bul)
+- [ ] Test: parametreyi farkli degerle cagir, davranis degisiyor mu?
+
+Imza + atama + kullanim -- ucunu de gormedikce "calistiyor" deme.
+
+---
+
+*Claude-Hatalarim-ve-Dersler v1.9 | 2026-05-12*
+*Guncelleme: KURAL 22 eklendi -- constructor imza + atama + kullanim uclu dogrulama*
+

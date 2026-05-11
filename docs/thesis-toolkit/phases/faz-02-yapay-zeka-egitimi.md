@@ -256,6 +256,14 @@ val_R2 hesapla
                              +-- tum kriterler gecti -> PKL kaydet + metrikleri yaz
 ```
 
+> **Sprint 8 Duzeltme Notu (BUG-62, 2026-05-12):**
+> Sprint 1 belgesi bu akisi tanimlamisti ancak `ParallelAITrainer.__init__` imzasinda
+> `cv_r2_min_threshold`, `max_train_cv_gap` vb. parametreler **yoktu**. main.py
+> parametreleri geciriyordu ama constructor kabul etmiyordu -- CV gate hic calismadi.
+> Sprint 8'de constructor imzasina 5 parametre eklendi ve DUAL_FILTER blogu model
+> kaydinin ONCESINE tasinarak gate gercekten aktif hale getirildi (commit 2f1e594).
+> Bkz. KURAL 22: constructor imza + atama + kullanim uclu dogrulama.
+
 **Cift R2 Filtresi Literatur Destegi:**
 - cv_R2 >= 0.0: Shang et al. (2022) — nukleer ozellik tahmininde val R2 tek basina yetersiz
 - gap < 0.6: Utama et al. (2016) — nukleer kutle BNN calismasi; train-test R2 fark analizi
