@@ -18,9 +18,10 @@
 | Sprint 5 | `sprint-05-inter-pfaz-audit.md` | Inter-PFAZ data flow audit (KURAL 19) + BUG-42..46 | YUKSEK | **TAMAMLANDI** 2026-05-11 |
 | Sprint 6 | `sprint-06-8-kategori-tarama.md` | 8 kategori paralel agent taraması — 15 yeni bug (BUG-47..61) | ORTA | **TAMAMLANDI** 2026-05-12 |
 | Sprint 7 | `sprint-07-bug-fixes.md` | BUG-47..61 fix: 15 bug, 14 dosya, 16 satir kod | YUKSEK | **TAMAMLANDI** 2026-05-12 |
-| Sprint 8 | (sonra) | TRUBA slurm scripts + Apptainer container hazırlığı | YUKSEK | **TRUBA bekliyor** |
+| Sprint 8 | `sprint-08-missing-fixes.md` | BUG-62/63/64 -- Sprint 1/2/4 eksik fix'ler + CV gate gercek implementasyon | KRITIK | **TAMAMLANDI** 2026-05-12 |
+| Sprint 9 | (sonra) | v10 sync (Sprint 8 fix'leri) + TRUBA slurm/Apptainer | YUKSEK | **BEKLIYOR** |
 
-**Uygulama sırası:** Sprint 1 → 2 → 3 → 4 → 5 → 6 → 7 — HEPSİ TAMAMLANDI; Sprint 8 bekliyor (TRUBA modulü gelince).
+**Uygulama sırası:** Sprint 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 — HEPSİ TAMAMLANDI; Sprint 9 bekliyor.
 
 ---
 

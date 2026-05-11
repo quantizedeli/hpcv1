@@ -143,13 +143,14 @@ Example: `MM_150_S70_AZSMC_NoScaling_Random_NoAnomaly.csv`
 | BUG-37 | LOW | `pfaz10_thesis_compilation/pfaz10_thesis_orchestrator.py` | Hardcoded `/mnt/project` path (old v2.0, no longer active) | Informational |
 | BUG-38 | ~~LOW~~ | `pfaz09_aaa2_monte_carlo/monte_carlo_simulation_system.py` | **DÜZELTİLDİ 2026-05-09** — DEFAULT_MC_CONFIG n_bootstrap ve n_samples_per_level 100→1000 yapıldı. Tez K=1000 doğru. | DONE |
 
-**PC status (2026-05-04):** PFAZ 01 and 02 are actively running. Do NOT interrupt them.
+**Pipeline status (2026-05-12):** Sprint 1-8 tamamlandi. CV gate (BUG-62) aktif -- max_train_cv_gap=0.6. Son patch: sprint8-only.patch (commit 2f1e594). v10 Sprint 8 sync bekliyor.
 
 ---
 
 ## ML Models & Thresholds
 
 - **R2_MIN_SAVE_THRESHOLD = 0.5** (PFAZ 2/3): models below this are discarded.
+- **DUAL FILTER** (PFAZ 2, Sprint 8 aktif): cv_R2 >= 0.0 (Shang 2022) + gap < 0.6 (Utama 2016, Sprint 8: 0.5->0.6 kucuk N icin). [DUAL_FILTER] log mesajlari KABUL/RET gosterir.
 - **DNN divergence:** val_R² < −2.0 → marked DIVERGED.
 - **DNN size constraint:** train_size < 200 → no DNN job created (affects sizes 75, 100).
 - **SVR:** Has its own internal StandardScaler (RBF, C=10.0) — independent of PFAZ 1 scaling.
