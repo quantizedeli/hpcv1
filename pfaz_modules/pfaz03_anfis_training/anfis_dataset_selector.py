@@ -61,9 +61,17 @@ class ANFISDatasetSelector:
         
         logger.info("AI training sonuçları yükleniyor...")
         
+        # BUG-17 fix (Sprint 5): PFAZ02 'training_results_summary.xlsx' yaziyor,
+        # selector 'training_summary.xlsx' ariyor. Iki ismi de dene; ilk
+        # bulduğunu kullan.
         if summary_file is None:
-            # Default: training_summary.xlsx
-            summary_file = self.ai_results_dir / 'training_summary.xlsx'
+            _candidates = [
+                self.ai_results_dir / 'training_summary.xlsx',
+                self.ai_results_dir / 'training_results_summary.xlsx',  # legacy
+                self.ai_results_dir / 'ai_training_summary.xlsx',       # alt
+            ]
+            summary_file = next((p for p in _candidates if p.exists()), _candidates[0])
+            logger.info(f"  Default summary file: {summary_file.name}")
         
         summary_file = Path(summary_file)
         
@@ -77,6 +85,26 @@ class ANFISDatasetSelector:
             self.results_df = pd.read_csv(summary_file)
         else:
             raise ValueError(f"Desteklenmeyen format: {summary_file.suffix}")
+        
+        # BUG-17 fix (Sprint 5): PFAZ02 yeni kolon adlari (Test_R2/Train_R2/...)
+        # ile selector'in eski adlari (R2_test/R2_train/...) arasinda
+        # uyumsuzluk vardi. Yukleme sirasinda normalize ediyoruz.
+        _rename_map = {
+            'Test_R2':    'R2_test',
+            'Test_RMSE':  'RMSE_test',
+            'Test_MAE':   'MAE_test',
+            'Val_R2':     'R2_val',
+            'Val_RMSE':   'RMSE_val',
+            'Val_MAE':    'MAE_val',
+            'Train_R2':   'R2_train',
+            'Train_RMSE': 'RMSE_train',
+            'Train_MAE':  'MAE_train',
+        }
+        _actual = {k: v for k, v in _rename_map.items()
+                   if k in self.results_df.columns and v not in self.results_df.columns}
+        if _actual:
+            self.results_df = self.results_df.rename(columns=_actual)
+            logger.info(f"  [BUG-17] Kolon adi normalize: {list(_actual.keys())} -> selector formati")
         
         logger.info(f"[OK] {len(self.results_df)} sonuç yüklendi")
         
