@@ -975,4 +975,73 @@ scripts üretilecek.
 
 ---
 
-*Not Defteri v2.2 | 2026-05-11 | Sprint 5: KURAL 18 doğrulamaları, 5 yeni bug, 2 tez katkısı argümanı (Dual R² mimarisi + Adaptive Quota)*
+*Not Defteri v2.2 | 2026-05-11 | Sprint 5: KURAL 18 dogrulamalari, 5 yeni bug, 2 tez katkisi argumani (Dual R2 mimarisi + Adaptive Quota)*
+
+---
+
+## Sprint 6 -- 2026-05-12 (8 Kategori Bug Taramasi)
+
+8 paralel sub-agent ile 165+ Python dosyasi taranmistir. Toplam 15 yeni bug tespit edilmistir.
+
+### Tespit Ozeti
+
+| Kategori | Bug Sayisi | En Yuksek Oncelik |
+|----------|-----------|-------------------|
+| Hardcoded Path | 2 | TRUBA-CRITICAL |
+| Optional Import | 2 | YUKSEK |
+| Excel Sheet Name | 2 | YUKSEK |
+| Memory Leak (TF) | 2 | KRITIK |
+| Silent Exception | 3 | KRITIK |
+| n_jobs Nested | 1 | ORTA |
+| Encoding | 0 | -- (temiz) |
+| Doc vs Artifact | 3 | TASARIM |
+
+### TRUBA-CRITICAL Bug'lar (Oncelikli Fix)
+
+| ID | Dosya | Sorun |
+|----|-------|-------|
+| BUG-47 | `analysis_modules/real_data_integration_manager.py:28-29` | `/home/claude` + `/mnt/user-data/outputs` sys.path -- her import'ta ImportError riski |
+| BUG-48 | `visualization_modules/visualization_integration.py:31` | `/mnt/user-data/outputs` sys.path -- PFAZ 08 gorsellestirme tamamen kapaniyor |
+
+### Kritik Bulgular (Tez Kalitesi Etkili)
+
+**BUG-53 (KRITIK):** hyperparameter_tuner.py + automl_optimizer.py + automl_hyperparameter_optimizer.py
+Optuna trial dongulerinde TF `clear_session()` eksik. 30+ trial x n_datasets boyunca GPU VRAM birikmesi.
+Projede yalnizca 1 dogru yer var: `parallel_ai_trainer.py:1468-1483`.
+TRUBA'da GPU ResourceExhaustedError riski.
+
+**BUG-57 (KRITIK):** pfaz13/automl_retraining_loop.py:211, 305, 758
+Dataset yukleme ve config okuma hatalari sessizce yutulmus. PFAZ 13 hicbir iz birakmazken calismis gozukuyor.
+
+**BUG-55 (YUKSEK):** pfaz04 model yukleme koru (unknown_nuclei_predictor + single_nucleus_predictor).
+Top-25 konsensus listesi eksik model icerebilir; sebep loglanmiyor.
+
+**BUG-56 (YUKSEK):** pfaz06 pfaz6_final_reporting.py'de 5 farkli yerde JSON okuma sessiz basarisizligi.
+Excel raporunda eksik satir/sayfa olusuyor; kullanici fark etmiyor.
+
+### Olumlu Bulgular (Tez Metodoloji Argumanlarina Katki)
+
+- **Encoding tamamen temiz:** 183 text mode open() cagrisinin tamami encoding='utf-8' kullaniyor.
+  Tez metodoloji notunda "Platform-bagimsiz metin isleme" argumani guclu.
+- **n_jobs=-1 hardcoded YOK:** `_inner_n_jobs()` 24 farkli noktada dogru kullaniliyor.
+  TRUBA paralel egitimine hazir.
+
+### Dokumantasyon Tutarsizliklari (Tez Yaziminda Dikkat)
+
+- **BUG-59:** PFAZ 06 sheet sayisi -- kok CLAUDE.md "18", toolkit "29", gercek: **22-29**.
+  Tezde Excel raporu aciklanirken "haftalik guncellemelerle buyuyen 22+ sayfa" formulasyonu kullanilabilir.
+- **BUG-60:** PFAZ 07 stacking -- belgede "6 stacking", aktif kodda yalnizca **4** (Ridge, Lasso, RF, GBM).
+  Tez metodoloji bolumunde 4 meta-model olarak duzelt.
+- **BUG-61:** PFAZ 10 kok CLAUDE.md "11 bolum + 2 ek" yanlis, gercek: **14 bolum + 4 ek**.
+  Tez yapisi sunumunda bu dogruyu kullan.
+
+### Sprint 6 Sonucu
+
+Toplam 15 bug (BUG-47...BUG-61). Sprint 7'de duzeltilecekler:
+1. BUG-47, BUG-48 (TRUBA-CRITICAL) -- sys.path hardcoded kaldirilacak
+2. BUG-53 (KRITIK) -- Optuna trial dongulerinde finally + clear_session
+3. BUG-57 (KRITIK) -- pfaz13 silent exception'lar tracker'a baglanacak
+4. BUG-51 (YUKSEK) -- Robustness_CV sheet adi pfaz08'de duzeltilecek
+5. BUG-55, BUG-56 (YUKSEK) -- pfaz04 + pfaz06 loglama
+
+*Not Defteri v2.3 | 2026-05-12 | Sprint 6: 15 yeni bug, 2 TRUBA-CRITICAL, encoding temiz, n_jobs dogru*
