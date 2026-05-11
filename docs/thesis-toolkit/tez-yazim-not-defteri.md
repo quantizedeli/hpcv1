@@ -1045,3 +1045,44 @@ Toplam 15 bug (BUG-47...BUG-61). Sprint 7'de duzeltilecekler:
 5. BUG-55, BUG-56 (YUKSEK) -- pfaz04 + pfaz06 loglama
 
 *Not Defteri v2.3 | 2026-05-12 | Sprint 6: 15 yeni bug, 2 TRUBA-CRITICAL, encoding temiz, n_jobs dogru*
+---
+
+## Sprint 7 -- Bug Fix Sprint (2026-05-12)
+
+### BUG-47..61 Fix Ozeti
+
+Sprint 6'da tespit edilen 15 bug Sprint 7'de tamamen kapatildi.
+
+**TRUBA-CRITICAL (once):**
+- BUG-47/48: `/home/claude` ve `/mnt/user-data/outputs` hardcoded sys.path kaldirildi.
+  Ikiside `Path(__file__).resolve().parents[1]` ile degistirildi.
+  TRUBA'da pipeline artik import aninda crash vermeyecek.
+
+**KRITIK -- Memory Leak:**
+- BUG-53: Optuna trial dongularinde (hyperparameter_tuner, automl_hyperparameter_optimizer)
+  `finally: tf.keras.backend.clear_session() + gc.collect()` eklendi.
+  Uzun Optuna run'larinda RAM patlamasi onlendi.
+- BUG-54: model_trainer.py DNN fit sonrasi ayni cleanup eklendi.
+
+**YUKSEK -- Veri Akisi:**
+- BUG-49: advanced_models_extended.py torch hard import --> try/except + TORCH_AVAILABLE.
+  TRUBA'da PyTorch olmasa PFAZ 02 baslamiyor derdine son.
+- BUG-50: pfaz09 2 dosyada tqdm --> try/except + TQDM_AVAILABLE + fallback iterator.
+- BUG-51: visualization_master_system.py Robustness_CV_Results --> Robustness_CV.
+  Robustness grafikleri artik PFAZ 08'de uretilecek.
+- BUG-52: comprehensive_excel_reporter.py sheet_name [:31] truncation eklendi (2 yer).
+- BUG-55: pfaz04 unknown_nuclei_predictor 2x silent except --> logger.warning.
+- BUG-56: pfaz06 pfaz6_final_reporting 3x kritik silent except --> logger.warning.
+- BUG-57: pfaz13 automl_retraining_loop 3x silent except --> logger.warning.
+
+**ORTA/TASARIM:**
+- BUG-58: parallel_ai_trainer.py yaniltici ProcessPoolExecutor yorum duzeltildi.
+- BUG-59/60/61: CLAUDE.md hatalari duzeltildi (sheet sayisi dinamik, ensemble
+  4+4 degil 5+6+AdaBoost, chapter 6 degil 14).
+
+### Sprint 7 Sonuc
+14 dosya, 16 farkli satirda degisiklik. Syntax 14/14 OK.
+Hardcoded path grep: 0 bulgu.
+
+*Not Defteri v2.4 | 2026-05-12 | Sprint 7: 15 bug kapandi, TRUBA-CRITICAL temizlendi*
+

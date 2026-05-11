@@ -1508,8 +1508,7 @@ class ParallelAITrainer:
         # Set env flag so inner trainers use n_jobs=1 (prevent thread explosion)
         os.environ['_PFAZ_PARALLEL_ACTIVE'] = '1'
 
-        # Use ThreadPoolExecutor for I/O bound tasks with sklearn
-        # Use ProcessPoolExecutor for CPU-intensive tasks
+        # Use ThreadPoolExecutor for all training jobs (CPU-safe, no GIL issue for sklearn)
         with ThreadPoolExecutor(max_workers=self.n_workers) as executor:
             # Submit all jobs
             future_to_job = {

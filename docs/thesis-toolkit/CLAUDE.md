@@ -96,11 +96,11 @@ repo/
 | PFAZ 03 | `pfaz03_anfis_training/` | Trains 8 ANFIS configs (Grid/SubClust × Trimf/Gauss/Bell/Trap); hybrid LSE + L-BFGS-B |
 | PFAZ 04 | `pfaz04_unknown_predictions/` | Predicts MM/QM for nuclei outside training set; top-25 consensus; 95% CI |
 | PFAZ 05 | `pfaz05_cross_model/` | AI vs ANFIS comparison; Good/Medium/Poor classification |
-| PFAZ 06 | `pfaz06_final_reporting/` | 29-sheet Excel workbook + LaTeX report; reads PFAZ 7/9/12/13 outputs |
-| PFAZ 07 | `pfaz07_ensemble/` | 5 voting + 6 stacking + AdaBoost ensemble methods; stacking MLP R²=0.9794 |
-| PFAZ 08 | `pfaz08_visualization/` | 70+ chart types; 300 dpi PNG + Plotly HTML; two-pass (after PFAZ 6, then after PFAZ 9/12/13) |
-| PFAZ 09 | `pfaz09_aaa2_monte_carlo/` | MC uncertainty (n=100 bootstrap/noise/dropout); top-50 models × 267 nuclei |
-| PFAZ 10 | `pfaz10_thesis_compilation/` | Generates full LaTeX thesis (14 chapters + 4 appendices); PDF compile optional |
+| PFAZ 06 | `pfaz06_final_reporting/` | 29+ sheet Excel workbook (dinamik; BUG-59: gercek sayi hedef x config kombinasyonuna gore degisir) + LaTeX report; reads PFAZ 7/9/12/13 outputs |
+| PFAZ 07 | `pfaz07_ensemble/` | 4 voting (Simple, WeightedR2, WeightedRMSE, WeightedInvError) + 4 stacking (Ridge, Lasso, RF, GBM); stacking_MLP yok (BUG-60: eski CLAUDE.md "5+6+AdaBoost" yanlistı) |
+| PFAZ 08 | `pfaz08_visualization/` | 70+ chart types (BUG-61: gercek sayi dogrulanmamis); 300 dpi PNG + Plotly HTML; two-pass (after PFAZ 6, then after PFAZ 9/12/13) |
+| PFAZ 09 | `pfaz09_aaa2_monte_carlo/` | MC uncertainty (n=100 bootstrap/noise/dropout); top-50 models x 267 nuclei |
+| PFAZ 10 | `pfaz10_thesis_compilation/` | Generates LaTeX thesis: 6 chapters (Giris, Literatur, Yontem, Bulgular, Tartisma, Sonuc) + 3-4 appendix (A-D); PDF compile optional |
 | PFAZ 11 | `pfaz11_production/` | **DISABLED** (config: `"enabled": false`) |
 | PFAZ 12 | `pfaz12_advanced_analytics/` | Paired t-test, Wilcoxon, Sobol/Morris sensitivity, NuclearPatternAnalyzer; **FAILED** (import error) |
 | PFAZ 13 | `pfaz13_automl/` | Optuna TPE AutoML retraining for low-R² models; **FAILED** (1-line IndentationError in automl_retraining_loop.py:43) |

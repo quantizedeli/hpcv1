@@ -1329,7 +1329,7 @@ statik analiz ile yakalanmayan 5 yeni bug tespit edilmistir. Detay icin
 | Oncelik | [YUKSEK] |
 | Faz | PFAZ 08 |
 | Tespit | 2026-05-11 inter-PFAZ data flow audit |
-| Durum | Bekliyor (Sprint 5 patch) |
+| Durum | **DUZELTILDI 2026-05-11 Sprint 5** |
 
 **Sorun:**
 PFAZ 02 `parallel_ai_trainer.py:1648` cikti Excel'inde kolon adlari `Train_R2`,
@@ -1376,7 +1376,7 @@ kalma sebebidir. Pipeline 13 fazdan 5'i sessizce eksik kalmis.
 | Oncelik | [YUKSEK] |
 | Faz | Tum PFAZ'lar |
 | Tespit | 2026-05-11 config audit |
-| Durum | Bekliyor (Sprint 5 patch) |
+| Durum | **DUZELTILDI 2026-05-11 Sprint 5** |
 
 **Sorun:**
 `config.json` iki seviye config tutuyor:
@@ -1440,7 +1440,7 @@ faydali.
 | Oncelik | [ORTA] |
 | Faz | PFAZ 01 |
 | Tespit | 2026-05-11 type consistency check |
-| Durum | Bekliyor (Sprint 5 patch) |
+| Durum | **DUZELTILDI 2026-05-11 Sprint 5** |
 
 **Sorun:**
 `config.json`:
@@ -1495,7 +1495,7 @@ PFAZ 01 yeniden calistirilmali.
 | Oncelik | [ORTA] |
 | Faz | PFAZ 03 |
 | Tespit | 2026-05-11 kod-belge tutarlilik kontrolu |
-| Durum | Bekliyor (Sprint 5 patch) |
+| Durum | **DUZELTILDI 2026-05-11 Sprint 5** |
 
 **Sorun:**
 `docs/thesis-toolkit/phases/faz-03-anfis-egitimi.md` belgesi:
@@ -1559,7 +1559,7 @@ Sprint 5 bolumu.
 | Oncelik | [YUKSEK] |
 | Faz | PFAZ 02 -> PFAZ 03 -> PFAZ 08 |
 | Tespit | 2026-05-11 inter-PFAZ file flow audit |
-| Durum | Bekliyor (Sprint 5 patch) |
+| Durum | **DUZELTILDI 2026-05-11 Sprint 5** |
 
 **Sorun:**
 Uc PFAZ ucu de farkli dosya adi kullaniyor:
@@ -1679,21 +1679,21 @@ Silent Exception, Encoding, Memory Leak, Doc vs Artifact.
 
 | ID | Oncelik | Kategori | Faz | Fix Durumu |
 |----|---------|----------|-----|------------|
-| BUG-47 | [TRUBA-CRITICAL] | Hardcoded Path | analysis_modules | Bekliyor |
-| BUG-48 | [TRUBA-CRITICAL] | Hardcoded Path | visualization_modules | Bekliyor |
-| BUG-49 | [YUKSEK] | Optional Import | PFAZ 02 | Bekliyor |
-| BUG-50 | [ORTA] | Optional Import | PFAZ 09 | Bekliyor |
-| BUG-51 | [YUKSEK] | Excel Sheet Name | PFAZ 06/08 | Bekliyor |
-| BUG-52 | [ORTA] | Excel Sheet Name | PFAZ 06 | Bekliyor |
-| BUG-53 | [KRITIK] | Memory Leak | PFAZ 02/13 | Bekliyor |
-| BUG-54 | [ORTA] | Memory Leak | PFAZ 02 | Bekliyor |
-| BUG-55 | [YUKSEK] | Silent Exception | PFAZ 04 | Bekliyor |
-| BUG-56 | [YUKSEK] | Silent Exception | PFAZ 06 | Bekliyor |
-| BUG-57 | [KRITIK] | Silent Exception | PFAZ 13 | Bekliyor |
-| BUG-58 | [ORTA] | n_jobs Parallelism | PFAZ 02 | Bekliyor |
-| BUG-59 | [TASARIM] | Doc vs Artifact | PFAZ 06 | Bekliyor |
-| BUG-60 | [TASARIM] | Doc vs Artifact | PFAZ 07 | Bekliyor |
-| BUG-61 | [TASARIM] | Doc vs Artifact | PFAZ 10 | Bekliyor |
+| BUG-47 | [TRUBA-CRITICAL] | Hardcoded Path | analysis_modules | **DUZELTILDI 2026-05-12** |
+| BUG-48 | [TRUBA-CRITICAL] | Hardcoded Path | visualization_modules | **DUZELTILDI 2026-05-12** |
+| BUG-49 | [YUKSEK] | Optional Import | PFAZ 02 | **DUZELTILDI 2026-05-12** |
+| BUG-50 | [ORTA] | Optional Import | PFAZ 09 | **DUZELTILDI 2026-05-12** |
+| BUG-51 | [YUKSEK] | Excel Sheet Name | PFAZ 06/08 | **DUZELTILDI 2026-05-12** |
+| BUG-52 | [ORTA] | Excel Sheet Name | PFAZ 06 | **DUZELTILDI 2026-05-12** |
+| BUG-53 | [KRITIK] | Memory Leak | PFAZ 02/13 | **DUZELTILDI 2026-05-12** |
+| BUG-54 | [ORTA] | Memory Leak | PFAZ 02 | **DUZELTILDI 2026-05-12** |
+| BUG-55 | [YUKSEK] | Silent Exception | PFAZ 04 | **DUZELTILDI 2026-05-12** |
+| BUG-56 | [YUKSEK] | Silent Exception | PFAZ 06 | **DUZELTILDI 2026-05-12** |
+| BUG-57 | [KRITIK] | Silent Exception | PFAZ 13 | **DUZELTILDI 2026-05-12** |
+| BUG-58 | [ORTA] | n_jobs Parallelism | PFAZ 02 | **DUZELTILDI 2026-05-12** |
+| BUG-59 | [TASARIM] | Doc vs Artifact | PFAZ 06 | **DUZELTILDI 2026-05-12** |
+| BUG-60 | [TASARIM] | Doc vs Artifact | PFAZ 07 | **DUZELTILDI 2026-05-12** |
+| BUG-61 | [TASARIM] | Doc vs Artifact | PFAZ 10 | **DUZELTILDI 2026-05-12** |
 
 **Not:** Encoding (Kategori 10) temiz cikti -- 0 bug. n_jobs=-1 hardcoded YOK; _inner_n_jobs() dogru kullaniliyor.
 
