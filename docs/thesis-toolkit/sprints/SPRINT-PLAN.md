@@ -14,8 +14,32 @@
 | Sprint 1 | `sprint-01-dual-r2-filtresi.md` | Çift R² filtresi + CV fold adaptif | KRITIK | **TAMAMLANDI** 2026-05-08 |
 | Sprint 2 | `sprint-02-config-temizlik.md` | Config sync + Robust/N75 kaldırma | YUKSEK | **TAMAMLANDI** 2026-05-09 |
 | Sprint 3 | `sprint-03-belge-sync.md` | Faz belgeleri + pipeline-hatalari.md sync | ORTA | **TAMAMLANDI** 2026-05-09 |
+| Sprint 4 | `sprint-04-truba-hazirlik.md` | TRUBA hazırlık + BUG-02/03/31/32/38/39/20 fix | YUKSEK | **TAMAMLANDI** 2026-05-11 |
+| Sprint 5 | `sprint-05-inter-pfaz-audit.md` | Inter-PFAZ data flow audit (KURAL 19) + BUG-42..46 | YUKSEK | **TAMAMLANDI** 2026-05-11 |
+| Sprint 6 | `sprint-06-8-kategori-tarama.md` (sonra) | 8 kategori paralel agent taraması (F1) | ORTA | **BEKLIYOR** |
+| Sprint 7 | (sonra) | TRUBA slurm scripts + Apptainer (modül adı gelince) | YUKSEK | **TRUBA bekliyor** |
 
-**Uygulama sırası:** Sprint 1 → Sprint 2 → Sprint 3 — HEPSİ TAMAMLANDI
+**Uygulama sırası:** Sprint 1 → 2 → 3 → 4 → 5 — HEPSİ TAMAMLANDI; Sprint 6 → 7 bekliyor.
+
+---
+
+## Sprint 4 ve 5 Eklenme Notu (2026-05-11)
+
+Sprint 4 ve 5 başlangıçta SPRINT-PLAN.md'de yer almıyordu çünkü retrospektif
+olarak (yapıldıktan sonra) belgelendi:
+
+- **Sprint 4** = v10 reposundaki commit `3d61faa` (2026-05-11 22:53)
+  *"feat: Sprint 1-4 -- Dual R2 filtresi, bug fix'ler, TRUBA hazirlik"*
+  içeriğinden sentezlendi. TRUBA hazırlık + Sprint 1-3'te kalan bug temizliği.
+
+- **Sprint 5** = Kemal'in talebi üzerine Claude tarafından yapılan
+  Inter-PFAZ data flow audit oturumu. KURAL 19 doğdu. 5 yeni bug
+  (BUG-42..46) tespit edildi (başlangıçta yanlışlıkla BUG-13..17 numarası
+  kullanıldı, sonra düzeltildi).
+
+Sprint 6 başlangıçta tanımlanmadı çünkü Sprint 5'in 8 kategori taraması
+(hardcoded path, optional imports, sheet name, n_jobs, silent failures,
+encoding, memory leak, doc iddialari) henüz yapılmamıştı.
 
 ---
 
