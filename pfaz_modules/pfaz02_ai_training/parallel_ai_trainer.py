@@ -1654,14 +1654,22 @@ class ParallelAITrainer:
 
             if rows:
                 df = pd.DataFrame(rows)
-                excel_file = self.output_dir / 'training_results_summary.xlsx'
-                with pd.ExcelWriter(excel_file, engine='openpyxl') as writer:
-                    df.to_excel(writer, sheet_name='All_Results', index=False)
-                    for mtype in df['Model_Type'].unique():
-                        sub = df[df['Model_Type'] == mtype]
-                        sheet = mtype[:31]
-                        sub.to_excel(writer, sheet_name=sheet, index=False)
-                logger.info(f"[OK] Excel özet raporu: {excel_file}")
+                # BUG-17 fix (Sprint 5): Iki dosya yaz -- PFAZ 03 selector ve
+                # PFAZ 08 visualizer 'training_summary.xlsx' ariyor, eski kod
+                # 'training_results_summary.xlsx' yaziyor. Geri uyumluluk icin
+                # her ikisini de uretiyoruz.
+                excel_files = [
+                    self.output_dir / 'training_summary.xlsx',          # canonical (yeni)
+                    self.output_dir / 'training_results_summary.xlsx',  # legacy
+                ]
+                for excel_file in excel_files:
+                    with pd.ExcelWriter(excel_file, engine='openpyxl') as writer:
+                        df.to_excel(writer, sheet_name='All_Results', index=False)
+                        for mtype in df['Model_Type'].unique():
+                            sub = df[df['Model_Type'] == mtype]
+                            sheet = mtype[:31]
+                            sub.to_excel(writer, sheet_name=sheet, index=False)
+                logger.info(f"[OK] Excel özet raporu: training_summary.xlsx + training_results_summary.xlsx (iki dosya, BUG-17 fix)")
         except Exception as e:
             logger.warning(f"[WARNING] Excel rapor oluşturulamadı: {e}")
 
