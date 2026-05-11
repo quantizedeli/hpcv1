@@ -579,15 +579,27 @@ print('NESTED:', list(c.get('pfaz_config', {}).keys()))
 
 ### Statik vs Dinamik Test Farki
 
-| Test Tipi | Yakalar | Yakalamaz |
-|-----------|---------|-----------|
-| `py_compile` | Syntax error, IndentationError | Runtime KeyError, FileNotFoundError |
-| `import test` | ImportError, NameError | Inter-module data flow bug |
-| Unit test (izole PFAZ) | Modul ici hatalar | PFAZ X → Y entegrasyon hatasi |
-| **Inter-PFAZ audit (yeni)** | Kolon/dosya adi tutarsizligi, config drift | - |
+| Test Tipi | Kategori | Yakalar | Yakalamaz |
+|-----------|----------|---------|-----------|
+| `py_compile` | Statik | Syntax error, IndentationError | Runtime KeyError, FileNotFoundError |
+| `import test` | Statik | ImportError, NameError | Inter-module data flow bug |
+| Unit test (izole PFAZ) | Statik+Dinamik | Modul ici hatalar | PFAZ X → Y entegrasyon hatasi |
+| **Inter-PFAZ audit (yeni)** | Statik | Kolon/dosya adi tutarsizligi, config drift | Runtime semantic hata |
+| **pytest tests/test_smoke/** | Dinamik | Gercek import + smoke run davranisi | - |
+
+### Kural ile Uygulama Ayrimi
+
+| Tur | Anlami | Ornegi |
+|-----|--------|--------|
+| **Kavramsal (kural)** | "Bu testleri yap" -- belgede yazili kural | KURAL 19 metni, doc'a eklenir |
+| **Uygulanan (test)** | "Bu testleri calistir" -- gercek calistirma | `pytest tests/test_smoke -v` ciktisi |
+
+Sprint 5 kapsaminda:
+- Kavramsal: KURAL 19 (bu doc) **uygulandi** -- 5 yeni bug bulundu (BUG-13...17)
+- Uygulanan: pytest **patch sonrasi** kullanici tarafinda calistirilacak
 
 Statik testler **gerekli ama yetersiz**. Inter-PFAZ audit **ek katman** olarak
-her major degisiklik sonrasi calistirilmali.
+her major degisiklik sonrasi calistirilmali, ardindan dinamik test (pytest).
 
 ---
 
