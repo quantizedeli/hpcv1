@@ -191,7 +191,9 @@ class MCDropoutSimulator:
 class BootstrapSimulator:
     """Bootstrap resampling for confidence intervals"""
     
-    def __init__(self, n_bootstrap: int = 100, stratified: bool = True):
+    def __init__(self, n_bootstrap: int = 1000, stratified: bool = True):
+        # BUG-38 (Sprint 5): default 100 -> 1000 (Efron & Tibshirani 1993)
+        # DEFAULT_MC_CONFIG ile uyumlu; direkt cagirimda da stabil CI saglar.
         self.n_bootstrap = n_bootstrap
         self.stratified = stratified
     
@@ -285,8 +287,9 @@ class NoiseSimulator:
     """Noise sensitivity analysis"""
     
     def __init__(self, noise_levels: List[float] = None,
-                 n_samples_per_level: int = 100,
+                 n_samples_per_level: int = 1000,
                  noise_type: str = 'gaussian'):
+        # BUG-38 (Sprint 5): default 100 -> 1000 (Shang et al. 2022, n>=1000 stabil)
         self.noise_levels = noise_levels or [0.01, 0.02, 0.05, 0.1, 0.2]
         self.n_samples_per_level = n_samples_per_level
         self.noise_type = noise_type
