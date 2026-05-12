@@ -154,3 +154,54 @@ Cekirdek-saat tuketim tahmini: ~2000-3000 (YL kotasinin ~%1-1.5)
 *TRUBA-KULLANIM-KILAVUZU.md v2.0 | 2026-05-13 | Sprint 9B*
 *Guncelleme: gercek modul (apps/truba-ai/cpu-2024.0), partition (orfoz),*
 *SSH adresi (levrek.ulakbim.gov.tr), pip install uyarisi eklendi*
+
+---
+
+## 10. Patch Uygulama (VS Code'dan)
+
+Claude bir degisiklik yaptiginda .patch dosyasi uretir.
+Bunu uygulamak icin:
+
+### Adim 1: Patch dosyasini proje klasorune koy
+```
+C:\Users\<Kullanici>\Desktop\hpcv1\sprint9b-only.patch
+```
+(Patch dosyasini indirip bu klasore surukle)
+
+### Adim 2: VS Code terminalini ac (Ctrl+` ) veya PowerShell ac
+```powershell
+cd C:\Users\<Kullanici>\Desktop\hpcv1
+
+git checkout truba-fixes
+git am sprint9b-only.patch
+git push origin truba-fixes
+```
+
+### Adim 3: Onayla
+Push basariliysa Claude'a bildir.
+
+---
+
+## 11. ONEMLI UYARILAR
+
+- Bu kilavuzdaki SSH adresi ve modul bilgileri gercek TRUBA'da
+  dogrulanmamistir. Baglanti saglaninca asagidaki komutlari
+  calistir ve Claude'a yapistir:
+
+```bash
+# TRUBA'ya baglaninca bu ciktilari Claude'a ver:
+module avail 2>&1 | head -60
+sinfo -o "%P %.5a %.10l %.6c %.8m" 2>/dev/null
+module load apps/truba-ai/cpu-2024.0 && python3 --version
+module avail 2>&1 | grep -i matlab
+quota -s 2>/dev/null
+```
+
+- SSH adresi: `levrek.ulakbim.gov.tr` -- eger baglanamazsan
+  VPN uzerinden ozel IP (`176.16.6.x` gibi) gerekebilir.
+  Hangi adresin calistigi Kemal'in denemesiyle belirlenir.
+
+- MATLAB entegrasyonu (ANFIS backend) hic test edilmedi.
+  `module load apps/matlab/r2025b` calisip calismadigini
+  once manuel dene, Claude'a bildir.
+

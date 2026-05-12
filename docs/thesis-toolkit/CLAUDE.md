@@ -192,3 +192,46 @@ Turkish-language analysis notes for each phase:
 - `reports/faz-XX-final-rapor.md` — final reports
 
 Update these documents after completing any phase or fixing bugs. This is non-negotiable — past sessions have repeatedly missed this step.
+
+---
+
+## CRITICAL: Claude Calisma Kurallari
+
+### KURAL: Asla tek basina karar verme
+
+Her degisiklik, her script, her commit icin ONCE plan sun, ONAY al, SONRA hareket et.
+"Bariz gorunuyor" veya "onceki sohbetten biliyorum" gerekcesiyle onaysiz hareket etme.
+Bu kural istisna kabul etmez.
+
+### Git Workflow (Claude sandbox -> Kemal'in makinesi)
+
+Claude dogrudan GitHub'a push edemez. Akis:
+
+1. Claude sandbox'ta branch acar, dosyalari duzenler, commit yapar
+2. `git format-patch` ile .patch dosyasi uretir
+3. Kemal patch'i **VS Code'daki proje klasorune** koyar:
+   - hpcv1 icin: `C:\Users\<Kullanici>\Desktop\hpcv1\`  (veya neredeyse)
+   - v10 icin:   `C:\Users\<Kullanici>\Desktop\arastirma\v10\`
+4. VS Code terminali (veya PowerShell) acilir, proje klasorunde:
+   ```powershell
+   git checkout truba-fixes   # (veya dev-updates, vs.)
+   git am sprint9b-only.patch
+   git push origin truba-fixes
+   ```
+5. Onay mesaji geldikten sonra Claude bir sonraki adima gececek
+
+### TRUBA Workflow
+
+TRUBA scripti veya konfigurasyonu degistirmeden once:
+1. Kemal'den TRUBA'da calistirdigi komutlarin ciktisini iste
+2. Ciktilar olmadan TAHMIN etme -- tahmin = yanlis script = job FAILED
+3. Plan sun: "X'i Y olarak degistirmeyi oneririm, neden: Z" -> Kemal onayla -> sonra yaz
+
+### SSH Adresi
+
+```powershell
+# Windows PowerShell veya Terminal (OpenVPN bagli olmali)
+ssh ahmacar@levrek.ulakbim.gov.tr
+# VPN uzerinden ic IP de olabilir -- Kemal'e sor hangi adres calisiyor
+```
+
