@@ -1154,3 +1154,18 @@ MCDropoutSimulator 100->1000, FeatureDropoutSimulator 500->1000.
 Tum MC simülasyonlari artik K=1000 standardinda (Efron & Tibshirani 1993).
 
 *Not Defteri v2.6 | 2026-05-12 | Sprint 8: CV gate gercekten aktif, MC K=1000 tam*
+
+---
+
+## Sprint 9A -- v10 Sync (2026-05-13)
+
+Sprint 7+8 fix'leri v10'a tasinmasi tamamlandi.
+
+- sprint7-bug-fixes branch dev-updates ile merge edildi (ce90825)
+- BUG-62 CV gate, BUG-63 config, BUG-64 MC default'lari v10'da aktif
+- max_train_cv_gap=0.6 v10 config.json'a yazildi
+- Iki repo artik tam senkron
+
+Sprint 9B: TRUBA gercek modul/partition bilgisi alininca slurm scriptleri guncelleniyor.
+
+*Not Defteri v2.7 | 2026-05-13 | Sprint 9A: v10 sync tamamlandi*

@@ -19,9 +19,10 @@
 | Sprint 6 | `sprint-06-8-kategori-tarama.md` | 8 kategori paralel agent taraması — 15 yeni bug (BUG-47..61) | ORTA | **TAMAMLANDI** 2026-05-12 |
 | Sprint 7 | `sprint-07-bug-fixes.md` | BUG-47..61 fix: 15 bug, 14 dosya, 16 satir kod | YUKSEK | **TAMAMLANDI** 2026-05-12 |
 | Sprint 8 | `sprint-08-missing-fixes.md` | BUG-62/63/64 -- Sprint 1/2/4 eksik fix'ler + CV gate gercek implementasyon | KRITIK | **TAMAMLANDI** 2026-05-12 |
-| Sprint 9 | (sonra) | v10 sync (Sprint 8 fix'leri) + TRUBA slurm/Apptainer | YUKSEK | **BEKLIYOR** |
+| Sprint 9A | `sprint-09-v10-sync.md` | v10 sync: Sprint 7+8 fix'leri, CV gate, max_train_cv_gap=0.6 | YUKSEK | **TAMAMLANDI** 2026-05-13 |
+| Sprint 9B | `sprint-09-truba.md` | TRUBA: gercek modul/partition bilgisi + script guncelleme | YUKSEK | **DEVAM EDIYOR** |
 
-**Uygulama sırası:** Sprint 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 — HEPSİ TAMAMLANDI; Sprint 9 bekliyor.
+**Uygulama sırası:** Sprint 1-8 TAMAMLANDI. Sprint 9A TAMAMLANDI (v10 sync). Sprint 9B DEVAM EDIYOR (TRUBA).
 
 ---
 
