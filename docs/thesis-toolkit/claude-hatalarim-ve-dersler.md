@@ -728,3 +728,22 @@ Imza + atama + kullanim -- ucunu de gormedikce "calistiyor" deme.
 *Claude-Hatalarim-ve-Dersler v1.9 | 2026-05-12*
 *Guncelleme: KURAL 22 eklendi -- constructor imza + atama + kullanim uclu dogrulama*
 
+
+---
+
+## KURAL 23: HPC Script Bilgilerini Sohbet Arsivinden Dogrula (2026-05-13)
+
+**Hata:** TRUBA scriptleri yazarken gercek sisteme erisimim olmadigi icin
+tahmine dayali bilgiler kullandim (yanlis SSH adresi, yanlis partition,
+yanlis modul adi, gereksiz pip install). Dogru bilgiler onceki sohbet
+arsivinde mevcuttu ama okumadan yazdim.
+
+**Ders:** HPC/sistem scriptleri yazmadan once MUTLAKA conversation_search
+ile onceki TRUBA/HPC sohbetlerini ara. Gercek parametreleri (modul adi,
+partition, account) bul. Bulamazsan kullaniciya SOR, tahmin etme.
+Tahmine dayali HPC scriptleri sessizce FAILED verir veya hic calismaz.
+
+---
+
+*Claude-Hatalarim-ve-Dersler v2.0 | 2026-05-13*
+*Guncelleme: KURAL 23 -- HPC script tahmin etme, dogrula*

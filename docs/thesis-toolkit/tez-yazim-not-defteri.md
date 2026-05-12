@@ -1169,3 +1169,29 @@ Sprint 7+8 fix'leri v10'a tasinmasi tamamlandi.
 Sprint 9B: TRUBA gercek modul/partition bilgisi alininca slurm scriptleri guncelleniyor.
 
 *Not Defteri v2.7 | 2026-05-13 | Sprint 9A: v10 sync tamamlandi*
+
+---
+
+## Sprint 9B -- TRUBA Script Guncelleme (2026-05-13)
+
+Sohbet arsivi analizi ile mevcut TRUBA scriptlerindeki hatali bilgiler duzeltildi.
+
+**Kritik duzeltmeler:**
+- SSH: levrek1.yonetim.truba.gov.tr --> levrek.ulakbim.gov.tr
+- Partition: hamsi --> orfoz (YL icin dogru secim)
+- Modul: centos7.9/comp/python/3.11.2 --> apps/truba-ai/cpu-2024.0
+- venv + pip install kaldirildi (modul zaten tum paketleri icerir)
+- --account=ahmacar SBATCH direktifine eklendi (ZORUNLU)
+- GPU direktifleri kaldirildi (CUDA_VISIBLE_DEVICES= ile devre disi)
+
+**Degistirilen dosyalar:** truba_slurm_job.sh, setup_truba.sh, TRUBA-KULLANIM-KILAVUZU.md
+
+**Sonraki adim:** SSH ile TRUBA'ya baglan, ============================================================
+ nucdatav2 TRUBA Kurulum Scripti
+ Tarih: Tue May 12 21:56:17 UTC 2026
+============================================================
+
+[1/6] Modüller yükleniyor... calistir,
+kucuk bir test job gonder (--pfaz 1, ~2 saat).
+
+*Not Defteri v2.8 | 2026-05-13 | Sprint 9: v10 sync + TRUBA scripts tamamlandi*
