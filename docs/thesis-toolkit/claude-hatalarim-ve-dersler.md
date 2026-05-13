@@ -790,3 +790,41 @@ Ozelllikle HPC/TRUBA scriptleri icin: gercek cikti olmadan tek satir yazma.
 
 *Claude-Hatalarim-ve-Dersler v2.1 | 2026-05-13*
 *Guncelleme: KURAL 24 -- Kural bilmek yetmez, uygulamak zorunlu*
+
+---
+
+## KURAL 25: TRUBA Slurm Zorunlu Parametrelerini Atlama (2026-05-13)
+
+### Hata
+
+orfoz partition icin `#SBATCH -C weka` zorunlu oldugu halde
+ilk yazdığım slurm scriptlerinde bu satiri unutmuştum.
+Bu parametre olmadan job ya kuyrukta bekler ya da FAILED verir.
+
+Kaynak: https://docs.truba.gov.tr -- orfoz/hamsi icin weka flag zorunlu,
+cunku bu sunucularda I/O yonetimi icin 2 cekirdek ayrilmis ve
+WEKA dosya sistemine baglilar.
+
+### Zorunlu SBATCH parametreleri (orfoz icin tam liste)
+
+```bash
+#SBATCH -p orfoz          # partition
+#SBATCH -A ahmacar        # account (ZORUNLU)
+#SBATCH -C weka           # ZORUNLU -- eksik olursa job calismaz
+#SBATCH -N 1              # node sayisi
+#SBATCH -n 1              # task sayisi
+#SBATCH -c 110            # max 110 (2 cekirdek IO icin ayrilmis)
+#SBATCH --time=3-00:00:00 # max 3 gun
+```
+
+### Ders
+
+Yeni bir HPC sistemi icin slurm scripti yazmadan once:
+1. Sistemin resmi orneklerine bak: `/arf/sw/scripts/`
+2. Dokumantasyondan partition-spesifik zorunlu flagleri kontrol et
+3. Tahmin etme -- sistemin kendi orneklerini kullanan
+
+---
+
+*Claude-Hatalarim-ve-Dersler v2.2 | 2026-05-13*
+*Guncelleme: KURAL 25 -- orfoz icin #SBATCH -C weka zorunlu*

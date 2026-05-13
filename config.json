@@ -77,7 +77,8 @@
     },
     "parallel_training": {
       "enabled": true,
-      "n_workers": 16
+      "n_workers": 100,
+      "_note": "Sprint 9B: orfoz 110 CPU max, 10 OS icin bırakıldi -> 100 worker"
     },
     "gpu": {
       "enabled": true,
@@ -87,8 +88,9 @@
   "pfaz03_anfis_training": {
     "enabled": true,
     "matlab_engine": {
-      "enabled": true,
-      "fallback_python": true
+      "enabled": false,
+      "fallback_python": true,
+      "_note": "Sprint 9B: MATLAB disabled -- matlabws hesabi 0/0 core-saat, Python ANFIS fallback kullaniliyor"
     },
     "configurations": [
       "gridpartition_trimf",
@@ -102,7 +104,7 @@
     ],
     "parallel_training": {
       "enabled": true,
-      "n_workers": 16
+      "n_workers": 100
     },
     "_configurations_note": "DIKKAT: Bu liste kod tarafindan okunmuyor. PILOT_IDS hardcoded (anfis_parallel_trainer_v2.py). Aktif konfigurasyonlar: CFG_Grid_2MF_Trap/Bell/Gauss/Tri. n_configs parametresi config den degil main.py den gelir."
   },
@@ -261,5 +263,7 @@
     "gpu_model": "GTX 1650 (4GB VRAM)",
     "disk_space_gb": 50,
     "notes": "GPU auto-detect aktif: TF -> PyTorch -> config.json fallback sirasi"
-  }
+  },
+  "output_dir": "/arf/scratch/ahmacar/hpcv1_outputs",
+  "_output_dir_note": "TRUBA ARF: job ciktilari scratch a yazilir (1TB). Kod /arf/home/ahmacar/hpcv1 de."
 }

@@ -7,14 +7,14 @@
 
 ---
 
-## 1. Baglanma (OpenVPN Zorunlu)
+## 1. Baglanma (OpenVPN Zorunlu -- PuTTY kullanilir)
 
 ### Onkosul
 OpenVPN bagli olmasi gerekiyor. Bagliysan devam et.
 
 ### SSH Komutu (Windows PowerShell veya Terminal)
 ```powershell
-ssh ahmacar@levrek.ulakbim.gov.tr
+ahmacar@172.16.6.11
 ```
 TRUBA sifren sorulur. Ilk baglantiginda "yes" yaz.
 
@@ -45,7 +45,7 @@ scp -r ahmacar@levrek.ulakbim.gov.tr:~/hpcv1/outputs C:\Users\<Kullanici>\Deskto
 
 ```bash
 # 1. SSH ile baglan
-ssh ahmacar@levrek.ulakbim.gov.tr
+ahmacar@172.16.6.11
 
 # 2. Proje dizinine gec
 cd ~/hpcv1
@@ -96,10 +96,13 @@ sinfo -p orfoz                        # Partition durumu
 
 | Partition | Tip | Cekirdek | RAM | Maks Sure |
 |-----------|-----|----------|-----|-----------|
-| **orfoz** | CPU | 110 | 256GB | 3 gun (SECILEN) |
+| **orfoz** | CPU | 110* | 256GB | 3 gun (SECILEN) |
 | hamsi | CPU | 54 | 384GB | 3 gun |
 | barbun-cuda | GPU P100 | 16+ | - | proje gerekli |
 | akya-cuda | GPU V100 | 16+ | - | proje gerekli |
+
+**KRITIK:** orfoz icin  ZORUNLU -- eksik olursa job calismaz.
+*110 CPU: 2 cekirdek I/O icin ayrilmis, kullanilabilir max 110.
 
 **Modul:** 
 - numpy, pandas, scikit-learn, xgboost, lightgbm, tensorflow, optuna,

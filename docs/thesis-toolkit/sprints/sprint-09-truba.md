@@ -36,3 +36,46 @@ TRUBA sohbet arsivi (2026-05-11): chat/7c091386-4c94-4428-a969-97027aa20b29
 TRUBA belgeleri: docs.truba.gov.tr
 
 *Sprint 9B v1.0 | 2026-05-13*
+
+---
+
+## Sprint 9B Tamamlama (2026-05-13 -- Gercek Sistem Bilgileriyle)
+
+Kemal'in PuTTY ekran goruntuleri ve sinfo/module avail ciktilari ile
+tum bilgiler dogrulandi. Asagidaki duzeltmeler yapildi:
+
+### Dogrulanan Bilgiler
+
+| Parametre | Onceki Tahmin | Gercek Deger |
+|-----------|--------------|--------------|
+| SSH | levrek.ulakbim.gov.tr | **172.16.6.11** (VPN ic IP) |
+| Login node | levrek | **arf-ui1** |
+| Baglanti araci | PowerShell | **PuTTY** |
+| Max CPU | 112 | **110** (2 cekirdek IO icin ayrilmis) |
+| Zorunlu flag | Yoktu! | **#SBATCH -C weka** |
+| n_workers | 55 | **100** |
+| MATLAB | Kullanilacak | **Disabled** (matlabws 0/0 saat) |
+| orfoz durumu | Kapali (eski duyuru) | **ACIK** (sinfo: up) |
+
+### Yeni Dosyalar
+
+- `truba/slurm_jobs/job1_pfaz01.sh`
+- `truba/slurm_jobs/job2_pfaz02_03.sh`
+- `truba/slurm_jobs/job3_pfaz04_05_07_09_12_13.sh`
+- `truba/slurm_jobs/job4_pfaz06_08_10.sh`
+- `truba/slurm_jobs/README.md`
+
+### config.json Degisiklikleri
+
+- `matlab_engine.enabled: false`
+- `n_workers: 100` (pfaz02 ve pfaz03)
+- `output_dir: /arf/scratch/ahmacar/hpcv1_outputs`
+
+### Zip ile Indirme
+
+Job 4 sonu otomatik zip olusturur. PowerShell ile:
+```
+scp ahmacar@172.16.6.11:/arf/scratch/ahmacar/hpcv1_outputs/all_outputs_<JOBID>.zip .
+```
+
+*Sprint 9B v2.0 | 2026-05-13 | Gercek sistem bilgileriyle tamamlandi*

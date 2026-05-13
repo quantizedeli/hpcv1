@@ -1195,3 +1195,27 @@ Sohbet arsivi analizi ile mevcut TRUBA scriptlerindeki hatali bilgiler duzeltild
 kucuk bir test job gonder (--pfaz 1, ~2 saat).
 
 *Not Defteri v2.8 | 2026-05-13 | Sprint 9: v10 sync + TRUBA scripts tamamlandi*
+
+---
+
+## Sprint 9B Tamamlama -- TRUBA Gercek Bilgiler (2026-05-13)
+
+PuTTY ekran goruntuleri ve sinfo/module avail ciktilariyla tum parametreler dogrulandi.
+
+**Kritik duzeltmeler:**
+- SSH: 172.16.6.11 (VPN ic IP, levrek.ulakbim.gov.tr degil)
+- #SBATCH -C weka ZORUNLU -- eksik olursa job calismaz (KURAL 25)
+- Max CPU: 110 (112 degil)
+- n_workers: 100
+- MATLAB disabled, Python ANFIS fallback
+- output_dir: /arf/scratch/ahmacar/hpcv1_outputs
+
+**4 Job scripti tamamlandi:**
+- Job 1: PFAZ 1 (6 saat limit)
+- Job 2: PFAZ 2+3 (1 gun limit)
+- Job 3: PFAZ 4,5,7,9,12,13 (18 saat limit)
+- Job 4: PFAZ 6,8,10 (10 saat limit, zip ile cikti)
+
+**Sonraki adim:** Dosya transferi (WinSCP/scp) -> Job 1 gonder -> izle.
+
+*Not Defteri v2.9 | 2026-05-13 | Sprint 9B: TRUBA scriptleri hazir, gercek bilgilerle*
