@@ -974,7 +974,11 @@ class NuclearPhysicsAIOrchestrator:
                 pfaz01_output_path=str(self.pfaz_outputs[1] / 'AAA2_enriched_all_nuclei.csv'),
                 aaa2_txt_path=_aaa2_path,
                 trained_models_dir=str(self.pfaz_outputs[2]),
-                output_dir=str(self.pfaz_outputs[9])
+                output_dir=str(self.pfaz_outputs[9]),
+                # BUG-73 FIX (Sprint 10 ek denetim): ANFIS ve generated_datasets explicit aktarilir.
+                # Onceden modul sibling-inference yapardi; cikti yapisi degisirse ANFIS yarisi sessizce kaybolurdu.
+                anfis_models_dir=str(self.pfaz_outputs[3]),
+                generated_datasets_dir=str(self.pfaz_outputs[1]),
             )
             results = analyzer.run_complete_pfaz9_pipeline(
                 targets=['MM', 'QM']

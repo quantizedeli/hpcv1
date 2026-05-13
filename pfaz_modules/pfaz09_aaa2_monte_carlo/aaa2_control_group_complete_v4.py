@@ -470,15 +470,31 @@ class AAA2ControlGroupAnalyzerComplete:
                  pfaz01_output_path: str = None,
                  aaa2_txt_path: str = 'aaa2.txt',
                  trained_models_dir: str = 'trained_models',
-                 output_dir: str = 'aaa2_complete_results'):
+                 output_dir: str = 'aaa2_complete_results',
+                 anfis_models_dir: str = None,
+                 generated_datasets_dir: str = None):
+        # BUG-73 FIX (Sprint 10 ek denetim): Onceden anfis_models_dir argumani yoktu;
+        # modul sibling-inference yapardi (self.trained_models_dir.parent / 'anfis_models').
+        # Eger output yapisi degisirse top-50 model seciminin ANFIS yarisi sessizce eksik kalirdi.
+        # Artik main.py explicit aktariyor; sibling-inference fallback olarak korundu.
         
         self.pfaz01_output_path = Path(pfaz01_output_path) if pfaz01_output_path else None
         self.aaa2_txt_path = Path(aaa2_txt_path)
         self.trained_models_dir = Path(trained_models_dir)
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        # Derive generated_datasets dir (sibling of trained_models)
-        self.generated_datasets_dir = self.trained_models_dir.parent / 'generated_datasets'
+
+        # ANFIS path: explicit > sibling-inference fallback
+        if anfis_models_dir:
+            self.anfis_models_dir = Path(anfis_models_dir)
+        else:
+            self.anfis_models_dir = self.trained_models_dir.parent / 'anfis_models'
+
+        # Generated datasets path: explicit > sibling-inference fallback
+        if generated_datasets_dir:
+            self.generated_datasets_dir = Path(generated_datasets_dir)
+        else:
+            self.generated_datasets_dir = self.trained_models_dir.parent / 'generated_datasets'
         
         # Initialize helper classes
         self.theoretical_calc = TheoreticalFeaturesCalculator()
@@ -614,7 +630,9 @@ class AAA2ControlGroupAnalyzerComplete:
                             continue
 
         # ---- ANFIS models (outputs/anfis_models/) -------------------------
-        anfis_models_dir = self.trained_models_dir.parent / 'anfis_models'
+        # BUG-73 FIX: self.anfis_models_dir constructor'da set edildi
+        # (explicit > sibling-inference fallback)
+        anfis_models_dir = self.anfis_models_dir
         if anfis_models_dir.exists():
             for dataset_dir in sorted(anfis_models_dir.iterdir()):
                 if not dataset_dir.is_dir():

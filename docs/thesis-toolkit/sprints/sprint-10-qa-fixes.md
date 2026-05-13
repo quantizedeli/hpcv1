@@ -86,6 +86,21 @@ Rapor "config notu güncellenmeli" dedi. Asıl sorun farklı: TRUBA 110-cpu → 
 | docs/thesis-toolkit/claude-hatalarim-ve-dersler.md | KURAL 26, 27 | doc |
 | docs/thesis-toolkit/CLAUDE.md | Pipeline status güncelle | doc |
 
+
+
+## PFAZ11 Hakkinda Karar (2026-05-13)
+
+Kemal: "Faz11 i kullanmiyoruz daha sonra."
+
+PFAZ11 (Production Deployment) zaten kod seviyesinde **kalici skip** durumunda:
+- `run_pfaz_11()` her cagrildiginda `status='skipped'` doner (main.py:1057)
+- `run_all_phases()` icinde PFAZ11 otomatik `mode='pass'` zorlanir (main.py:1758)
+- Inter-PFAZ bagimlilik tablosunda PFAZ11'i kullanan baska faz YOK
+
+Bu karar Sprint 10'da degismedi -- mevcut davranis korundu. PFAZ11 dosyalari ve modulu repo'da kalir ama pipeline'da otomatik atlanir. Proje sonrasi (tez sonrasi) tekrar acilmasi planlaniyor (`run_pfaz_11` reason field: "PFAZ11 deferred per user request - will be implemented after project completion").
+
+**TRUBA icin etkisi yok:** Slurm scriptleri PFAZ11'i listesinde tutmuyor (Job 1-4 PFAZ1-10/12/13'u kapsiyor). PFAZ11 koda ait kalir ama execution graph'tan disaridadir.
+
 ## Açık Olanlar (Sprint 10'da KAPSAM DIŞI)
 
 - **training_configs_50.json üretimi** (raporun 7. bulgusu): Şimdilik default config fallback kabul. Tez için deterministiklik isteniyorsa seed'li üretim eklenmeli (Sprint 11 adayı).

@@ -2327,3 +2327,56 @@ return max(4, min(20, n - 2))   # ANFIS mode
 ---
 
 *Sprint 10 raporu | TRUBA QA bulguları + 3 ek bulgu (BUG-65..72)*
+
+---
+
+### BUG-74 [YUKSEK] PFAZ2 'Target' Sutunu Yazmiyor -- Selector Calismaz, Layered Secim Sessizce Atlanir
+
+| Alan | Deger |
+|------|-------|
+| Dosya | pfaz_modules/pfaz02_ai_training/parallel_ai_trainer.py:1690 (rows.append) |
+| Sprint | Sprint 10 (ek denetim) |
+| Durum | **DUZELTILDI 2026-05-13** |
+
+**Tetikleyici:** Kemal'in sorusu "faz 3 PFAZ 2'nin hangi bilgilerini kullaniyor?" sonrasi sutun seviyesinde veri akisi denetimi.
+
+**Sorun:** PFAZ2 `training_summary.xlsx`'e su sutunlari yaziyordu:
+```
+Model_Type, Config_ID, Dataset, PKL_Saved, Status_Note,
+Train_R2, Train_RMSE, Train_MAE, Val_R2, Val_RMSE, Val_MAE,
+Test_R2, Test_RMSE, Test_MAE, Training_Time_s, Error
+```
+
+PFAZ2 her satirin target'ini biliyordu (`train_single_job` sat. 285-304 dataset adina gore cikariyor) ama summary'ye **YAZMIYORDU**.
+
+PFAZ3 ANFISDatasetSelector ise:
+```python
+target_df = self.results_df[self.results_df['Target'] == target]
+```
+ile filtre yapiyordu -> `KeyError: 'Target'` -> try/except Exception ile yakalanip log:
+```
+[WARNING] ANFISDatasetSelector calismadi: 'Target'; tum datasetler kullanilacak (fallback)
+```
+
+**Gercek davranis:** Tezde §3.4'te yazili "Top=50/Mid=50/Low=100 Layered Selection" stratejisi **kod seviyesinde hicbir zaman uygulanmamis**. PFAZ3 200 dataset yerine TUM datasetleri tariyor -> ~3-5x daha uzun ANFIS egitim suresi.
+
+**Tez icin kritik:** "ML basarisiz -> ANFIS rescue" hipotezi (Low tier=100) hic test edilmemis. Sprint 5 §"Akademik Karar 1" bu hipotezi bu sprintin tasarim karari olarak konumlandiriyordu ama veri seviyesinde dogrulama yok.
+
+**Fix:** `_target_from_dataset_name()` helper eklendi (PFAZ2 mevcut dataset-adi cikarim mantigini kullanir), `rows.append({...})` sozlugune `'Target': _target_from_dataset_name(result.dataset_name)` eklendi.
+
+**Fonksiyonel dogrulama:**
+```
+Once (BUG-74): KeyError: 'Target' -> fallback -> tum datasetler
+Sonra (fix):   Target sutunu var -> Layered selection calisir
+               Top tier  R2>=0.90 -> Quota 50
+               Mid tier  0.80<=R2<0.90 -> Quota 50
+               Low tier  R2<0.80 -> Quota 100 (rescue hipotezi)
+```
+
+**Sprint 10 sonrasi yapilmasi gereken:** TRUBA'da PFAZ2 + PFAZ3 yeniden kosulmali. Log'larda `"Top layer (R2>=0.90): X datasets"` mesaji gorunmeli. Eski kosulardan elde edilen ANFIS sonuclari (Sprint 5 oncesi) tez stratejisini yansitmaz.
+
+**Iliskili bug'lar:** BUG-17 (Sprint 5, sutun isimlendirme) -- ayni dosya cevresinde, ama BUG-74 farkli sutunu (`Target`) etkiliyordu.
+
+---
+
+*Sprint 10 ek denetim | PFAZ3-PFAZ2 sutun seviyesinde veri akisi analizi*
