@@ -1036,7 +1036,12 @@ class ParallelAITrainer:
                  use_hyperparameter_tuning: bool = False,
                  use_model_validation: bool = True,
                  use_advanced_models: bool = False,
-                 use_parallel_training: bool = None):
+                 use_parallel_training: bool = None,
+                 cv_r2_min_threshold: float = 0.0,
+                 max_train_cv_gap: float = 0.6,
+                 cv_folds: int = 3,
+                 cv_folds_large_n: int = 5,
+                 cv_large_n_threshold: int = 150):
         """
         Initialize Parallel AI Trainer
 
@@ -1086,6 +1091,14 @@ class ParallelAITrainer:
         # PARALLEL TRAINING MODE
         # If None, will prompt user in train_all_models_parallel()
         self.use_parallel_training = use_parallel_training
+
+        # DUAL R2 FILTER thresholds (Sprint 1 — Shang et al. 2022, Utama et al. 2016)
+        # Sprint 8: max_train_cv_gap 0.5 -> 0.6 (kucuk N icin yanlis alarm azaltildi)
+        self.cv_r2_min_threshold = cv_r2_min_threshold
+        self.max_train_cv_gap = max_train_cv_gap
+        self.cv_folds = cv_folds
+        self.cv_folds_large_n = cv_folds_large_n
+        self.cv_large_n_threshold = cv_large_n_threshold
 
         # Storage
         self.training_results = []
@@ -1346,6 +1359,75 @@ class ParallelAITrainer:
                     error_message=f"Poor/Failed: val_R2={_val_r2:.4f} < {R2_MIN_SAVE_THRESHOLD}"
                 )
 
+            # ─── DUAL R2 FILTER (Sprint 1 — Shang 2022, Utama 2016) ──────────────
+            # CV kayit ONCESINDE calisir. Adaptif fold: N<threshold -> cv_folds, else cv_folds_large_n
+            _cv_r2 = float('nan')
+            if self.use_model_validation:
+                try:
+                    import numpy as _np
+                    import math as _math
+                    _X_combined = _np.vstack([X_train, X_val])
+                    _y_combined = _np.concatenate([y_train, y_val])
+                    _n_train = len(X_train)
+                    _n_folds = self.cv_folds_large_n if _n_train >= self.cv_large_n_threshold else self.cv_folds
+                    _cv_n_jobs = 1 if self.use_parallel_training else -1
+                    _cv_res = self.run_model_validation(
+                        model=trainer.model,
+                        model_name=f"{job.model_type}_{job.config['id']}",
+                        X=_X_combined, y=_y_combined,
+                        cv_folds=_n_folds, cv_n_jobs=_cv_n_jobs
+                    )
+                    if _cv_res.get('status') == 'completed':
+                        _cv_r2 = _cv_res.get('cv_results', {}).get('r2_test_mean', float('nan'))
+                        _cv_file = job.output_dir / f"cv_results_{job.config['id']}.json"
+                        with open(_cv_file, 'w', encoding='utf-8') as _f:
+                            json.dump(_cv_res, _f, indent=2)
+                except Exception as _cve:
+                    logger.warning(f"  [CV] Validation failed: {_cve}")
+
+            import math as _math
+            _train_r2 = metrics.get('train', {}).get('r2', float('nan'))
+            _gap = (_train_r2 - _cv_r2) if (not _math.isnan(_train_r2) and not _math.isnan(_cv_r2)) else float('nan')
+            _cv_pass = _math.isnan(_cv_r2) or _cv_r2 >= self.cv_r2_min_threshold
+            _gap_pass = _math.isnan(_gap) or _gap < self.max_train_cv_gap
+            _cv_str = f"{_cv_r2:.3f}" if not _math.isnan(_cv_r2) else "N/A"
+            _gap_str = f"{_gap:.3f}" if not _math.isnan(_gap) else "N/A"
+            logger.info(
+                f"[DUAL_FILTER] {job.job_id} val_R2={_val_r2:.3f} cv_R2={_cv_str} "
+                f"gap={_gap_str} -> {'KABUL' if (_cv_pass and _gap_pass) else 'RET'}"
+            )
+            if not _cv_pass:
+                logger.warning(
+                    f"[DUAL_FILTER_RET] {job.job_id} cv_R2={_cv_str} < {self.cv_r2_min_threshold} "
+                    f"(Shang et al. 2022). Model NOT saved."
+                )
+                metrics_file = job.output_dir / f"metrics_{job.config['id']}.json"
+                with open(metrics_file, 'w', encoding='utf-8') as f:
+                    json.dump(metrics, f, indent=2)
+                return TrainingResult(
+                    job_id=job.job_id, model_type=job.model_type,
+                    config_id=job.config['id'], dataset_name=job.dataset_name,
+                    success=False, metrics=metrics,
+                    training_time=time.time() - start_time,
+                    error_message=f"Dual R2 filter: cv_R2={_cv_str} < {self.cv_r2_min_threshold}"
+                )
+            if not _gap_pass:
+                logger.warning(
+                    f"[DUAL_FILTER_RET] {job.job_id} gap={_gap_str} >= {self.max_train_cv_gap} "
+                    f"(Utama et al. 2016, Sprint 8: threshold=0.6). Model NOT saved."
+                )
+                metrics_file = job.output_dir / f"metrics_{job.config['id']}.json"
+                with open(metrics_file, 'w', encoding='utf-8') as f:
+                    json.dump(metrics, f, indent=2)
+                return TrainingResult(
+                    job_id=job.job_id, model_type=job.model_type,
+                    config_id=job.config['id'], dataset_name=job.dataset_name,
+                    success=False, metrics=metrics,
+                    training_time=time.time() - start_time,
+                    error_message=f"Dual R2 filter: gap={_gap_str} >= {self.max_train_cv_gap}"
+                )
+            # ─────────────────────────────────────────────────────────────────────
+
             # Save model
             model_filename = f"model_{job.model_type}_{job.config['id']}.pkl"
             model_path = job.output_dir / model_filename
@@ -1371,33 +1453,6 @@ class ParallelAITrainer:
                         'test_samples': len(X_test)
                     }
                 )
-
-            # ✅ ACTIVATED: Model Validation (Cross-validation)
-            if self.use_model_validation:
-                try:
-                    import numpy as np
-                    X_combined = np.vstack([X_train, X_val])
-                    y_combined = np.concatenate([y_train, y_val])
-
-                    # CRITICAL: If parallel training is used, use n_jobs=1 for CV to avoid deadlock
-                    cv_n_jobs = 1 if self.use_parallel_training else -1
-
-                    cv_results = self.run_model_validation(
-                        model=trainer.model,
-                        model_name=f"{job.model_type}_{job.config['id']}",
-                        X=X_combined,
-                        y=y_combined,
-                        cv_folds=5,
-                        cv_n_jobs=cv_n_jobs
-                    )
-
-                    if cv_results.get('status') == 'completed':
-                        cv_file = job.output_dir / f"cv_results_{job.config['id']}.json"
-                        with open(cv_file, 'w', encoding='utf-8') as f:
-                            json.dump(cv_results, f, indent=2)
-                        logger.info(f"  [CV] Saved cross-validation results")
-                except Exception as e:
-                    logger.warning(f"  [CV] Validation failed: {e}")
 
             # ✅ ACTIVATED: Overfitting Detection
             try:
@@ -1508,8 +1563,7 @@ class ParallelAITrainer:
         # Set env flag so inner trainers use n_jobs=1 (prevent thread explosion)
         os.environ['_PFAZ_PARALLEL_ACTIVE'] = '1'
 
-        # Use ThreadPoolExecutor for I/O bound tasks with sklearn
-        # Use ProcessPoolExecutor for CPU-intensive tasks
+        # Use ThreadPoolExecutor for all training jobs (CPU-safe, no GIL issue for sklearn)
         with ThreadPoolExecutor(max_workers=self.n_workers) as executor:
             # Submit all jobs
             future_to_job = {

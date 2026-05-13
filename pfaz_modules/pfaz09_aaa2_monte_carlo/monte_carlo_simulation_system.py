@@ -28,7 +28,12 @@ from datetime import datetime
 from typing import Dict, List, Tuple, Optional
 import warnings
 import time
-from tqdm import tqdm
+try:
+    from tqdm import tqdm
+    TQDM_AVAILABLE = True
+except ImportError:
+    tqdm = None
+    TQDM_AVAILABLE = False
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 warnings.filterwarnings('ignore')
 
@@ -124,7 +129,7 @@ DEFAULT_MC_CONFIG = {
 class MCDropoutSimulator:
     """Monte Carlo Dropout for DNN uncertainty estimation"""
     
-    def __init__(self, n_samples: int = 100):
+    def __init__(self, n_samples: int = 1000):  # BUG-38: 100->1000 (Efron & Tibshirani 1993)
         self.n_samples = n_samples
         
         if not TF_AVAILABLE:
@@ -156,7 +161,7 @@ class MCDropoutSimulator:
         # Enable dropout during inference
         predictions = []
         
-        for i in tqdm(range(self.n_samples), desc="MC Dropout"):
+        for i in (tqdm(range(self.n_samples), desc="MC Dropout") if TQDM_AVAILABLE else range(self.n_samples)):
             # Forward pass with training=True to enable dropout
             y_pred = model(X, training=True).numpy()
             predictions.append(y_pred.flatten())
@@ -229,7 +234,7 @@ class BootstrapSimulator:
         bootstrap_r2 = []
         bootstrap_rmse = []
         
-        for i in tqdm(range(self.n_bootstrap), desc="Bootstrap"):
+        for i in (tqdm(range(self.n_bootstrap), desc="Bootstrap") if TQDM_AVAILABLE else range(self.n_bootstrap)):
             # Resample with replacement
             indices = np.random.choice(n_train, size=n_train, replace=True)
             X_boot = X_train[indices]
@@ -378,7 +383,7 @@ class NoiseSimulator:
 class FeatureDropoutSimulator:
     """Feature dropout Monte Carlo for feature importance uncertainty"""
     
-    def __init__(self, dropout_probs: List[float] = None, n_samples: int = 500):
+    def __init__(self, dropout_probs: List[float] = None, n_samples: int = 1000):  # BUG-38: 500->1000
         self.dropout_probs = dropout_probs or [0.1, 0.2, 0.3]
         self.n_samples = n_samples
     
@@ -508,7 +513,7 @@ class EnsembleUncertaintyAnalyzer:
         # Collect predictions from all models
         all_predictions = np.zeros((n_models, n_samples))
         
-        for i, model in enumerate(tqdm(models, desc="Ensemble")):
+        for i, model in enumerate(tqdm(models, desc="Ensemble") if TQDM_AVAILABLE else models):
             try:
                 y_pred = model.predict(X)
                 all_predictions[i] = y_pred.flatten()

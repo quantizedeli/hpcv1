@@ -146,8 +146,8 @@ class UnknownNucleiPredictor:
                     val_r2 = _val.get('r2') if isinstance(_val, dict) else m.get('val_r2')
                     _train = m.get('train')
                     train_r2 = _train.get('r2') if isinstance(_train, dict) else m.get('train_r2')
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f'[PFAZ04] Metrics JSON okunamadi: {e}')
 
             try:
                 model = joblib.load(pkl)
@@ -187,8 +187,8 @@ class UnknownNucleiPredictor:
                     val_r2 = _val.get('r2') if isinstance(_val, dict) else m.get('val_r2')
                     _train = m.get('train')
                     train_r2 = _train.get('r2') if isinstance(_train, dict) else m.get('train_r2')
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f'[PFAZ04] Metrics JSON okunamadi: {e}')
 
             try:
                 model = joblib.load(pkl)
@@ -287,6 +287,12 @@ class UnknownNucleiPredictor:
 
             # --- AI models ---
             ai_models = self._load_ai_models_for_dataset(dataset_name)
+            if not ai_models:
+                logger.warning(
+                    f"  [PFAZ04] {dataset_name}: AI model bulunamadi. "
+                    f"Dual R2 filtresi (cv_R2>=0 + gap<0.6) modelleri reddetmis olabilir. "
+                    f"Bkz. PFAZ02 DUAL_FILTER_RET log'lari."
+                )
             for m_info in ai_models:
                 y_pred = self._predict_with_model(m_info['model'], X_test)
                 if y_pred is None:

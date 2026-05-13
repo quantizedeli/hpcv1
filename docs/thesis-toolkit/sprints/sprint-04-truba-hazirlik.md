@@ -172,9 +172,13 @@ raise ValueError(
 - **WS özellikleri:** HBAR_C tanımlı, hesaplama yapılabilir ✓
 - **MC örnekleme:** K=1000 olduğu doğrulandı (DEFAULT_MC_CONFIG'de) ✓
 
-### Bilinen Eksiklik (Sprint 5'e devredildi)
-- BUG-38'in **sınıf default'ları** (sat. 194, 288) hala 100 idi
-  → Sprint 5'te tamamlandı
+### Bilinen Eksiklik (Sprint 5'e devredildi — Sprint 8'de tamamlandi)
+- BUG-38'in **sinif default'lari** (sat. 194, 288) hala 100 idi
+  → Sprint 5 belgesi "tamamlandi" dedi ama gercekte hala eksikti
+  → **Sprint 8'de BUG-64 olarak tamamlandi (commit 2f1e594):**
+    - `MCDropoutSimulator.__init__` n_samples=100 → **1000**
+    - `FeatureDropoutSimulator.__init__` n_samples=500 → **1000**
+    - Tum MC simulasyonlari artik K=1000 standardinda (Efron & Tibshirani 1993)
 
 ---
 

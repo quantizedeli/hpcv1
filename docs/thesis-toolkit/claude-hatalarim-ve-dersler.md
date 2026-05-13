@@ -684,3 +684,147 @@ sprint'i "tamamlandi" olarak isaretleme.
 
 *Claude-Hatalarim-ve-Dersler v1.8 | 2026-05-12*
 *Guncelleme: KURAL 20 (paralel agent tarama) + KURAL 21 (sprint sonu 7 belge disiplini) eklendi*
+---
+
+## KURAL 22: Constructor Imzasini Oku -- Parametre Gecirmek Yetmez
+
+### Hata (2026-05-12 Sprint 8)
+
+Sprint 1'de "Dual R2 filtresi eklendi" dedim. main.py ParallelAITrainer'a
+5 parametre geciriyordu. "Calisiyor" dedim.
+
+Gercekte: ParallelAITrainer.__init__ bu parametreleri **imzasinda kabul etmiyordu**.
+Python'da constructor imzasinda olmayan keyword arg sessizce **TypeError** verir,
+ya da **kwargs ile yutulur. Bu durumda parametreler yok sayildi.
+CV gate Sprint 1'den Sprint 8'e kadar **hic calismadi**.
+
+### Ders
+
+Bir fonksiyona parametre gecirdigimde su iki soruyu sor:
+
+1. **Fonksiyon imzasinda bu parametre var mi?**
+   `grep -n "def __init__" dosya.py` -> imzayi oku, tek tek karsilastir
+2. **Parametre self.xxx = xxx ile ataniyor mu?**
+   Imzada olsa bile atanmiyorsa kullanilmiyor demektir.
+
+```bash
+# Kontrol komutu:
+grep -n "cv_r2_min_threshold\|max_train_cv_gap" pfaz_modules/pfaz02_ai_training/parallel_ai_trainer.py
+# Hem __init__ imzasinda hem self.xxx = xxx satiri gorunmeli
+```
+
+### Kontrol noktasi
+
+Yeni parametre eklendiginde veya mevcut parametreyi dogruladigimda:
+- [ ] Fonksiyon imzasinda var mi? (def __init__ satiri)
+- [ ] self.parametre = parametre atamasi var mi?
+- [ ] Atanan deger kodun ilerleyen yerinde KULLANILIYOR mu? (grep ile bul)
+- [ ] Test: parametreyi farkli degerle cagir, davranis degisiyor mu?
+
+Imza + atama + kullanim -- ucunu de gormedikce "calistiyor" deme.
+
+---
+
+*Claude-Hatalarim-ve-Dersler v1.9 | 2026-05-12*
+*Guncelleme: KURAL 22 eklendi -- constructor imza + atama + kullanim uclu dogrulama*
+
+
+---
+
+## KURAL 23: HPC Script Bilgilerini Sohbet Arsivinden Dogrula (2026-05-13)
+
+**Hata:** TRUBA scriptleri yazarken gercek sisteme erisimim olmadigi icin
+tahmine dayali bilgiler kullandim (yanlis SSH adresi, yanlis partition,
+yanlis modul adi, gereksiz pip install). Dogru bilgiler onceki sohbet
+arsivinde mevcuttu ama okumadan yazdim.
+
+**Ders:** HPC/sistem scriptleri yazmadan once MUTLAKA conversation_search
+ile onceki TRUBA/HPC sohbetlerini ara. Gercek parametreleri (modul adi,
+partition, account) bul. Bulamazsan kullaniciya SOR, tahmin etme.
+Tahmine dayali HPC scriptleri sessizce FAILED verir veya hic calismaz.
+
+---
+
+*Claude-Hatalarim-ve-Dersler v2.0 | 2026-05-13*
+*Guncelleme: KURAL 23 -- HPC script tahmin etme, dogrula*
+
+---
+
+## KURAL 24: Kural Bilmek Yetmez -- Uygulamak Zorunlu (2026-05-13)
+
+### Hata
+
+Sprint 9B'de TRUBA scriptlerini onaysiz degistirdim, commit ve patch
+ureettim. Oysa memory'de "NEVER make decisions without asking" yaziyordu.
+CLAUDE.md'de "Update documents after completing any phase" yaziyordu.
+claude-hatalarim'de KURAL 21 (7 belge disiplini) yaziyordu.
+
+Kurallari BILIYORDUM. Uygulamadim.
+
+### Neden Oldu -- Kok Neden
+
+"Sohbet arsivinden bilgim var, hizli tamamlayayim" dusuncesi tetikledi.
+Arsivin araştirma bulgusunu gercek sistem bilgisi saydim.
+"Tahmin" ile "dogrulama"yi birbirine karıştırdım.
+Patch workflow'unu eksik anlattim (hangi klasor, hangi komut).
+MATLAB baglantisinı sormadan yorum satiri ekleyip gectim.
+
+### Ders
+
+Kural metni okumak yetmez. Her adimda aktif olarak sor:
+1. "Bunu yapmak icin kullanicinin onayi var mi?" -> Yoksa DUR, sor.
+2. "Bu bilgi gercekten dogrulanmis mi?" -> Hayirsa DUR, sor.
+3. "Kullanici bu adimi kendi basina uygulayabilir mi?" -> Hayirsa acikla.
+
+Ozelllikle HPC/TRUBA scriptleri icin: gercek cikti olmadan tek satir yazma.
+
+### Kontrol Listesi (her TRUBA degisikligi oncesi)
+
+- [ ] Kemal'den `module avail`, `sinfo`, `quota` ciktisi alindi mi?
+- [ ] SSH adresi/IP dogrulandi mi? (levrek.ulakbim.gov.tr veya VPN IP?)
+- [ ] MATLAB lisansi test edildi mi? (`module load apps/matlab/r2025b` calisiyor mu?)
+- [ ] Patch hangi klasore, hangi komutla uygulanacak yazildi mi?
+- [ ] Plan sunuldu, onay alindi mi?
+
+---
+
+*Claude-Hatalarim-ve-Dersler v2.1 | 2026-05-13*
+*Guncelleme: KURAL 24 -- Kural bilmek yetmez, uygulamak zorunlu*
+
+---
+
+## KURAL 25: TRUBA Slurm Zorunlu Parametrelerini Atlama (2026-05-13)
+
+### Hata
+
+orfoz partition icin `#SBATCH -C weka` zorunlu oldugu halde
+ilk yazdığım slurm scriptlerinde bu satiri unutmuştum.
+Bu parametre olmadan job ya kuyrukta bekler ya da FAILED verir.
+
+Kaynak: https://docs.truba.gov.tr -- orfoz/hamsi icin weka flag zorunlu,
+cunku bu sunucularda I/O yonetimi icin 2 cekirdek ayrilmis ve
+WEKA dosya sistemine baglilar.
+
+### Zorunlu SBATCH parametreleri (orfoz icin tam liste)
+
+```bash
+#SBATCH -p orfoz          # partition
+#SBATCH -A ahmacar        # account (ZORUNLU)
+#SBATCH -C weka           # ZORUNLU -- eksik olursa job calismaz
+#SBATCH -N 1              # node sayisi
+#SBATCH -n 1              # task sayisi
+#SBATCH -c 110            # max 110 (2 cekirdek IO icin ayrilmis)
+#SBATCH --time=3-00:00:00 # max 3 gun
+```
+
+### Ders
+
+Yeni bir HPC sistemi icin slurm scripti yazmadan once:
+1. Sistemin resmi orneklerine bak: `/arf/sw/scripts/`
+2. Dokumantasyondan partition-spesifik zorunlu flagleri kontrol et
+3. Tahmin etme -- sistemin kendi orneklerini kullanan
+
+---
+
+*Claude-Hatalarim-ve-Dersler v2.2 | 2026-05-13*
+*Guncelleme: KURAL 25 -- orfoz icin #SBATCH -C weka zorunlu*

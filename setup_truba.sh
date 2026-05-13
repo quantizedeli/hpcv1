@@ -18,36 +18,23 @@ echo "============================================================"
 echo ""
 echo "[1/6] Modüller yükleniyor..."
 module purge
-module load centos7.9/comp/python/3.11.2 2>/dev/null || \
-    module load centos7.3/comp/python/3.6.5 2>/dev/null || {
-    echo "[UYARI] Python modülü bulunamadı. Mevcut Python modülleri:"
-    module avail 2>&1 | grep -i python | head -20
-    echo ""
-    echo "Yukarıdaki listeden uygun modülü setup_truba.sh içinde güncelleyin."
+module load apps/truba-ai/cpu-2024.0 2>/dev/null || {
+    echo "[HATA] apps/truba-ai/cpu-2024.0 yuklenemedi."
+    echo "Kontrol: module avail 2>&1 | grep truba-ai"
     exit 1
 }
 echo "[OK] Python: $(python3 --version)"
 
-# ---- 2. Sanal ortam ----
+# ---- 2. Modul kontrolu (venv GEREKMEZ -- apps/truba-ai kapsamli) ----
 echo ""
-echo "[2/6] Sanal ortam kuruluyor..."
-VENV_PATH="$HOME/nucdatav2_env"
-if [ -d "$VENV_PATH" ]; then
-    echo "[INFO] Mevcut ortam bulundu: $VENV_PATH"
-    echo "       Silip yeniden kurmak için: rm -rf $VENV_PATH && bash setup_truba.sh"
-else
-    python3 -m venv "$VENV_PATH"
-    echo "[OK] Sanal ortam: $VENV_PATH"
-fi
-source "$VENV_PATH/bin/activate"
-pip install --upgrade pip --quiet
-echo "[OK] pip güncel"
+echo "[2/6] Modul kontrolu..."
+echo "[OK] apps/truba-ai/cpu-2024.0 aktif -- pip install YAPMA"
+python3 --version
 
 # ---- 3. Paketler ----
 echo ""
 echo "[3/6] Python paketleri kuruluyor (requirements-hpc.txt)..."
-pip install -r requirements-hpc.txt 2>&1 | tail -5
-echo "[OK] Paketler kuruldu"
+echo "[OK] Paketler apps/truba-ai modulunde mevcut -- requirements-hpc.txt GEREKMEZ"
 
 # ---- 4. Kritik paket kontrolü ----
 echo ""
@@ -113,7 +100,7 @@ echo " KURULUM TAMAMLANDI!"
 echo ""
 echo " Sonraki adımlar:"
 echo " 1. truba_slurm_job.sh dosyasını düzenleyin:"
-echo "    - SBATCH --partition= (hamsi/palamut/barbun)"
+echo "    - SBATCH --partition= (orfoz onerilen -- CPU YL icin)"
 echo "    - THESIS_SUPERVISOR, THESIS_UNIVERSITY"
 echo "    - GPU kullanıyorsanız gres satırını açın"
 echo ""

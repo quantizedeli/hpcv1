@@ -17,10 +17,12 @@
 | Sprint 4 | `sprint-04-truba-hazirlik.md` | TRUBA hazırlık + BUG-02/03/31/32/38/39/20 fix | YUKSEK | **TAMAMLANDI** 2026-05-11 |
 | Sprint 5 | `sprint-05-inter-pfaz-audit.md` | Inter-PFAZ data flow audit (KURAL 19) + BUG-42..46 | YUKSEK | **TAMAMLANDI** 2026-05-11 |
 | Sprint 6 | `sprint-06-8-kategori-tarama.md` | 8 kategori paralel agent taraması — 15 yeni bug (BUG-47..61) | ORTA | **TAMAMLANDI** 2026-05-12 |
-| Sprint 7 | `sprint-07-bug-fixes.md` | BUG-47..61 fix: TRUBA-CRITICAL önce, sonra CRITICAL/HIGH | YUKSEK | **BEKLIYOR** |
-| Sprint 8 | (sonra) | TRUBA slurm scripts + Apptainer container hazırlığı | YUKSEK | **TRUBA bekliyor** |
+| Sprint 7 | `sprint-07-bug-fixes.md` | BUG-47..61 fix: 15 bug, 14 dosya, 16 satir kod | YUKSEK | **TAMAMLANDI** 2026-05-12 |
+| Sprint 8 | `sprint-08-missing-fixes.md` | BUG-62/63/64 -- Sprint 1/2/4 eksik fix'ler + CV gate gercek implementasyon | KRITIK | **TAMAMLANDI** 2026-05-12 |
+| Sprint 9A | `sprint-09-v10-sync.md` | v10 sync: Sprint 7+8 fix'leri, CV gate, max_train_cv_gap=0.6 | YUKSEK | **TAMAMLANDI** 2026-05-13 |
+| Sprint 9B | `sprint-09-truba.md` | TRUBA: 4 job script (weka flag, 110CPU, n_workers=100, zip) | YUKSEK | **TAMAMLANDI** 2026-05-13 |
 
-**Uygulama sırası:** Sprint 1 → 2 → 3 → 4 → 5 → 6 — HEPSİ TAMAMLANDI; Sprint 7 → 8 bekliyor.
+**Uygulama sırası:** Sprint 1-9 TAMAMLANDI. Sprint 10 = dosya transferi + ilk sbatch job1 test.
 
 ---
 

@@ -310,6 +310,13 @@ class AdvancedStackingEnsemble:
         
         n_samples = len(X_train)
         n_models = len(self.base_models)
+
+        if n_models == 0:
+            raise ValueError(
+                "Ensemble icin base model bulunamadi. "
+                "Dual R2 filtresi (cv_R2>=0 + gap<0.6) tum modelleri reddetmis olabilir. "
+                "PFAZ02 DUAL_FILTER_RET log'larini kontrol et (Shang 2022, Utama 2016)."
+            )
         
         oof_preds = np.zeros((n_samples, n_models))
         

@@ -48,8 +48,8 @@ gap     <  0.5  (yeni — train_R2 - cv_R2 farkı)
 ```json
 "r2_min_threshold": 0.5,
 "cv_r2_min_threshold": 0.0,
-"max_train_cv_gap": 0.5,
-"_dual_r2_note": "Literatur destegi: Shang et al. 2022, Utama et al. 2016. cv_R2 >= 0 = en az ortalamadan iyi. gap < 0.5 = aşırı uyum sınırı."
+"max_train_cv_gap": 0.6,
+"_dual_r2_note": "Literatur destegi: Shang et al. 2022, Utama et al. 2016. cv_R2 >= 0 = en az ortalamadan iyi. gap < 0.6 = aşırı uyum sınırı."
 ```
 
 ### Adım 2: `config_desktop.json` — Aynı Threshold'ları Ekle
@@ -57,7 +57,7 @@ gap     <  0.5  (yeni — train_R2 - cv_R2 farkı)
 `nucdatav2-desktop/config_desktop.json` → `pfaz02_ai_training` bölümüne ekle:
 ```json
 "cv_r2_min_threshold": 0.0,
-"max_train_cv_gap": 0.5
+"max_train_cv_gap": 0.6
 ```
 
 ### Adım 3: `parallel_ai_trainer.py` — Model Kayıt Akışını Yeniden Yapılandır
@@ -209,3 +209,23 @@ Büyük refactor ise:
 - Değişiklik minimal olmalı — geniş refactor yapma, sadece akış sırası ve yeni kontrol ekle
 - `train_R2` değeri CV'den ÖNCE mevcut (model eğitim metriklerinden geliyor)
 - CV zaten çalışıyor, sadece sıralama ve karar noktası değişiyor
+
+---
+
+## Sprint 8 Duzeltme Notu -- BUG-62 (2026-05-12)
+
+**Durum:** Sprint 1 belgede TAMAMLANDI yaziyordu ama CV gate hic calismiyordu.
+
+**Sorun:** `ParallelAITrainer.__init__` imzasinda `cv_r2_min_threshold`,
+`max_train_cv_gap`, `cv_folds`, `cv_folds_large_n`, `cv_large_n_threshold`
+parametreleri YOKTU. main.py 5 parametreyi geciriyordu ama constructor kabul
+etmiyordu -- hepsi sessizce yok sayildi. (Bkz. KURAL 22)
+
+**Fix (commit 2f1e594):**
+- Constructor imzasina 5 parametre eklendi
+- DUAL_FILTER blogu model kaydinin ONCESINE tasinmasi (Sprint 1'in asil amaci)
+- Adaptif fold aktif: N<150 -> 3-fold, N>=150 -> 5-fold
+- [DUAL_FILTER] KABUL/RET log mesajlari eklendi
+- max_train_cv_gap: 0.6 (Sprint 8 karari, bkz. sprint-08-missing-fixes.md)
+
+*Sprint 1 v2.0 | 2026-05-12 | BUG-62 ile gercek implementasyon tamamlandi*
