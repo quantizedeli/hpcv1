@@ -677,7 +677,9 @@ class NuclearPhysicsAIOrchestrator:
                 use_config_manager=config.get('use_config_manager', True),
                 use_adaptive_strategy=config.get('use_adaptive_strategy', False),
                 use_performance_analyzer=config.get('use_performance_analyzer', True),
-                save_datasets=config.get('save_datasets', True)
+                save_datasets=config.get('save_datasets', True),
+                # BUG-75 (Sprint 11): PFAZ2 path explicit -- sibling-inference yerine.
+                ai_results_dir=str(self.pfaz_outputs[2]),
             )
 
             self.status_manager.update_pfaz(pfaz_id, 'running', 50)
@@ -830,7 +832,12 @@ class NuclearPhysicsAIOrchestrator:
                 ai_models_dir=str(self.pfaz_outputs[2]),
                 anfis_models_dir=str(self.pfaz_outputs[3]),
                 use_excel_charts=config.get('use_excel_charts', True),
-                use_latex_generator=config.get('use_latex_generator', True)
+                use_latex_generator=config.get('use_latex_generator', True),
+                # BUG-82 (Sprint 12): cross_model_dir + unknown_dir + datasets_dir explicit.
+                # Tezde PFAZ5 ve PFAZ4 verileri PFAZ6 raporlarinda eksiksiz olsun.
+                cross_model_dir=str(self.pfaz_outputs[5]),
+                unknown_dir=str(self.pfaz_outputs[4]),
+                datasets_dir=str(self.pfaz_outputs[1]),
             )
             # Pass aaa2.txt path for isotope chain analysis
             _aaa2_f = self.config.get('data_file', 'aaa2.txt')
@@ -914,7 +921,17 @@ class NuclearPhysicsAIOrchestrator:
                 MasterVisualizationSystem
             )
 
-            viz_system = MasterVisualizationSystem(output_dir=str(self.pfaz_outputs[8]))
+            viz_system = MasterVisualizationSystem(
+                output_dir=str(self.pfaz_outputs[8]),
+                # BUG-76 (Sprint 11) + BUG-80 (Sprint 12): tum path'ler explicit.
+                # Sibling-inference yerine constructor argumani; tezdeki ciktilarin eksiksiz olmasi icin.
+                reports_dir=str(self.pfaz_outputs[6]),
+                trained_models_dir=str(self.pfaz_outputs[2]),
+                anfis_models_dir=str(self.pfaz_outputs[3]),
+                datasets_dir=str(self.pfaz_outputs[1]),
+                log_dir=str(self.output_dir / 'logs') if (self.output_dir / 'logs').exists() else None,
+                project_root=str(self.project_root),
+            )
             results = viz_system.generate_all_visualizations(project_data={})
 
             # PFAZ 8 - THESIS CHARTS: 300 DPI PNG + HTML (single panel per file)
@@ -1207,11 +1224,14 @@ class NuclearPhysicsAIOrchestrator:
                 )
 
                 band_output = str(self.pfaz_outputs[12] / 'band_analysis')
+                # BUG-81 (Sprint 12): PFAZ4 AAA2_Original_vs_Predictions.xlsx explicit
+                _pfaz4_pred_xlsx = self.pfaz_outputs[4] / 'AAA2_Original_vs_Predictions.xlsx'
                 band_analyzer = NuclearMomentBandAnalyzer(
                     data_path=_aaa2_path,
                     output_dir=band_output,
                     jump_sigma=2.0,
                     n_bands=6,
+                    pfaz4_excel_path=str(_pfaz4_pred_xlsx) if _pfaz4_pred_xlsx.exists() else None,
                 )
                 band_results = band_analyzer.run_all()
                 results['band_analysis'] = {

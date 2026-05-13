@@ -1150,11 +1150,23 @@ class ParallelAITrainer:
         logger.info("=" * 80)
     
     def load_training_configs(self, config_file: Path) -> List[Dict]:
-        """Load 50 training configurations"""
+        """Load training configurations.
         
+        BUG-77 (Sprint 11): JSON format esnek -- iki yapi:
+          1. list ([{...}, ...])  -- eski
+          2. dict with 'configs' key ({'_meta': {...}, 'configs': [...]})  -- yeni
+        """
         with open(config_file, 'r', encoding='utf-8') as f:
-            configs = json.load(f)
-        
+            data = json.load(f)
+        if isinstance(data, list):
+            configs = data
+        elif isinstance(data, dict) and 'configs' in data:
+            configs = data['configs']
+            _meta = data.get('_meta', {})
+            if _meta:
+                logger.info(f"  [BUG-77] Config meta: {_meta.get('description', '')}")
+        else:
+            raise ValueError(f"Unsupported config format in {config_file}.")
         logger.info(f"Loaded {len(configs)} training configurations")
         return configs
     

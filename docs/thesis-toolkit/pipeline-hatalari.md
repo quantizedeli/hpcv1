@@ -2380,3 +2380,145 @@ Sonra (fix):   Target sutunu var -> Layered selection calisir
 ---
 
 *Sprint 10 ek denetim | PFAZ3-PFAZ2 sutun seviyesinde veri akisi analizi*
+
+---
+
+# Sprint 12 — Cikti Tamligi + TRUBA 2025-12-15 Kural Guncellemesi (2026-05-13)
+
+Kemal'in iki talebi Sprint 12'yi tetikledi:
+1. "Sprint 11 sonrasi her sey kusursuz mu?" -- 44 sibling-inference noktasi denetlendi, 36 kirilgan tespit, kategori C noktalari fix edildi.
+2. TRUBA 2025-12-15 ekran goruntusu: "orfoz kuyruguna gonderilecek islerde node basina 56/112 ve katlarinda cekirdek talep edilmelidir."
+
+Bu sprintin amaci: TRUBA'da tezdeki ciktilarin (xlsx, png, html) EKSIKSIZ uretilmesi + yeni TRUBA kuralina uyum.
+
+---
+
+### BUG-79 [ORTA] PFAZ3 Robustness CSV Path -- self.datasets_dir Kullanmıyordu
+
+| Alan | Deger |
+|------|-------|
+| Dosya | pfaz_modules/pfaz03_anfis_training/anfis_parallel_trainer_v2.py |
+| Sprint | Sprint 12 |
+| Durum | **DUZELTILDI 2026-05-13** |
+
+**Sorun:** PFAZ3 robustness analizi dataset CSV ararken `self.output_dir.parent / 'generated_datasets'` sibling-inference yapiyordu. `self.datasets_dir` constructor'da set ediliyor ama burada kullanilmiyordu.
+
+**Fix:** Explicit > sibling-inference fallback. `_cand_list` once `self.datasets_dir / _rc.dataset_name`'i dener.
+
+---
+
+### BUG-80 [YUKSEK] PFAZ8 Helper-Based Path Resolution
+
+| Alan | Deger |
+|------|-------|
+| Dosya | pfaz_modules/pfaz08_visualization/visualization_master_system.py |
+| Sprint | Sprint 12 |
+| Durum | **DUZELTILDI 2026-05-13** |
+
+**Sorun:** PFAZ8'de **22 farkli yerde** sibling-inference (output_dir.parent / 'X') kullaniliyordu. Her sub-method ayri ayni pattern'i tekrarliyordu -- log dosyalari, training_summary, AAA2_enriched, anfis summary, final_report araniyordu.
+
+**Risk:** Cikti yapisi degisirse PFAZ8 grafiklerinin yarisi uretilmez. Ozellikle:
+- LogAnalyticsVisualizationsComplete: TRUBA'da loglar `outputs/logs/` altinda, eski kod scratch root'unda ararken bulamazdi -> log grafigi eksik.
+- MasterReportVisualizationsComplete: 'final_report' adinda bir klasor PIPELINE'da YOK (PFAZ6 'reports/' kullanir). Eski kod hep miss -> master report grafigi hic uretilmezdi.
+
+**Fix:** 
+1. Constructor'a 6 parametre eklendi: `reports_dir`, `trained_models_dir`, `anfis_models_dir`, `datasets_dir`, `log_dir`, `project_root`.
+2. 5 generic helper method: `_resolve_path`, `_find_reports_dir`, `_find_trained_models_dir`, `_find_anfis_models_dir`, `_find_datasets_dir`, `_find_log_dir`.
+3. Tum sub-method'lar bu helper'lari kullanir -- explicit > fallback.
+4. main.py PFAZ8 cagrisinda 6 path explicit aktarilir.
+
+**Etki:** PFAZ8'in **9 visualization modulu** artik TRUBA'da eksiksiz cikti uretir:
+- robustness, shap, anomaly, master_report, predictions, model_comparison, training_metrics, optimization, features
+- + interactive_html, log_analytics_complete, master_report_complete, model_comparison_dashboard, shap_analysis, anomaly_visualizations
+
+---
+
+### BUG-81 [ORTA] PFAZ12 BandAnalyzer rglob -- Yanlis Path + Performans
+
+| Alan | Deger |
+|------|-------|
+| Dosya | main.py + pfaz_modules/pfaz12_advanced_analytics/nuclear_band_analyzer.py |
+| Sprint | Sprint 12 |
+| Durum | **DUZELTILDI 2026-05-13** |
+
+**Sorun:** NuclearMomentBandAnalyzer PFAZ4 ciktisini ararken `self.output_dir.parent.parent` ve `self.output_dir.parent.parent.parent` tabanlarindan `rglob` yapiyordu. TRUBA'da:
+- `output_dir.parent.parent = /arf/scratch/ahmacar` (proje disi)
+- `output_dir.parent.parent.parent = /arf/scratch` (tum scratch alani)
+
+Yanlis path'ler taraniyordu -- yavas + diger projelerin dosyalarini tarama riski.
+
+**Fix:** 
+- Constructor'a `pfaz4_excel_path: str = None` parametresi.
+- Targeted fallback: sibling `unknown_predictions/` klasoru (PFAZ4 cikti).
+- main.py'de explicit `pfaz4_pred_xlsx = self.pfaz_outputs[4] / 'AAA2_Original_vs_Predictions.xlsx'` aktarilir.
+
+**Etki:** Band analyzer artik PFAZ4 cikti dosyasini DOGRU yerde arar. Tezdeki `Tahmin_Dogrulugu` sheet'i eksiksiz uretilir.
+
+---
+
+### BUG-82 [ORTA] PFAZ6 cross_model/unknown/datasets Sibling-Inference
+
+| Alan | Deger |
+|------|-------|
+| Dosya | main.py + pfaz_modules/pfaz06_final_reporting/pfaz6_final_reporting.py |
+| Sprint | Sprint 12 |
+| Durum | **DUZELTILDI 2026-05-13** |
+
+**Sorun:** PFAZ6 constructor'da `base = self.output_dir.parent` ile 3 path turetiyordu: `cross_model_dir`, `unknown_dir`, `datasets_dir`. main.py bunlari aktarmiyordu -- sibling-inference.
+
+**Fix:** Constructor parametreleri eklendi (`cross_model_dir`, `unknown_dir`, `datasets_dir`). main.py PFAZ6 cagrisinda explicit aktarir.
+
+**Etki:** PFAZ6 final reportta PFAZ5 (cross_model_analysis) ve PFAZ4 (unknown_predictions) verisi eksiksiz dahil edilir.
+
+---
+
+### BUG-83 [ORTA] PFAZ6 pfaz9 Fallback YANLIS Klasor Adlari Ariyordu
+
+| Alan | Deger |
+|------|-------|
+| Dosya | pfaz_modules/pfaz06_final_reporting/pfaz6_final_reporting.py:1336 |
+| Sprint | Sprint 12 |
+| Durum | **DUZELTILDI 2026-05-13** |
+
+**Sorun:** PFAZ6 `pfaz9_output_dir` None ise fallback sibling-inference ile arardi -- aradigi klasor adlari `pfaz9_output`, `aaa2_control_group`, `pfaz9`. **AMA gercek PFAZ9 cikti klasoru `aaa2_results`** (pfaz_outputs[9] = 'aaa2_results').
+
+main.py:991 `reporter.pfaz9_output_dir = str(self.pfaz_outputs[9])` aktariyor -- explicit oldugu surece fallback tetiklenmez. Ama eger main.py disindan cagrilirsa MC summary sheet'i bos kalir.
+
+**Fix:** Fallback hedefi `aaa2_results` ile baslar. Eski hatali adlar (pfaz9_output, aaa2_control_group) geriye donuk uyumluluk icin korundu.
+
+**Etki:** PFAZ6 MC Uncertainty summary sheet'i ne main.py'den ne de baska bir entry point'ten cagrilsa eksik kalmaz.
+
+---
+
+### BUG-84 [KRITIK] TRUBA 2025-12-15 Kurali -- orfoz -c 56/112 Katlari Zorunlu
+
+| Alan | Deger |
+|------|-------|
+| Dosya | truba/slurm_jobs/*.sh + config.json + utils/gpu_manager.py + truba/slurm_jobs/README.md |
+| Sprint | Sprint 12 |
+| Durum | **DUZELTILDI 2026-05-13** |
+
+**Tetikleyici:** Kemal'in TRUBA login ekran goruntusu (2026-05-13):
+> "Yeni depolama sistemine gecis tamamlanmistir. Bu gecis ile birlikte orfoz kuyruguna gonderilecek islerde node basina 56/112 ve katlarinda cekirdek, hamsi kuyrugunda ise node basina 56 ve katlarinda cekirdek talep edilmelidir."
+
+**Sorun:** Tum 4 Slurm job script `#SBATCH -c 110` kullaniyordu. **Bu yeni kuralla iş kabul edilmez.**
+
+**Fix:** Tum 4 job script `#SBATCH -c 112` yapildi (56'nin kati, tek node).
+
+| Parametre | Eski | Yeni |
+|-----------|------|------|
+| #SBATCH -c | 110 | **112** |
+| Worker (HPC_MODE n-2) | 108 | **110** |
+| Config notu | "110-cpu node" | "112-cpu node" |
+| README Max CPU | 110 | 112 (56 veya 112 katlari) |
+
+**Etki:**
+- Worker sayisi 108 -> 110 (yine paralel hizlanma korundu, hatta 2 worker fazla)
+- Job submit reddedilmeyecek
+- 56-cpu single socket alternatifi: kucuk testler icin gelecekte kullanilabilir
+
+**Not:** BUG-70 (Sprint 10) fix'i ile `gpu_manager.py` `HPC_MODE=1` ise `n - 2` worker doner. 112 cpu node'da -> 110 worker. Sonraki Sprint 12 calismasinda gerek kalmazsa, simdilik bu yapi optimum.
+
+---
+
+*Sprint 12 raporu | Cikti tamligi + TRUBA kural guncellemesi (BUG-79..84) | 6 fix*

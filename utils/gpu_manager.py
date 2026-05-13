@@ -179,7 +179,7 @@ class GPUManager:
         n = self._n_cpu  # runtime'da okundu, her PC'de farkli
 
         # BUG-70 FIX (Sprint 10): HPC modunda (TRUBA gibi) desktop limitleri kaldirilir.
-        # Sebep: orfoz partition #SBATCH -c 110 ayirir, eski kod min(16,...) yapardi
+        # Sebep: orfoz partition #SBATCH -c 112 (56'nin kati, 2025-12-15 TRUBA kurali) ayirir, eski kod min(16,...) yapardi
         # -> ayrilan kaynagin %14'u kullanilirdi. PFAZ2 koşusu ~7x daha uzar -> 3-gun limit asma riski.
         # HPC_MODE=1 env -> truba_slurm_job.sh ve truba/slurm_jobs/*.sh tarafindan set ediliyor.
         import os
@@ -188,7 +188,7 @@ class GPUManager:
         if mode == 'ai':
             if _hpc:
                 # HPC: 2 cekirdek IO icin birak, geri kalan tum cekirdekler worker
-                # 110-cpu node -> 108 worker, 56-cpu node -> 54 worker
+                # 112-cpu node -> 110 worker, 56-cpu node -> 54 worker
                 return max(4, n - 2)
             # Desktop: RF/GBM ic n_jobs=1 kullanir (PFAZ_PARALLEL_ACTIVE ile zorunlu)
             # Formul: her 3 mantiksal cekirdege 1 outer worker, ust sinir 16

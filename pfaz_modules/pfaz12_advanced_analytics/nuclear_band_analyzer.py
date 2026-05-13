@@ -108,6 +108,7 @@ class NuclearMomentBandAnalyzer:
         jump_sigma: float = 2.0,    # sicrama esigi: kac std sapma
         n_bands: int = N_BANDS,
         min_band_size: int = 3,     # bant analizi icin minimum cekirdek sayisi
+        pfaz4_excel_path: str = None,  # BUG-81 (Sprint 12): explicit PFAZ4 output
     ):
         self.data_path     = Path(data_path)
         self.output_dir    = Path(output_dir)
@@ -115,6 +116,8 @@ class NuclearMomentBandAnalyzer:
         self.jump_sigma    = jump_sigma
         self.n_bands       = n_bands
         self.min_band_size = min_band_size
+        # BUG-81 (Sprint 12): explicit PFAZ4 AAA2_Original_vs_Predictions.xlsx path
+        self.pfaz4_excel_path = Path(pfaz4_excel_path) if pfaz4_excel_path else None
         self.df: Optional[pd.DataFrame] = None
         self._results: Dict = {}
 
@@ -834,14 +837,20 @@ class NuclearMomentBandAnalyzer:
         """
         rows = []
 
-        # PFAZ4 ciktisi icin olasilikli yollar
-        search_roots = [
-            self.output_dir.parent.parent,              # outputs/
-            self.output_dir.parent.parent.parent,       # proje koku
-        ]
+        # BUG-81 (Sprint 12): explicit pfaz4_excel_path > targeted fallback
+        # Eski: parent.parent ve parent.parent.parent rglob -- yavas + yanlis path tarar
         excel_candidates = []
-        for root in search_roots:
-            excel_candidates += list(root.rglob("AAA2_Original_vs_Predictions.xlsx"))
+        if self.pfaz4_excel_path is not None and self.pfaz4_excel_path.exists():
+            excel_candidates = [self.pfaz4_excel_path]
+        else:
+            # Targeted fallback: sibling unknown_predictions/ klasoru
+            search_roots = [
+                self.output_dir.parent / 'unknown_predictions',  # outputs/unknown_predictions
+                self.output_dir.parent.parent / 'unknown_predictions',  # eski yapi
+            ]
+            for root in search_roots:
+                if root.exists():
+                    excel_candidates += list(root.rglob("AAA2_Original_vs_Predictions.xlsx"))
 
         if not excel_candidates:
             logger.info("[BandAnalyzer] PFAZ4 AAA2 karsilastirma Excel bulunamadi -- tahmin dogrulugu atlandı")

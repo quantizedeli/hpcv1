@@ -1345,9 +1345,36 @@ class FeatureImportanceVisualizer:
 class MasterVisualizationSystem:
     """Tüm görselleştirme modüllerini entegre eden master sistem"""
     
-    def __init__(self, output_dir='visualizations/master'):
+    def __init__(self, output_dir='visualizations/master',
+                 reports_dir: str = None,
+                 trained_models_dir: str = None,
+                 anfis_models_dir: str = None,
+                 datasets_dir: str = None,
+                 log_dir: str = None,
+                 project_root: str = None):
+        """
+        Args:
+            output_dir: PFAZ8 viz output (default 'visualizations/master')
+            reports_dir: PFAZ6 reports/ -- final_summary.json, training summary excels
+            trained_models_dir: PFAZ2 trained_models/ -- AI model metrics + training_summary
+            anfis_models_dir: PFAZ3 anfis_models/ -- ANFIS metrics + selected_datasets
+            datasets_dir: PFAZ1 generated_datasets/ -- AAA2_enriched + dataset CSV
+            log_dir: pipeline.log konumu (TRUBA logs/ veya proje koku)
+            project_root: proje koku (band analyzer ve PFAZ4 Excel arama)
+        
+        BUG-76 (Sprint 11) + BUG-80 (Sprint 12): Tum path'ler explicit; 
+        sibling-inference yerine constructor argumani. None ise fallback yapilir.
+        """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Sprint 11/12: explicit paths > sibling-inference fallback
+        self.reports_dir_explicit        = Path(reports_dir) if reports_dir else None
+        self.trained_models_dir_explicit = Path(trained_models_dir) if trained_models_dir else None
+        self.anfis_models_dir_explicit   = Path(anfis_models_dir) if anfis_models_dir else None
+        self.datasets_dir_explicit       = Path(datasets_dir) if datasets_dir else None
+        self.log_dir_explicit            = Path(log_dir) if log_dir else None
+        self.project_root_explicit       = Path(project_root) if project_root else None
         
         # Initialize all visualizers
         self.robustness_viz = RobustnessVisualizer(self.output_dir / 'robustness')
@@ -1361,15 +1388,66 @@ class MasterVisualizationSystem:
         self.feature_viz = FeatureImportanceVisualizer(self.output_dir / 'features')
         
         logger.info("Master Visualization System initialized successfully!")
-    
+
+    def _resolve_path(self, explicit_attr: str, *fallback_paths: Path) -> Optional[Path]:
+        """BUG-80 (Sprint 12): Generic explicit-first path resolver.
+        Onceki dagiynik sibling-inference'i tek bir methoda topladı.
+        """
+        explicit = getattr(self, explicit_attr, None)
+        if explicit is not None and explicit.exists():
+            return explicit
+        for p in fallback_paths:
+            if p.exists():
+                return p
+        return None
+
     def _find_reports_dir(self) -> Optional[Path]:
-        """Find PFAZ 6 reports directory"""
-        candidates = [
+        """Find PFAZ 6 reports directory. BUG-76 + BUG-80: explicit > fallback."""
+        return self._resolve_path(
+            'reports_dir_explicit',
             self.output_dir.parent / 'reports',
             self.output_dir.parent.parent / 'outputs' / 'reports',
+        )
+
+    def _find_trained_models_dir(self) -> Optional[Path]:
+        """BUG-80 (Sprint 12): explicit > fallback."""
+        return self._resolve_path(
+            'trained_models_dir_explicit',
+            self.output_dir.parent / 'trained_models',
+            self.output_dir.parent.parent / 'outputs' / 'trained_models',
+        )
+
+    def _find_anfis_models_dir(self) -> Optional[Path]:
+        """BUG-80 (Sprint 12): explicit > fallback."""
+        return self._resolve_path(
+            'anfis_models_dir_explicit',
+            self.output_dir.parent / 'anfis_models',
+            self.output_dir.parent.parent / 'outputs' / 'anfis_models',
+        )
+
+    def _find_datasets_dir(self) -> Optional[Path]:
+        """BUG-80 (Sprint 12): explicit > fallback."""
+        return self._resolve_path(
+            'datasets_dir_explicit',
+            self.output_dir.parent / 'generated_datasets',
+            self.output_dir.parent.parent / 'outputs' / 'generated_datasets',
+        )
+
+    def _find_log_dir(self) -> Optional[Path]:
+        """BUG-80 (Sprint 12): Pipeline log konumunu bul.
+        TRUBA'da loglar /arf/scratch/ahmacar/hpcv1_outputs/logs/ altında.
+        """
+        if self.log_dir_explicit is not None and self.log_dir_explicit.exists():
+            return self.log_dir_explicit
+        # Fallback: outputs/logs/, proje koku
+        candidates = [
+            self.output_dir.parent / 'logs',
+            self.output_dir.parent.parent / 'logs',
+            self.output_dir.parent.parent,
+            self.output_dir.parent.parent.parent,
         ]
         for p in candidates:
-            if p.exists():
+            if p.exists() and p.is_dir():
                 return p
         return None
 
@@ -4197,15 +4275,8 @@ class MasterVisualizationSystem:
                 logger.info("  [INFO] SHAP kurulu degil -- SHAP analizi atlanıyor (pip install shap)")
             else:
                 import joblib as _jl
-                # Trained models dir'i bul (PFAZ2 ciktisi)
-                _models_root = None
-                for _cand in [
-                    self.output_dir.parent / 'trained_models',
-                    self.output_dir.parent.parent / 'outputs' / 'trained_models',
-                ]:
-                    if _cand.exists():
-                        _models_root = _cand
-                        break
+                # BUG-80 (Sprint 12): helper kullanir, explicit > fallback
+                _models_root = self._find_trained_models_dir()
 
                 if _models_root is None:
                     logger.info("  [INFO] trained_models dizini bulunamadı -- SHAP atlanıyor")
@@ -4242,7 +4313,11 @@ class MasterVisualizationSystem:
 
                             # Load model + dataset
                             _model = _jl.load(_best_pkl)
-                            _ds_dir = _models_root.parent / 'generated_datasets' / _best_pkl.parts[-4]
+                            # BUG-80 (Sprint 12): datasets_dir helper kullan
+                            _datasets_root = self._find_datasets_dir()
+                            if _datasets_root is None:
+                                continue
+                            _ds_dir = _datasets_root / _best_pkl.parts[-4]
                             if not _ds_dir.exists():
                                 continue
                             import pandas as _pds
@@ -4292,13 +4367,21 @@ class MasterVisualizationSystem:
         try:
             from pfaz_modules.pfaz08_visualization.anomaly_visualizations_complete import AnomalyVisualizationsComplete
             import pandas as _pds_av
-            # AAA2 enriched dosyasini bul
+            # BUG-80 (Sprint 12): datasets_dir helper kullan
             _anom_data = None
-            for _cand_av in [
+            _ds_dir_av = self._find_datasets_dir()
+            _cand_files = []
+            if _ds_dir_av is not None:
+                _cand_files.extend([
+                    _ds_dir_av / 'AAA2_enriched_all_nuclei.csv',
+                    _ds_dir_av / 'AAA2_enriched_all_nuclei.xlsx',
+                ])
+            # Fallback (geriye donuk)
+            _cand_files.extend([
                 self.output_dir.parent / 'generated_datasets' / 'AAA2_enriched_all_nuclei.csv',
-                self.output_dir.parent.parent / 'outputs' / 'generated_datasets' / 'AAA2_enriched_all_nuclei.csv',
                 self.output_dir.parent / 'generated_datasets' / 'AAA2_enriched_all_nuclei.xlsx',
-            ]:
+            ])
+            for _cand_av in _cand_files:
                 if _cand_av.exists():
                     _anom_data = _pds_av.read_excel(str(_cand_av)) if str(_cand_av).endswith('.xlsx') else _pds_av.read_csv(str(_cand_av))
                     break
@@ -4336,13 +4419,23 @@ class MasterVisualizationSystem:
             from pfaz_modules.pfaz08_visualization.interactive_html_visualizer import InteractiveHTMLVisualizer
             import pandas as _pds_ih
             _ih_data = None
-            for _cand_ih in [
+            # BUG-80 (Sprint 12): helper kullan
+            _tm_dir = self._find_trained_models_dir()
+            _rp_dir = self._find_reports_dir()
+            _cand_files = []
+            if _tm_dir is not None:
+                _cand_files.extend([
+                    _tm_dir / 'training_summary.xlsx',
+                    _tm_dir / 'ai_training_summary.xlsx',
+                ])
+            if _rp_dir is not None:
+                _cand_files.append(_rp_dir / 'ANFIS_Comprehensive_Report.xlsx')
+            # Fallback: eski sibling-inference (geriye donuk uyumluluk)
+            _cand_files.extend([
                 self.output_dir.parent / 'trained_models' / 'training_summary.xlsx',
-                self.output_dir.parent.parent / 'outputs' / 'trained_models' / 'training_summary.xlsx',
-                self.output_dir.parent / 'trained_models' / 'ai_training_summary.xlsx',
-                self.output_dir.parent.parent / 'outputs' / 'trained_models' / 'ai_training_summary.xlsx',
                 self.output_dir.parent / 'final_report' / 'ANFIS_Comprehensive_Report.xlsx',
-            ]:
+            ])
+            for _cand_ih in _cand_files:
                 if _cand_ih.exists():
                     try:
                         _ih_data = _pds_ih.read_excel(str(_cand_ih), sheet_name=0)
@@ -4365,22 +4458,21 @@ class MasterVisualizationSystem:
             import pandas as _pds_la
             import re as _re_la
             from datetime import datetime as _dt_la
-            # Log dosyasini bul
+            # BUG-80 (Sprint 12): log_dir helper kullan
+            _log_dir_resolved = self._find_log_dir()
             _log_file = None
-            for _cand_la in [
-                self.output_dir.parent.parent / 'pipeline.log',
-                self.output_dir.parent.parent / 'outputs' / 'pipeline.log',
-                self.output_dir.parent.parent / 'main.log',
-                self.output_dir.parent.parent / 'nucdatav1.log',
-            ]:
-                if _cand_la.exists():
-                    _log_file = _cand_la
-                    break
-            if _log_file is None:
-                # Glob ile herhangi bir .log dosyasi bul
-                _log_candidates = list(self.output_dir.parent.parent.glob('*.log'))
-                if _log_candidates:
-                    _log_file = _log_candidates[0]
+            if _log_dir_resolved is not None:
+                # Spesifik dosya adlari
+                for _name in ['pipeline.log', 'main.log', 'nucdatav1.log']:
+                    _cand_p = _log_dir_resolved / _name
+                    if _cand_p.exists():
+                        _log_file = _cand_p
+                        break
+                # Glob fallback
+                if _log_file is None:
+                    _log_candidates = list(_log_dir_resolved.glob('*.log'))
+                    if _log_candidates:
+                        _log_file = _log_candidates[0]
             if _log_file is not None and _log_file.exists():
                 # Log satırlarını parse et -> DataFrame
                 _log_rows = []
@@ -4420,12 +4512,18 @@ class MasterVisualizationSystem:
         try:
             from pfaz_modules.pfaz08_visualization.master_report_visualizations_complete import MasterReportVisualizationsComplete
             import pandas as _pds_mr
-            # PFAZ6 ozet verisini bul
+            # BUG-80 (Sprint 12): reports_dir helper -- PFAZ6 ciktisi gercek konumu
+            # Eski kod 'final_report' arardi -- bu klasor pipeline'da yok. PFAZ6 'reports/' kullanir.
             _mr_perf = None
-            for _cand_mr in [
+            _rp_mr = self._find_reports_dir()
+            _cand_dirs = []
+            if _rp_mr is not None:
+                _cand_dirs.append(_rp_mr)
+            _cand_dirs.extend([
                 self.output_dir.parent / 'final_report',
                 self.output_dir.parent.parent / 'outputs' / 'final_report',
-            ]:
+            ])
+            for _cand_mr in _cand_dirs:
                 if _cand_mr.exists():
                     for _xlsx in list(_cand_mr.glob('*.xlsx'))[:3]:
                         try:
@@ -4458,20 +4556,30 @@ class MasterVisualizationSystem:
         try:
             from pfaz_modules.pfaz08_visualization.model_comparison_dashboard import ModelComparisonDashboard
             _ai_f, _anfis_f = None, None
-            for _cand_md in [
+            # BUG-80 (Sprint 12): helper kullan
+            _tm_md = self._find_trained_models_dir()
+            _am_md = self._find_anfis_models_dir()
+            _ai_cands = []
+            if _tm_md is not None:
+                _ai_cands.extend([_tm_md / 'training_summary.xlsx',
+                                  _tm_md / 'ai_training_summary.xlsx'])
+            _ai_cands.extend([
                 self.output_dir.parent / 'trained_models' / 'training_summary.xlsx',
-                self.output_dir.parent.parent / 'outputs' / 'trained_models' / 'training_summary.xlsx',
                 self.output_dir.parent / 'trained_models' / 'ai_training_summary.xlsx',
-                self.output_dir.parent.parent / 'outputs' / 'trained_models' / 'ai_training_summary.xlsx',
-            ]:
+            ])
+            for _cand_md in _ai_cands:
                 if _cand_md.exists():
                     _ai_f = str(_cand_md)
                     break
-            for _cand_af in [
+            _anfis_cands = []
+            if _am_md is not None:
+                _anfis_cands.extend([_am_md / 'anfis_training_summary.xlsx',
+                                     _am_md / 'anfis_training_summary.json'])
+            _anfis_cands.extend([
                 self.output_dir.parent / 'anfis_models' / 'anfis_training_summary.xlsx',
-                self.output_dir.parent.parent / 'outputs' / 'anfis_models' / 'anfis_training_summary.xlsx',
                 self.output_dir.parent / 'anfis_models' / 'anfis_training_summary.json',
-            ]:
+            ])
+            for _cand_af in _anfis_cands:
                 if _cand_af.exists():
                     _anfis_f = str(_cand_af)
                     break
