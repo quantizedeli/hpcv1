@@ -6,6 +6,8 @@
     "author": "Kemal Bey",
     "date": "2025-11-21"
   },
+  "data_file": "data/aaa2.txt",
+  "_data_file_note": "BUG-71 (Sprint 10): main.py line 479 'data_file' top-level config'i okuyor; eksikti -> default 'aaa2.txt' (root) kullaniliyordu. TRUBA'ya 'data/aaa2.txt' gidiyor, ikisi farkli yer arayinca kirilma riski vardi. Artik tek kaynak: data/aaa2.txt.",
   "data": {
     "input_file": "aaa2.txt",
     "total_nuclei": 267,
@@ -78,7 +80,7 @@
     "parallel_training": {
       "enabled": true,
       "n_workers": 100,
-      "_note": "Sprint 9B: orfoz 110 CPU max, 10 OS icin bırakıldi -> 100 worker"
+      "_note": "Sprint 10 (BUG-72): Bu sayi DOGRUDAN okunmuyor -- main.py:593 GPUManager.optimal_workers('ai') cagiriyor. Sprint 10 oncesi HPC modunda da min(16, n//3) uygulanirdi -> 110-cpu node'da 16 worker. BUG-70 fix ile HPC_MODE=1 ise n-2 worker (=108). Bu config notu artik gercek davranisi yansitiyor."
     },
     "gpu": {
       "enabled": true,
@@ -104,7 +106,8 @@
     ],
     "parallel_training": {
       "enabled": true,
-      "n_workers": 100
+      "n_workers": 100,
+      "_note": "Sprint 10 (BUG-72): PFAZ2 ile ayni -- BUG-70 fix sonrasi HPC_MODE=1 ise GPUManager n-2 worker doner (orfoz 110-cpu -> 108)."
     },
     "_configurations_note": "DIKKAT: Bu liste kod tarafindan okunmuyor. PILOT_IDS hardcoded (anfis_parallel_trainer_v2.py). Aktif konfigurasyonlar: CFG_Grid_2MF_Trap/Bell/Gauss/Tri. n_configs parametresi config den degil main.py den gelir."
   },

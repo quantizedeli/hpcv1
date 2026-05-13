@@ -1300,9 +1300,12 @@ class NuclearPhysicsAIOrchestrator:
                         val_r2 = m.get('val', {}).get('r2', -999)
                         if val_r2 < -2 or np.isnan(val_r2):
                             continue
-                        # dataset_path is the grandparent of the model dir
-                        # structure: ai_models/{dataset}/{model_type}/{config}/metrics_*.json
-                        ds_dir = metrics_file.parent.parent.parent  # dataset dir
+                        # BUG-65 FIX: PFAZ2 yapisi:
+                        #   trained_models/{dataset}/{model_type}/{config}/metrics_*.json
+                        # parent.parent.parent = trained_models/{dataset} -- burada train.csv YOK.
+                        # train.csv / val.csv generated_datasets/{dataset}/ icinde.
+                        trained_ds_dir = metrics_file.parent.parent.parent
+                        ds_dir = self.pfaz_outputs[1] / trained_ds_dir.name  # generated_datasets/{dataset}
                         target = m.get('target', '')
                         if not target:
                             continue
@@ -1333,8 +1336,32 @@ class NuclearPhysicsAIOrchestrator:
                     continue
 
                 try:
-                    train_df = pd.read_csv(train_csv)
-                    val_df   = pd.read_csv(val_csv)
+                    # BUG-66 FIX: PFAZ1 headerless CSV yaziyor (sutun adlari metadata.json'da).
+                    # PFAZ2 ile ayni desen: header=None + names=metadata feature+target.
+                    # Default pd.read_csv (header=0) ilk veri satirini baslik zanneder,
+                    # sonra 'MAGNETIC MOMENT [µ]' gibi isimli sutunlar bulunmaz -> hep continue.
+                    _meta_file = ds_path / 'metadata.json'
+                    _col_names = None
+                    if _meta_file.exists():
+                        try:
+                            with open(_meta_file, encoding='utf-8') as _mf:
+                                _meta = json.load(_mf)
+                            _feat = _meta.get('feature_names') or _meta.get('features') or []
+                            _tgt  = _meta.get('target_names') or _meta.get('targets') or []
+                            if _feat and _tgt:
+                                _col_names = list(_feat) + list(_tgt)
+                        except Exception as _e:
+                            logger.warning(f"[PFAZ13] metadata.json okunamadi {ds_path}: {_e}")
+
+                    if _col_names:
+                        train_df = pd.read_csv(train_csv, header=None, names=_col_names,
+                                               encoding='utf-8')
+                        val_df   = pd.read_csv(val_csv,   header=None, names=_col_names,
+                                               encoding='utf-8')
+                    else:
+                        # Geriye donuk uyumluluk: eski header'li format
+                        train_df = pd.read_csv(train_csv)
+                        val_df   = pd.read_csv(val_csv)
 
                     # Identify feature and target columns
                     non_feat = {'NUCLEUS', 'MAGNETIC MOMENT [µ]', 'QUADRUPOLE MOMENT [Q]',
@@ -1440,12 +1467,27 @@ class NuclearPhysicsAIOrchestrator:
             if not best_by_target:
                 logger.warning("[PFAZ13] PFAZ2 sonucu bulunamadı. Önce PFAZ2'yi çalıştırın.")
 
+            # BUG-67 FIX: AutoML hic target optimize etmediyse status acik raporlanmali.
+            # Eski davranis: status='completed' donerdi -> Slurm/sacct basarili gorur,
+            # PFAZ6 final raporu da AutoML bolumunu gectigini sanir. Artik:
+            #   - best_by_target bos      -> 'skipped_no_pfaz2_results'
+            #   - automl_results bos ama best_by_target dolu -> 'skipped_no_datasets'
+            #     (datasets bulundu ama CSV/metadata okunamadi/target yok)
+            if not best_by_target:
+                _status = 'skipped_no_pfaz2_results'
+            elif not automl_results:
+                _status = 'skipped_no_datasets'
+            else:
+                _status = 'completed'
+
             results = {
-                'status': 'completed',
+                'status': _status,
                 'targets_optimized': list(automl_results.keys()),
                 'summary': str(summary_path),
                 'n_trials': n_trials,
                 'retraining': retraining_result,
+                'n_best_by_target': len(best_by_target),
+                'n_automl_results': len(automl_results),
             }
 
             self.status_manager.update_pfaz(pfaz_id, 'completed', 100)

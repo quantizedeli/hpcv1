@@ -1,9 +1,32 @@
 """
 Tüm Modülleri Sırayla Çalıştıran Ana Script
 Complete Pipeline Runner - DÜZELTILMIŞ VERSIYON
+
+================================================================================
+DEPRECATED (2026-05-13, Sprint 10, BUG-69):
+Bu script GUNCEL REPO YAPISI ILE UYUMSUZ. Import path'leri eski layout'a (top-level
+'dataset_generation/', 'ai_training/', 'anfis_training/', 'visualization/',
+'reporting/') referans veriyor. Gercek modüller 'pfaz_modules/pfaz0X_*/' altinda.
+Bu scripti calistirma -- ilk import'ta cokecek.
+
+Kullan:
+    python3 -u main.py --run-all
+    python3 -u main.py --pfaz N
+    sbatch truba_slurm_job.sh
+    sbatch truba/slurm_jobs/job1_pfaz01.sh
+================================================================================
 """
 
 import sys
+print("=" * 80, file=sys.stderr)
+print("[DEPRECATED] run_complete_pipeline.py artik kullanilmiyor.", file=sys.stderr)
+print("[DEPRECATED] Bunun yerine: python3 -u main.py --run-all", file=sys.stderr)
+print("[DEPRECATED] Detay: docs/thesis-toolkit/pipeline-hatalari.md BUG-69", file=sys.stderr)
+print("=" * 80, file=sys.stderr)
+sys.exit(2)
+
+# --- Asagidaki kod artik calismaz (yukarida sys.exit). Tarihsel kayit icin tutuluyor. ---
+
 import logging
 from pathlib import Path
 from datetime import datetime

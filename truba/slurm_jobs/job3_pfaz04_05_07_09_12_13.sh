@@ -56,20 +56,24 @@ if [ ! -d "$OUTPUT_DIR/trained_models" ] || [ -z "$(ls -A $OUTPUT_DIR/trained_mo
     exit 1
 fi
 
+FAIL=0
 # Fazlari sirayla calistir -- main.py PIPELINE_EXECUTION_ORDER = [4,5,7,9,12,13]
 for PFAZ in 4 5 7 9 12 13; do
     echo ""
     echo "[START] PFAZ $PFAZ basliyor -- $(date)"
     python3 -u main.py --pfaz $PFAZ 2>&1 | tee "$OUTPUT_DIR/logs/pfaz0${PFAZ}_${SLURM_JOB_ID}.log"
-    EC=$?
+    EC=${PIPESTATUS[0]}
     if [ $EC -ne 0 ]; then
-        echo "[UYARI] PFAZ $PFAZ exit=$EC -- devam ediliyor"
+        echo "[UYARI] PFAZ $PFAZ exit=$EC -- devam ediliyor ama job basarisiz isaretlenecek"
+        FAIL=1
     else
         echo "[OK] PFAZ $PFAZ tamamlandi"
     fi
 done
 
 echo "===================================================="
-echo " Job 3 tamamlandi: $(date)"
+echo " Job 3 tamamlandi: $(date) | FAIL=$FAIL"
 echo "===================================================="
-exit 0
+# BUG-68 FIX: Onceden kosulsuz 'exit 0' idi -> Slurm/sacct basarili gorurdu,
+# kullanici Job 4'u baslatirdi, eksik PFAZ13 sonucu ile final rapor uretilirdi.
+exit $FAIL
