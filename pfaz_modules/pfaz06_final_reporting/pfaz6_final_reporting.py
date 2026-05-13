@@ -279,17 +279,25 @@ class FinalReportingPipeline:
 
     def __init__(self, reports_dir=None, output_dir='outputs/reports',
                  ai_models_dir=None, anfis_models_dir=None,
-                 use_excel_charts: bool = True, use_latex_generator: bool = True):
+                 use_excel_charts: bool = True, use_latex_generator: bool = True,
+                 cross_model_dir: str = None,
+                 unknown_dir: str = None,
+                 datasets_dir: str = None):
+        """
+        BUG-82 (Sprint 12): cross_model_dir, unknown_dir, datasets_dir explicit aktarilabilir.
+        Onceden 'base = output_dir.parent' ile turetilirdi -- sibling-inference kirilgan.
+        """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        base = self.output_dir.parent  # outputs/
+        base = self.output_dir.parent  # outputs/ fallback
         self.ai_models_dir    = Path(ai_models_dir)    if ai_models_dir    else base / 'trained_models'
         self.anfis_models_dir = Path(anfis_models_dir) if anfis_models_dir else base / 'anfis_models'
-        self.cross_model_dir  = base / 'cross_model_analysis'
-        self.unknown_dir      = base / 'unknown_predictions'
+        # BUG-82 (Sprint 12): explicit > sibling fallback
+        self.cross_model_dir  = Path(cross_model_dir) if cross_model_dir else base / 'cross_model_analysis'
+        self.unknown_dir      = Path(unknown_dir)     if unknown_dir     else base / 'unknown_predictions'
+        self.datasets_dir     = Path(datasets_dir)    if datasets_dir    else base / 'generated_datasets'
         self.validation_dir   = self.ai_models_dir / 'model_validation'
-        self.datasets_dir     = base / 'generated_datasets'
         self.aaa2_txt_path    = None  # Set externally if isotope chain analysis needed
         self.pfaz9_output_dir = None  # Set externally for MC summary sheet
         self.pfaz13_output_dir = None  # Set externally for AutoML improvements sheet
@@ -1326,11 +1334,13 @@ class FinalReportingPipeline:
         # ---- Monte Carlo from PFAZ9 outputs -----------------------------------
         pfaz9_dir = self.pfaz9_output_dir
         if pfaz9_dir is None:
-            # Guess from outputs tree
+            # BUG-83 (Sprint 12): Fallback hedefini duzelttim -- gercek PFAZ9 klasoru 'aaa2_results'.
+            # Eski kodda 'pfaz9_output' ve 'aaa2_control_group' aranirdi, bu klasorler PIPELINE'da YOK.
             for candidate in [
-                self.output_dir.parent / 'pfaz9_output',
-                self.output_dir.parent / 'aaa2_control_group',
-                self.output_dir.parent.parent / 'outputs' / 'pfaz9',
+                self.output_dir.parent / 'aaa2_results',           # gercek PFAZ9 cikti
+                self.output_dir.parent / 'pfaz9_output',           # eski, geriye uyumlu
+                self.output_dir.parent / 'aaa2_control_group',     # eski
+                self.output_dir.parent.parent / 'outputs' / 'aaa2_results',
             ]:
                 if candidate.exists():
                     pfaz9_dir = candidate

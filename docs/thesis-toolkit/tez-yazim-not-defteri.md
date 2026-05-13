@@ -1251,3 +1251,62 @@ Bu pattern tez'in **"Pipeline reliability engineering"** bölümünde örnek ola
 
 Bu veriler `4-RESULTS` bölümünde **"Computational performance"** alt-başlığı için anlamlı olacak.
 
+
+---
+
+## Sprint 11+12 — Final TRUBA Ready (2026-05-13)
+
+Kemal'in talebi: TRUBA'ya akmadan once **kusursuz** olsun, ciktilar **eksiksiz** olsun (xlsx, png, html).
+
+### Sprint 11 (BUG-75..78): Sprint 10 sonrasi acik kalan mimari sorunlar
+- PFAZ3 selector PFAZ2 path explicit (BUG-75)
+- PFAZ8 reports_dir explicit (BUG-76)
+- training_configs_50.json deterministik (BUG-77)
+- Slurm afterok chain (BUG-78)
+
+### Sprint 12 (BUG-79..84): Cikti tamligi + TRUBA kural guncellemesi
+- PFAZ3 robustness datasets_dir (BUG-79)
+- **PFAZ8 helper-based path** (BUG-80) -- 22 sub-method, 6 yeni param
+  - log_analytics_complete artik dogru log dizinini bulur
+  - master_report_complete artik PFAZ6 reports klasorunu bulur
+- BandAnalyzer pfaz4_excel_path explicit (BUG-81)
+- PFAZ6 cross_model + unknown + datasets explicit (BUG-82)
+- PFAZ6 pfaz9 fallback dogru klasor (BUG-83)
+- **TRUBA 2025-12-15 kurali: -c 110 -> 112** (BUG-84)
+
+### Tez Anlatisina Yeni Katkilar
+
+**Cikti tamligi vurgusu (Sprint 12 BUG-80 case study):** Tezin §5 "Software Engineering Practices" bolumunde su anlati eklenebilir:
+
+> Pipeline'in visualization katmaninda 22 noktada "sibling-path inference" pattern'i tespit edildi. Bu pattern, modulun cikti dizini hiyerarsisine **hardcoded varsayim** yapmasini icerir (`output_dir.parent / 'X'`). TRUBA HPC ortaminda iki kritik visualization modulu bu nedenle CIKTI URETMEYI atlardi:
+> 
+> - LogAnalyticsVisualizationsComplete: log dosyalarini scratch root'unda arardi (gercek konum: `outputs/logs/`)
+> - MasterReportVisualizationsComplete: 'final_report' adinda olmayan bir klasor arardi (gercek konum: PFAZ6 'reports/')
+> 
+> Sprint 12'de helper-based explicit path resolution patterni uygulandi. MasterVisualizationSystem constructor'ina 6 explicit path parametresi (reports_dir, trained_models_dir, anfis_models_dir, datasets_dir, log_dir, project_root) eklendi ve 5 generic helper method (_find_reports_dir, _find_trained_models_dir, ...) ile tum sub-method'lar bu helper'lari kullanir hale getirildi. Pattern: **explicit > fallback** -- main pipeline (main.py) explicit aktarir, modulun bagimsiz cagrildigi durumlarda fallback sibling-inference devreye girer.
+
+**TRUBA HPC operasyonel takibi (Sprint 12 BUG-84):** "Onemli Duyuru 2025-12-15" sonrasi TRUBA orfoz kuyrugu node basina 56/112 katlari zorunlu kildi. Pipeline'in -c 110 ayari geçersiz hale geldi. Bu, "HPC ortaminda surekli izleme + reaktif uyum" pratik dersini tezde **§5.3 "Pipeline Maintenance in Evolving HPC Environments"** alt-baliginda kullanilabilir.
+
+### Tez Icin TRUBA Sonrasi Toplanacak Veriler
+
+1. **PFAZ8 14 visualization (BUG-80 sonrasi):**
+   - 9 ana visualization: robustness, shap, anomaly, master_report, predictions, model_comparison, training_metrics, optimization, features
+   - 5 ek visualization: interactive_html, log_analytics_complete, master_report_complete, model_comparison_dashboard, shap_analysis, anomaly_visualizations
+   - Tum PNG dosyalari 300 dpi (thesis-quality)
+   - HTML dosyalari supplementary materyal
+
+2. **Layered selection istatistigi (BUG-74 sonrasi):**
+   - Top/Mid/Low tier dataset sayilari
+   - ANFIS rescue orani (Low tier'da R²_ANFIS > R²_AI olan dataset yuzdesi)
+
+3. **Performans verisi (BUG-70 + BUG-84 sonrasi):**
+   - PFAZ2 + PFAZ3 toplam koşu suresi (TRUBA 110 worker)
+   - Eski 16 worker tahminine kiyasla speedup
+   - 3-gun TRUBA limit guvenli sinirda mi
+
+### Sprint Zincirinin Sonu
+
+Sprint 1-12 tamamlandi. **20 bug fix** Sprint 10-12'de (Sprint 10: 10, Sprint 11: 4, Sprint 12: 6).
+**Yeni sprint patch yok** -- TRUBA'ya akacak hal hazir.
+v10 sync bekliyor (notlar `docs/thesis-toolkit/v10-todo.md`).
+

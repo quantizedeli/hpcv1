@@ -10,7 +10,7 @@
 #SBATCH -J nucphys-pfaz0203
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH -c 110
+#SBATCH -c 112
 #SBATCH -C weka
 #SBATCH --time=1-00:00:00
 #SBATCH --output=/arf/scratch/ahmacar/hpcv1_outputs/logs/job2_pfaz0203_%j.out

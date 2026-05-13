@@ -495,7 +495,8 @@ class ANFISParallelTrainerV2:
                  use_config_manager: bool = True,
                  use_adaptive_strategy: bool = False,
                  use_performance_analyzer: bool = True,
-                 save_datasets: bool = True):
+                 save_datasets: bool = True,
+                 ai_results_dir: str = None):
         """
         Initialize ANFIS Parallel Trainer
 
@@ -508,12 +509,16 @@ class ANFISParallelTrainerV2:
             use_adaptive_strategy: Use adaptive learning strategy (3-stage)
             use_performance_analyzer: Use performance analyzer for detailed metrics
             save_datasets: Save train/val/test datasets in .mat, .csv, .xlsx formats
+            ai_results_dir: PFAZ 2 trained_models directory (BUG-75 Sprint 11).
+                Onceden sibling-inference ile bulunurdu; explicit > fallback.
         """
         self.output_dir = Path(output_dir) if output_dir else Path('trained_anfis_models')
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         self.datasets_dir = Path(datasets_dir) if datasets_dir else None
         self.gpu_enabled = gpu_enabled
+        # BUG-75 (Sprint 11): explicit PFAZ2 path
+        self.ai_results_dir = Path(ai_results_dir) if ai_results_dir else None
 
         # Determine number of workers
         if n_workers is None:
@@ -1187,10 +1192,13 @@ class ANFISParallelTrainerV2:
         # round-robin ile tamamlanir.
         try:
             from .anfis_dataset_selector import ANFISDatasetSelector
-            # PFAZ02 ciktilarinin oldugu dizini bul
-            _ai_results_dir = self.output_dir.parent / 'trained_models'
-            if not _ai_results_dir.exists():
-                _ai_results_dir = self.output_dir.parent.parent / 'trained_models'
+            # BUG-75 (Sprint 11): explicit > sibling-inference fallback
+            if self.ai_results_dir is not None:
+                _ai_results_dir = self.ai_results_dir
+            else:
+                _ai_results_dir = self.output_dir.parent / 'trained_models'
+                if not _ai_results_dir.exists():
+                    _ai_results_dir = self.output_dir.parent.parent / 'trained_models'
             
             _selector = ANFISDatasetSelector(
                 ai_results_dir=str(_ai_results_dir),
@@ -1386,12 +1394,17 @@ class ANFISParallelTrainerV2:
                 )
                 for _rc in _rob_candidates:
                     try:
-                        # Dataset CSV'lerini bul
+                        # BUG-79 (Sprint 12): self.datasets_dir constructor parametresi explicit;
+                        # eski sibling-inference candidate listesi fallback olarak korundu.
                         _ds_dir = None
-                        for _cand in [
+                        _cand_list = []
+                        if self.datasets_dir is not None:
+                            _cand_list.append(self.datasets_dir / _rc.dataset_name)
+                        _cand_list.extend([
                             self.output_dir.parent / 'generated_datasets' / _rc.dataset_name,
                             self.output_dir.parent.parent / 'outputs' / 'generated_datasets' / _rc.dataset_name,
-                        ]:
+                        ])
+                        for _cand in _cand_list:
                             if _cand.exists():
                                 _ds_dir = _cand
                                 break
@@ -1865,8 +1878,11 @@ class ANFISParallelTrainerV2:
             # 2.  Collect AI results from PFAZ2 trained_models directory
             # ---------------------------------------------------------------- #
             if ai_results_dir is None:
-                # Try relative to output_dir (usually outputs/anfis_models → outputs/trained_models)
-                ai_results_dir = str(self.output_dir.parent / 'trained_models')
+                # BUG-75 (Sprint 11): explicit self.ai_results_dir > sibling-inference
+                if self.ai_results_dir is not None:
+                    ai_results_dir = str(self.ai_results_dir)
+                else:
+                    ai_results_dir = str(self.output_dir.parent / 'trained_models')
 
             ai_rows = {}
             ai_dir = Path(ai_results_dir)

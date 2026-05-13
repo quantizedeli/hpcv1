@@ -1,0 +1,540 @@
+{
+  "_meta": {
+    "description": "PFAZ2 default training configurations (deterministic)",
+    "source": "pfaz_modules/pfaz02_ai_training/parallel_ai_trainer.py:_create_default_configs",
+    "sprint": "Sprint 11 (BUG-77)",
+    "date": "2026-05-13",
+    "note": "Tez deterministikligi -- kod ile birebir ayni.",
+    "totals": {
+      "RF": 20,
+      "XGB": 15,
+      "DNN": 15,
+      "all": 50
+    }
+  },
+  "configs": [
+    {
+      "id": "RF_001",
+      "model_type": "RF",
+      "n_estimators": 50,
+      "max_depth": 5,
+      "min_samples_split": 2
+    },
+    {
+      "id": "RF_002",
+      "model_type": "RF",
+      "n_estimators": 50,
+      "max_depth": 10,
+      "min_samples_split": 2
+    },
+    {
+      "id": "RF_003",
+      "model_type": "RF",
+      "n_estimators": 50,
+      "max_depth": 15,
+      "min_samples_split": 2
+    },
+    {
+      "id": "RF_004",
+      "model_type": "RF",
+      "n_estimators": 50,
+      "max_depth": null,
+      "min_samples_split": 2
+    },
+    {
+      "id": "RF_005",
+      "model_type": "RF",
+      "n_estimators": 100,
+      "max_depth": 5,
+      "min_samples_split": 2
+    },
+    {
+      "id": "RF_006",
+      "model_type": "RF",
+      "n_estimators": 100,
+      "max_depth": 10,
+      "min_samples_split": 2
+    },
+    {
+      "id": "RF_007",
+      "model_type": "RF",
+      "n_estimators": 100,
+      "max_depth": 15,
+      "min_samples_split": 2
+    },
+    {
+      "id": "RF_008",
+      "model_type": "RF",
+      "n_estimators": 100,
+      "max_depth": null,
+      "min_samples_split": 2
+    },
+    {
+      "id": "RF_009",
+      "model_type": "RF",
+      "n_estimators": 200,
+      "max_depth": 5,
+      "min_samples_split": 2
+    },
+    {
+      "id": "RF_010",
+      "model_type": "RF",
+      "n_estimators": 200,
+      "max_depth": 10,
+      "min_samples_split": 2
+    },
+    {
+      "id": "RF_011",
+      "model_type": "RF",
+      "n_estimators": 200,
+      "max_depth": 15,
+      "min_samples_split": 2
+    },
+    {
+      "id": "RF_012",
+      "model_type": "RF",
+      "n_estimators": 200,
+      "max_depth": null,
+      "min_samples_split": 2
+    },
+    {
+      "id": "RF_013",
+      "model_type": "RF",
+      "n_estimators": 100,
+      "max_depth": 10,
+      "min_samples_split": 5
+    },
+    {
+      "id": "RF_014",
+      "model_type": "RF",
+      "n_estimators": 100,
+      "max_depth": 10,
+      "min_samples_split": 10
+    },
+    {
+      "id": "RF_015",
+      "model_type": "RF",
+      "n_estimators": 200,
+      "max_depth": 15,
+      "min_samples_split": 5
+    },
+    {
+      "id": "RF_016",
+      "model_type": "RF",
+      "n_estimators": 200,
+      "max_depth": 15,
+      "min_samples_split": 10
+    },
+    {
+      "id": "RF_017",
+      "model_type": "RF",
+      "n_estimators": 150,
+      "max_depth": 8,
+      "min_samples_split": 3
+    },
+    {
+      "id": "RF_018",
+      "model_type": "RF",
+      "n_estimators": 150,
+      "max_depth": 12,
+      "min_samples_split": 4
+    },
+    {
+      "id": "RF_019",
+      "model_type": "RF",
+      "n_estimators": 300,
+      "max_depth": 10,
+      "min_samples_split": 2
+    },
+    {
+      "id": "RF_020",
+      "model_type": "RF",
+      "n_estimators": 300,
+      "max_depth": 20,
+      "min_samples_split": 5
+    },
+    {
+      "id": "XGB_021",
+      "model_type": "XGBoost",
+      "n_estimators": 50,
+      "learning_rate": 0.1,
+      "max_depth": 3
+    },
+    {
+      "id": "XGB_022",
+      "model_type": "XGBoost",
+      "n_estimators": 50,
+      "learning_rate": 0.1,
+      "max_depth": 6
+    },
+    {
+      "id": "XGB_023",
+      "model_type": "XGBoost",
+      "n_estimators": 50,
+      "learning_rate": 0.3,
+      "max_depth": 3
+    },
+    {
+      "id": "XGB_024",
+      "model_type": "XGBoost",
+      "n_estimators": 50,
+      "learning_rate": 0.3,
+      "max_depth": 6
+    },
+    {
+      "id": "XGB_025",
+      "model_type": "XGBoost",
+      "n_estimators": 100,
+      "learning_rate": 0.1,
+      "max_depth": 3
+    },
+    {
+      "id": "XGB_026",
+      "model_type": "XGBoost",
+      "n_estimators": 100,
+      "learning_rate": 0.1,
+      "max_depth": 6
+    },
+    {
+      "id": "XGB_027",
+      "model_type": "XGBoost",
+      "n_estimators": 100,
+      "learning_rate": 0.3,
+      "max_depth": 3
+    },
+    {
+      "id": "XGB_028",
+      "model_type": "XGBoost",
+      "n_estimators": 100,
+      "learning_rate": 0.3,
+      "max_depth": 6
+    },
+    {
+      "id": "XGB_029",
+      "model_type": "XGBoost",
+      "n_estimators": 200,
+      "learning_rate": 0.05,
+      "max_depth": 5
+    },
+    {
+      "id": "XGB_030",
+      "model_type": "XGBoost",
+      "n_estimators": 200,
+      "learning_rate": 0.1,
+      "max_depth": 5
+    },
+    {
+      "id": "XGB_031",
+      "model_type": "XGBoost",
+      "n_estimators": 200,
+      "learning_rate": 0.2,
+      "max_depth": 5
+    },
+    {
+      "id": "XGB_032",
+      "model_type": "XGBoost",
+      "n_estimators": 150,
+      "learning_rate": 0.15,
+      "max_depth": 4
+    },
+    {
+      "id": "XGB_033",
+      "model_type": "XGBoost",
+      "n_estimators": 150,
+      "learning_rate": 0.2,
+      "max_depth": 6
+    },
+    {
+      "id": "XGB_034",
+      "model_type": "XGBoost",
+      "n_estimators": 300,
+      "learning_rate": 0.1,
+      "max_depth": 4
+    },
+    {
+      "id": "XGB_035",
+      "model_type": "XGBoost",
+      "n_estimators": 300,
+      "learning_rate": 0.05,
+      "max_depth": 8
+    },
+    {
+      "id": "DNN_036",
+      "model_type": "DNN",
+      "architecture": [
+        128,
+        64,
+        32
+      ],
+      "dropout": [
+        0.1,
+        0.1,
+        0.0
+      ],
+      "learning_rate": 0.001,
+      "batch_size": 32,
+      "epochs": 100,
+      "early_stopping_patience": 15
+    },
+    {
+      "id": "DNN_037",
+      "model_type": "DNN",
+      "architecture": [
+        256,
+        128,
+        64
+      ],
+      "dropout": [
+        0.1,
+        0.1,
+        0.1
+      ],
+      "learning_rate": 0.001,
+      "batch_size": 32,
+      "epochs": 100,
+      "early_stopping_patience": 15
+    },
+    {
+      "id": "DNN_038",
+      "model_type": "DNN",
+      "architecture": [
+        512,
+        256,
+        128,
+        64
+      ],
+      "dropout": [
+        0.2,
+        0.2,
+        0.1,
+        0.1
+      ],
+      "learning_rate": 0.001,
+      "batch_size": 64,
+      "epochs": 100,
+      "early_stopping_patience": 15
+    },
+    {
+      "id": "DNN_039",
+      "model_type": "DNN",
+      "architecture": [
+        128,
+        64
+      ],
+      "dropout": [
+        0.1,
+        0.0
+      ],
+      "learning_rate": 0.001,
+      "batch_size": 32,
+      "epochs": 100,
+      "early_stopping_patience": 15
+    },
+    {
+      "id": "DNN_040",
+      "model_type": "DNN",
+      "architecture": [
+        256,
+        128
+      ],
+      "dropout": [
+        0.2,
+        0.1
+      ],
+      "learning_rate": 0.001,
+      "batch_size": 64,
+      "epochs": 100,
+      "early_stopping_patience": 15
+    },
+    {
+      "id": "DNN_041",
+      "model_type": "DNN",
+      "architecture": [
+        512,
+        256
+      ],
+      "dropout": [
+        0.2,
+        0.2
+      ],
+      "learning_rate": 0.0005,
+      "batch_size": 64,
+      "epochs": 100,
+      "early_stopping_patience": 15
+    },
+    {
+      "id": "DNN_042",
+      "model_type": "DNN",
+      "architecture": [
+        256,
+        256,
+        128
+      ],
+      "dropout": [
+        0.1,
+        0.1,
+        0.1
+      ],
+      "learning_rate": 0.001,
+      "batch_size": 32,
+      "epochs": 100,
+      "early_stopping_patience": 15
+    },
+    {
+      "id": "DNN_043",
+      "model_type": "DNN",
+      "architecture": [
+        128,
+        128,
+        64,
+        32
+      ],
+      "dropout": [
+        0.1,
+        0.1,
+        0.1,
+        0.0
+      ],
+      "learning_rate": 0.001,
+      "batch_size": 32,
+      "epochs": 100,
+      "early_stopping_patience": 15
+    },
+    {
+      "id": "DNN_044",
+      "model_type": "DNN",
+      "architecture": [
+        512,
+        256,
+        128
+      ],
+      "dropout": [
+        0.3,
+        0.2,
+        0.1
+      ],
+      "learning_rate": 0.0005,
+      "batch_size": 128,
+      "epochs": 100,
+      "early_stopping_patience": 15
+    },
+    {
+      "id": "DNN_045",
+      "model_type": "DNN",
+      "architecture": [
+        256,
+        128,
+        64,
+        32
+      ],
+      "dropout": [
+        0.2,
+        0.1,
+        0.1,
+        0.0
+      ],
+      "learning_rate": 0.001,
+      "batch_size": 64,
+      "epochs": 100,
+      "early_stopping_patience": 15
+    },
+    {
+      "id": "DNN_046",
+      "model_type": "DNN",
+      "architecture": [
+        128,
+        64,
+        32,
+        16
+      ],
+      "dropout": [
+        0.1,
+        0.1,
+        0.1,
+        0.0
+      ],
+      "learning_rate": 0.001,
+      "batch_size": 32,
+      "epochs": 100,
+      "early_stopping_patience": 15
+    },
+    {
+      "id": "DNN_047",
+      "model_type": "DNN",
+      "architecture": [
+        512,
+        384,
+        256
+      ],
+      "dropout": [
+        0.2,
+        0.2,
+        0.1
+      ],
+      "learning_rate": 0.001,
+      "batch_size": 64,
+      "epochs": 100,
+      "early_stopping_patience": 15
+    },
+    {
+      "id": "DNN_048",
+      "model_type": "DNN",
+      "architecture": [
+        384,
+        256,
+        128,
+        64
+      ],
+      "dropout": [
+        0.2,
+        0.2,
+        0.1,
+        0.1
+      ],
+      "learning_rate": 0.001,
+      "batch_size": 64,
+      "epochs": 100,
+      "early_stopping_patience": 15
+    },
+    {
+      "id": "DNN_049",
+      "model_type": "DNN",
+      "architecture": [
+        256,
+        192,
+        128,
+        64
+      ],
+      "dropout": [
+        0.1,
+        0.1,
+        0.1,
+        0.1
+      ],
+      "learning_rate": 0.001,
+      "batch_size": 32,
+      "epochs": 100,
+      "early_stopping_patience": 15
+    },
+    {
+      "id": "DNN_050",
+      "model_type": "DNN",
+      "architecture": [
+        512,
+        512,
+        256,
+        128
+      ],
+      "dropout": [
+        0.3,
+        0.2,
+        0.2,
+        0.1
+      ],
+      "learning_rate": 0.0003,
+      "batch_size": 128,
+      "epochs": 100,
+      "early_stopping_patience": 15
+    }
+  ]
+}

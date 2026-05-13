@@ -11,7 +11,7 @@ Gercek sistem bilgileriyle yazilmistir (2026-05-13 dogrulama).
 | Login node | `arf-ui1` |
 | Partition | `orfoz` |
 | ZORUNLU flag | `#SBATCH -C weka` |
-| Max CPU | 110 (112 degil -- 2 cekirdek IO icin ayrilmis) |
+| Max CPU | 112 (56 veya 112 katlari, 2025-12-15 TRUBA kurali) |
 | n_workers | 100 |
 | Modul | `apps/truba-ai/cpu-2024.0` |
 | Kod dizini | `/arf/home/ahmacar/hpcv1/` |

@@ -906,3 +906,24 @@ Sprint 10 sonrası `gpu_manager.py` tüm modlarda (`ai`, `anfis`, `mc`, `auto`) 
 
 **Genelleme:** Env flag, davranışsal etki noktaları kontrol edilmeden eklenirse "kozmetik" kalır. Sprint sonu checklistine "env flag etki noktası taraması" eklenmeli.
 
+
+---
+
+## KURAL 28 — HPC/Cluster Duyurularini Hemen Takip Et
+
+**Olay (Sprint 12, 2026-05-13):**
+
+TRUBA 2025-12-15 tarihinde "Onemli Duyuru" yayinladi: orfoz kuyrugunda yeni depolama sistemine gecis nedeniyle node basina **56/112 ve katlarinda** cekirdek talep zorunlu. Sprint 9B'de yazdigim `#SBATCH -c 110` artik kabul edilmez.
+
+Kemal TRUBA login ekraninda bu duyuruyu gordugunde ekran goruntusunu gondererek bana sordu. Eger Kemal duyuruyu gormeden iş gondermeye calissaydi, joblar reddedilirdi -- vakit kaybi.
+
+**Kural:**
+
+Kullanici HPC/cluster ekran goruntusu gonderdiginde:
+1. **Once duyuru/uyari panellerini oku** -- soruyu cevaplamadan once
+2. Mevcut config/script dosyalarinda bu duyurunun **gecerli parametre degerlerini** kullanip kullanmadigini kontrol et
+3. Uyumsuzluk varsa **derhal** duzelt (TRUBA gibi production sistemde uyumsuz config = job rejection)
+4. Duzeltmeyi pipeline-hatalari.md'ye bug olarak kaydet (gelecekte tekrar etmesin)
+
+**Pratik test:** "Bir HPC duyurusu kullanicinin tasarisini etkiler mi?" sorusunu sor. Etkiliyorsa hemen duzelt, sonra not al.
+
