@@ -49,13 +49,15 @@ mkdir -p "$OUTPUT_DIR/logs" \
 
 cd "$PROJECT_DIR" || { echo "[HATA] $PROJECT_DIR bulunamadi!"; exit 1; }
 
+FAIL=0
 for PFAZ in 6 8 10; do
     echo ""
     echo "[START] PFAZ $PFAZ basliyor -- $(date)"
     python3 -u main.py --pfaz $PFAZ 2>&1 | tee "$OUTPUT_DIR/logs/pfaz0${PFAZ}_${SLURM_JOB_ID}.log"
-    EC=$?
+    EC=${PIPESTATUS[0]}
     if [ $EC -ne 0 ]; then
-        echo "[UYARI] PFAZ $PFAZ exit=$EC"
+        echo "[UYARI] PFAZ $PFAZ exit=$EC -- job basarisiz isaretlenecek"
+        FAIL=1
     else
         echo "[OK] PFAZ $PFAZ tamamlandi"
     fi
@@ -77,8 +79,9 @@ echo "[ZIP] Tum ciktilar: all_outputs_${SLURM_JOB_ID}.zip"
 
 echo ""
 echo "===================================================="
-echo " Pipeline TAMAMLANDI: $(date)"
+echo " Pipeline TAMAMLANDI: $(date) | FAIL=$FAIL"
 echo " Indirmek icin (PowerShell):"
 echo " scp ahmacar@172.16.6.11:$OUTPUT_DIR/all_outputs_${SLURM_JOB_ID}.zip ."
 echo "===================================================="
-exit 0
+# BUG-68 FIX: Onceden kosulsuz 'exit 0' idi.
+exit $FAIL

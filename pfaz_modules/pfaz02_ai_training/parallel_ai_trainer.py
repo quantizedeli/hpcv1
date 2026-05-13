@@ -1668,6 +1668,26 @@ class ParallelAITrainer:
         # ✅ Excel özet raporu — tüm model sonuçları tek tabloda (başarısız dahil)
         try:
             import pandas as pd
+
+            def _target_from_dataset_name(name: str) -> str:
+                """BUG-74 (Sprint 10 ek): PFAZ3 selector 'Target' sutununu okur,
+                ama PFAZ2 onceden bu sutunu yazmazdi -> selector KeyError ile
+                fallback'e duser, Layered secim (Top=50/Mid=50/Low=100) hic uygulanmazdi.
+                Bu helper PFAZ2'nin train_single_job (sat. 285-304) ile AYNI mantigi
+                kullanir: dataset adina gore target cikarir.
+                """
+                if not name:
+                    return 'UNKNOWN'
+                if 'MM_QM' in name or 'MM-QM' in name:
+                    return 'MM_QM'
+                if name.startswith('MM_') or '_MM_' in name:
+                    return 'MM'
+                if name.startswith('QM_') or '_QM_' in name or '_Q_' in name:
+                    return 'QM'
+                if 'Beta_2' in name or 'BETA_2' in name:
+                    return 'Beta_2'
+                return 'UNKNOWN'
+
             rows = []
             for result in self.training_results:
                 m = result.metrics or {}
@@ -1691,6 +1711,7 @@ class ParallelAITrainer:
                     'Model_Type':      result.model_type,
                     'Config_ID':       result.config_id,
                     'Dataset':         result.dataset_name,
+                    'Target':          _target_from_dataset_name(result.dataset_name),  # BUG-74 FIX
                     'PKL_Saved':       result.success,
                     'Status_Note':     _status,
                     'Train_R2':        train_m.get('r2', train_m.get('r2_avg', float('nan'))),

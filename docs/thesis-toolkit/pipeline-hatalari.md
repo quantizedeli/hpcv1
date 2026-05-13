@@ -2158,3 +2158,225 @@ default'lari (MCDropoutSimulator: 100, FeatureDropoutSimulator: 500) guncellenme
 ---
 
 *Sprint 8 raporu | 3 eksik fix (BUG-62/63/64) + Dual R2 bağlam mesajlari*
+
+---
+
+# Sprint 10 — TRUBA QA Raporu Düzeltmeleri (2026-05-13)
+
+Kemal'in `nucdatav2-truba` lokal kopyasında çıkardığı statik QA raporu (`sprint6-scan-results` branch) 7 bulgu listeledi; Claude bağımsız doğrulama yaparken 3 ek kritik bulgu ekledi. BUG-65..72 bu sprintte düzeltildi.
+
+**Bu sprintin temel dersi:** PFAZ-arası kod standardı (örn. headerless CSV + metadata.json okuma) bir fazda değiştirildiğinde diğer fazlar bu standarda göre tek tek kontrol edilmeli. Sprint 1-8'de PFAZ2 headerless CSV okuma yapmıştı ama PFAZ13'e aynı pattern hiç taşınmamıştı — sonuç: PFAZ13 sessizce her zaman boş AutoML üretiyordu.
+
+---
+
+### BUG-65 [KRITIK] PFAZ13 Dataset Path Yanlis
+
+| Alan | Deger |
+|------|-------|
+| Dosya | main.py:1305 |
+| Sprint | Sprint 10 |
+| Durum | **DUZELTILDI 2026-05-13** |
+
+**Sorun:** PFAZ13 PFAZ2 metrics dosyasından dataset bulurken `metrics_file.parent.parent.parent` kullanıyor. Bu `trained_models/{dataset}` dizinine gider ama `train.csv`/`val.csv` `generated_datasets/{dataset}/` altında. Path yanlış -> `train.csv` bulunamadı uyarısı -> her target için `continue` -> AutoML hiç çalışmaz, `automl_summary.json` boş, ama PFAZ13 `status='completed'` döner.
+
+**Fix:**
+```python
+trained_ds_dir = metrics_file.parent.parent.parent
+ds_dir = self.pfaz_outputs[1] / trained_ds_dir.name  # generated_datasets/{name}
+```
+
+**Tetikleyici kaynak:** Kemal'in TRUBA QA raporu Bulgu 1.
+
+---
+
+### BUG-66 [KRITIK] PFAZ13 Metadata-Aware CSV Okuma Yok
+
+| Alan | Deger |
+|------|-------|
+| Dosya | main.py:1336 (eski) -> 1336+ (yeni) |
+| Sprint | Sprint 10 |
+| Durum | **DUZELTILDI 2026-05-13** |
+
+**Sorun (raporun atladığı):** BUG-65 düzeltilse bile PFAZ13 hâlâ çöker. PFAZ1 (`dataset_generation_pipeline_v2.py:1108`) headerless CSV yazıyor — sadece sayılar, sütun adları `metadata.json`'da. PFAZ2 bunu doğru okuyor: `pd.read_csv(file_path, header=None, names=_col_names)`. **PFAZ13** ise default `pd.read_csv(train_csv)` (header=0) kullanıyor → ilk veri satırını başlık zanneder → `target_col_map['MM'] = 'MAGNETIC MOMENT [µ]'` kolonunu hiç bulamaz → `continue` → her target skip.
+
+**Fix:** PFAZ2 ile aynı pattern — `metadata.json` oku, `header=None, names=feat+tgt` ile load et. Geriye dönük uyumluluk için metadata yoksa eski header'lı format kullanılır.
+
+**Fonksiyonel doğrulama (Sprint 10 patch):**
+```
+ESKI yontem 'MAGNETIC MOMENT [µ]' bulundu: False  <- bozuk
+YENI yontem 'MAGNETIC MOMENT [µ]' bulundu: True   <- duzeltildi
+```
+
+**Ders:** KURAL 18 — kod ≠ doc varsayımı. PFAZ2 headerless+metadata pattern'i Sprint 1-8 boyunca standart oldu ama PFAZ13 hiç bu standarda göre güncellenmedi. PFAZ-arası okuma yöntemleri tutarlılığı **her sprint sonunda taranmalı.**
+
+---
+
+### BUG-67 [ORTA] PFAZ13 Bos AutoML Sessizce 'completed' Donerdi
+
+| Alan | Deger |
+|------|-------|
+| Dosya | main.py:1470 (eski) |
+| Sprint | Sprint 10 |
+| Durum | **DUZELTILDI 2026-05-13** |
+
+**Sorun:** BUG-65/66 nedeniyle `automl_results` her zaman boş kalsa bile PFAZ13 `status='completed'` döndürürdü. Slurm/sacct başarılı görür, PFAZ6 final raporu AutoML bölümünü geçtiğini sanır.
+
+**Fix:** Açık status kodları:
+- `best_by_target` boş -> `status='skipped_no_pfaz2_results'`
+- `automl_results` boş ama `best_by_target` dolu -> `status='skipped_no_datasets'`
+- Aksi halde `status='completed'`
+
+Ek alanlar: `n_best_by_target`, `n_automl_results` — raporlamada görünür hale geldi.
+
+---
+
+### BUG-68 [KRITIK] Job 3 ve Job 4 Hatalari `exit 0` ile Gizliyordu
+
+| Alan | Deger |
+|------|-------|
+| Dosyalar | truba/slurm_jobs/job3_pfaz04_05_07_09_12_13.sh:75, job4_pfaz06_08_10.sh:84 |
+| Sprint | Sprint 10 |
+| Durum | **DUZELTILDI 2026-05-13** |
+
+**Sorun:** Job 1 ve Job 2 doğru exit code döndürüyordu (`exit $EXIT_CODE`), ama Job 3 ve Job 4 fazlardan biri fail olsa bile **koşulsuz `exit 0`** ile bitiyordu. README "Job 3 bittikten sonra Job 4'u gönder" diyor — kullanıcı `sacct` veya mail'e güveniyor → "TAMAMLANDI" görür → Job 4'ü başlatır → eksik PFAZ13 sonucu ile final rapor üretilir.
+
+**Ek not:** `EC=$?` `tee` pipe yüzünden Python'un değil tee'nin exit code'unu yakalıyordu. Fix `${PIPESTATUS[0]}` kullanır.
+
+**Fix:**
+```bash
+FAIL=0
+for PFAZ in ...; do
+    python3 -u main.py --pfaz $PFAZ 2>&1 | tee "..."
+    EC=${PIPESTATUS[0]}
+    if [ $EC -ne 0 ]; then FAIL=1; fi
+done
+exit $FAIL
+```
+
+---
+
+### BUG-69 [ORTA] `run_complete_pipeline.py` Eski Layout Import'lari
+
+| Alan | Deger |
+|------|-------|
+| Dosya | run_complete_pipeline.py:154-241 |
+| Sprint | Sprint 10 |
+| Durum | **DUZELTILDI 2026-05-13** (deprecated guard) |
+
+**Sorun:** `from dataset_generation.dataset_generator import ...`, `from ai_training.model_trainer import ...` gibi import'lar — bu top-level klasörler artık yok. Gerçek layout `pfaz_modules/pfaz0X_*/`. TRUBA'da yanlışlıkla çalıştırılırsa ilk import'ta çöker; iş yükü ve job zaman kaybı.
+
+**Fix:** Modül başına deprecated banner ve `sys.exit(2)` guard. Tarihsel kayıt için eski kod alta korundu ama erişilemiyor. Kullan: `python3 -u main.py --run-all`.
+
+---
+
+### BUG-70 [KRITIK] HPC_MODE'da Desktop Worker Limitleri Aktif Kaliyordu
+
+| Alan | Deger |
+|------|-------|
+| Dosya | utils/gpu_manager.py:181-199 |
+| Sprint | Sprint 10 |
+| Durum | **DUZELTILDI 2026-05-13** |
+
+**Sorun (raporun yetersiz tartıştığı):** Rapor "config notu güncellenmeli" dedi ama gerçek sorun farklı. TRUBA orfoz partition `#SBATCH -c 110` ayırıyor (BUG-25). Kod ise:
+```python
+return max(4, min(16, n // 3))  # AI mode
+return max(4, min(20, n - 2))   # ANFIS mode
+```
+110-cpu node'da: AI worker = `min(16, 110//3) = 16`, ANFIS worker = `min(20, 108) = 20`. **Ayrılan kaynağın %14'ü kullanılır.** PFAZ2 koşusu ~7x daha uzun sürer → TRUBA'nın 3-gün limitini aşma riski.
+
+`HPC_MODE=1` env değişkeni tüm Slurm scriptlerinde set ediliyor ama `gpu_manager.py` bunu hiç kontrol etmiyordu.
+
+**Fix:** `HPC_MODE=1` ise tüm modlar için `max(4, n - 2)` döner (2 cekirdek IO icin). Desktop limitleri korundu (geriye dönük uyumluluk).
+
+| Mode | Desktop (32 cpu) | HPC (110 cpu) önce | HPC (110 cpu) sonra |
+|------|------------------|--------------------|---------------------|
+| ai | 10 | 16 | **108** |
+| anfis | 20 | 20 | **108** |
+| mc | 16 | 16 | **108** |
+
+**Ders:** HPC_MODE flag'i tüm kaynak hesaplayan yerlerde kontrol edilmeli, sadece env karşılaştırma değil davranışsal etki.
+
+---
+
+### BUG-71 [ORTA] `config.json` Top-Level `data_file` Eksik
+
+| Alan | Deger |
+|------|-------|
+| Dosya | config.json |
+| Sprint | Sprint 10 |
+| Durum | **DUZELTILDI 2026-05-13** |
+
+**Sorun:** `main.py:479` `self.config.get('data_file', 'aaa2.txt')` çağırıyor — top-level alanı arıyor. Config'de bu alan yoktu → default `'aaa2.txt'` (root) kullanılırdı. Ama TRUBA job pre-check `data/aaa2.txt` arıyor. İki path farklı yerde → asimetri. Yerel repoda hem root hem `data/` altında dosya var, TRUBA'ya transfer sırasında sadece biri giderse PFAZ1 kırılır.
+
+**Fix:** `"data_file": "data/aaa2.txt"` top-level eklendi. Hem job pre-check hem Python kodu aynı dosyayı arar.
+
+---
+
+### BUG-72 [DUSUK] Config n_workers Notu Yaniltici
+
+| Alan | Deger |
+|------|-------|
+| Dosya | config.json (PFAZ2 + PFAZ3 parallel_training._note) |
+| Sprint | Sprint 10 |
+| Durum | **DUZELTILDI 2026-05-13** |
+
+**Sorun:** Eski not "orfoz 110 CPU max, 10 OS icin bırakıldi -> 100 worker" diyordu ama kod bu sayıyı okumuyordu (BUG-70 nedeniyle 16 worker kullanılırdı). Belge ile davranış uyuşmazlığı.
+
+**Fix:** Not güncellendi — BUG-70 fix bağlamı eklendi: HPC_MODE=1 ise `GPUManager.optimal_workers()` n-2 worker döner.
+
+---
+
+*Sprint 10 raporu | TRUBA QA bulguları + 3 ek bulgu (BUG-65..72)*
+
+---
+
+### BUG-74 [YUKSEK] PFAZ2 'Target' Sutunu Yazmiyor -- Selector Calismaz, Layered Secim Sessizce Atlanir
+
+| Alan | Deger |
+|------|-------|
+| Dosya | pfaz_modules/pfaz02_ai_training/parallel_ai_trainer.py:1690 (rows.append) |
+| Sprint | Sprint 10 (ek denetim) |
+| Durum | **DUZELTILDI 2026-05-13** |
+
+**Tetikleyici:** Kemal'in sorusu "faz 3 PFAZ 2'nin hangi bilgilerini kullaniyor?" sonrasi sutun seviyesinde veri akisi denetimi.
+
+**Sorun:** PFAZ2 `training_summary.xlsx`'e su sutunlari yaziyordu:
+```
+Model_Type, Config_ID, Dataset, PKL_Saved, Status_Note,
+Train_R2, Train_RMSE, Train_MAE, Val_R2, Val_RMSE, Val_MAE,
+Test_R2, Test_RMSE, Test_MAE, Training_Time_s, Error
+```
+
+PFAZ2 her satirin target'ini biliyordu (`train_single_job` sat. 285-304 dataset adina gore cikariyor) ama summary'ye **YAZMIYORDU**.
+
+PFAZ3 ANFISDatasetSelector ise:
+```python
+target_df = self.results_df[self.results_df['Target'] == target]
+```
+ile filtre yapiyordu -> `KeyError: 'Target'` -> try/except Exception ile yakalanip log:
+```
+[WARNING] ANFISDatasetSelector calismadi: 'Target'; tum datasetler kullanilacak (fallback)
+```
+
+**Gercek davranis:** Tezde §3.4'te yazili "Top=50/Mid=50/Low=100 Layered Selection" stratejisi **kod seviyesinde hicbir zaman uygulanmamis**. PFAZ3 200 dataset yerine TUM datasetleri tariyor -> ~3-5x daha uzun ANFIS egitim suresi.
+
+**Tez icin kritik:** "ML basarisiz -> ANFIS rescue" hipotezi (Low tier=100) hic test edilmemis. Sprint 5 §"Akademik Karar 1" bu hipotezi bu sprintin tasarim karari olarak konumlandiriyordu ama veri seviyesinde dogrulama yok.
+
+**Fix:** `_target_from_dataset_name()` helper eklendi (PFAZ2 mevcut dataset-adi cikarim mantigini kullanir), `rows.append({...})` sozlugune `'Target': _target_from_dataset_name(result.dataset_name)` eklendi.
+
+**Fonksiyonel dogrulama:**
+```
+Once (BUG-74): KeyError: 'Target' -> fallback -> tum datasetler
+Sonra (fix):   Target sutunu var -> Layered selection calisir
+               Top tier  R2>=0.90 -> Quota 50
+               Mid tier  0.80<=R2<0.90 -> Quota 50
+               Low tier  R2<0.80 -> Quota 100 (rescue hipotezi)
+```
+
+**Sprint 10 sonrasi yapilmasi gereken:** TRUBA'da PFAZ2 + PFAZ3 yeniden kosulmali. Log'larda `"Top layer (R2>=0.90): X datasets"` mesaji gorunmeli. Eski kosulardan elde edilen ANFIS sonuclari (Sprint 5 oncesi) tez stratejisini yansitmaz.
+
+**Iliskili bug'lar:** BUG-17 (Sprint 5, sutun isimlendirme) -- ayni dosya cevresinde, ama BUG-74 farkli sutunu (`Target`) etkiliyordu.
+
+---
+
+*Sprint 10 ek denetim | PFAZ3-PFAZ2 sutun seviyesinde veri akisi analizi*

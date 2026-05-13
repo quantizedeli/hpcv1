@@ -828,3 +828,81 @@ Yeni bir HPC sistemi icin slurm scripti yazmadan once:
 
 *Claude-Hatalarim-ve-Dersler v2.2 | 2026-05-13*
 *Guncelleme: KURAL 25 -- orfoz icin #SBATCH -C weka zorunlu*
+
+---
+
+## KURAL 26 — PFAZ-Arası Kod Standardı Tutarlılığı Her Sprint Sonunda Taranmalı
+
+**Olay (Sprint 10, 2026-05-13):**
+
+Sprint 1-8'de PFAZ1 → PFAZ2 veri akışı için "headerless CSV + metadata.json + `pd.read_csv(file, header=None, names=col_names)`" standardı oturdu. PFAZ2 bunu doğru kullanıyordu. Ama PFAZ13'e bu standart hiç taşınmamıştı — `pd.read_csv(train_csv)` ile default header=0 kullanıyordu. Sonuç:
+
+- PFAZ13 ilk veri satırını başlık zanneder
+- `'MAGNETIC MOMENT [µ]'` gibi isimli kolon bulamaz
+- Her target için `continue` → AutoML hiç çalışmaz
+- Ama `status='completed'` döner → Slurm/sacct başarılı görür
+- PFAZ6 final raporu AutoML bölümünü geçtiğini sanır
+
+**Kemal bunu QA raporu ile yakaladı, Claude değil. Bu KURAL 18 ihlali**: "kod = doc varsayımı". Sprint 1-8'de standart oluşturduğumda **diğer fazların bu standarda göre tarandığını varsaydım**, taramadım.
+
+**Kural:**
+
+Bir veri akışı, dosya formatı veya okuma yöntemi bir fazda değiştirildiğinde:
+
+1. **Hangi fazlar bu veriyi okuyor?** — `grep -rn "read_csv\|read_excel\|to_csv\|to_excel"` ile tüm okuma/yazma noktalarını listele
+2. **Her noktanın okuma yöntemi yeni standartla uyumlu mu?** — sadece syntax değil, fonksiyonel olarak (örn. headerless CSV'yi default header=0 ile okumak syntactic OK ama davranış bozuk)
+3. **Fonksiyonel mini-test yaz** — yeni vs eski yöntem aynı kolonları buluyor mu? Aynı satır sayısını döndürüyor mu?
+4. **Standart değişikliği belgeye yaz** — hangi fazlar bu standardı kullanıyor, hangi yöntemle
+
+Bu adımlar her sprint kapanış checklistinde olmalı. Sprint 10 öncesi bu yoktu, eklendi.
+
+**Sprint 10'da fonksiyonel test örneği:**
+```python
+# Mini test: PFAZ1 headerless + PFAZ13 okuma
+ESKI yontem 'MAGNETIC MOMENT [µ]' bulundu: False  <- bozuk
+YENI yontem 'MAGNETIC MOMENT [µ]' bulundu: True   <- duzeltildi
+```
+
+Bu pattern artık her standart değişikliğinde tekrarlanmalı.
+
+---
+
+## KURAL 27 — Environment Flag Davranışsal Etkisi Tüm Kaynak-Hesap Noktalarında Kontrol Edilmeli
+
+**Olay (Sprint 10, 2026-05-13, BUG-70):**
+
+`HPC_MODE=1` env değişkeni TRUBA Slurm scriptlerinin hepsinde set ediliyordu (`truba_slurm_job.sh`, `truba/slurm_jobs/*.sh`). Bu flag'in amacı: HPC ortamında desktop-için-yazılmış kısıtlamaları kaldırmak.
+
+Ama `utils/gpu_manager.py:optimal_workers()` bu flag'i hiç kontrol etmiyordu. Sonuç:
+- TRUBA orfoz partition `#SBATCH -c 110` ayırıyor
+- Kod `min(16, 110//3) = 16` worker dönüyor
+- Ayrılan kaynağın %14'ü kullanılır
+- PFAZ2 koşusu ~7x daha uzun sürer
+- TRUBA 3-gün limit aşma riski
+
+**Hata pattern'i:** Env flag'i koymak yeterli sandım. Flag'in **davranışsal etkisi** olduğu yerlerin tek tek taranması gerekirken yapmadım.
+
+**Kural:**
+
+Yeni bir env flag eklendiğinde (`HPC_MODE`, `PFAZ_PARALLEL_ACTIVE`, vb.):
+
+1. **Flag adıyla grep yap** — `grep -rn "HPC_MODE\|os.environ.*HPC"` ile mevcut kullanım yerlerini listele
+2. **Flag'in semantik etkisinin olması gereken yerleri ayrı listele:**
+   - Worker sayısı hesaplayan fonksiyonlar
+   - Memory budget hesaplayan kod
+   - Path resolver'lar (örn. scratch vs home)
+   - Timeout/retry stratejileri
+   - Logger seviyeleri
+3. **Her ikiyi karşılaştır** — flag kullanılmayan ama olması gereken yer var mı?
+4. **Fonksiyonel test** — flag açıkken vs kapalıyken davranış gerçekten farklı mı?
+
+Sprint 10 sonrası `gpu_manager.py` tüm modlarda (`ai`, `anfis`, `mc`, `auto`) HPC_MODE branş'ı içeriyor. Tablo:
+
+| Mode | Desktop (32 cpu) | HPC önce | HPC sonra (110 cpu) |
+|------|------------------|----------|---------------------|
+| ai | 10 | 16 | **108** |
+| anfis | 20 | 20 | **108** |
+| mc | 16 | 16 | **108** |
+
+**Genelleme:** Env flag, davranışsal etki noktaları kontrol edilmeden eklenirse "kozmetik" kalır. Sprint sonu checklistine "env flag etki noktası taraması" eklenmeli.
+

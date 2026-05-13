@@ -1219,3 +1219,35 @@ PuTTY ekran goruntuleri ve sinfo/module avail ciktilariyla tum parametreler dogr
 **Sonraki adim:** Dosya transferi (WinSCP/scp) -> Job 1 gonder -> izle.
 
 *Not Defteri v2.9 | 2026-05-13 | Sprint 9B: TRUBA scriptleri hazir, gercek bilgilerle*
+
+---
+
+## Sprint 10 — TRUBA QA Raporu Düzeltmeleri (2026-05-13)
+
+Kemal bağımsız statik QA raporu çıkardı (`nucdatav2-truba` lokal kopyası, `sprint6-scan-results` branch). 7 bulgu listeledi, Claude doğrulamada 3 ek bulgu ekledi → toplam 8 bug fix (BUG-65..72).
+
+### Tez Anlatısı İçin Önemli Çıkarımlar
+
+**Bulgu 1 (PFAZ13 path) ve 2 (metadata-aware CSV) PFAZ-arası kod tutarlılığı dersi**: Sprint 1-8 boyunca PFAZ1 → PFAZ2 veri akışı standardı oturdu (headerless CSV + metadata.json + `header=None, names=col_names`). Ama PFAZ13 hiç bu yeni standarda göre güncellenmedi → "sessiz başarısızlık" üretti: koşu `status='completed'` döner, summary boş, kimse fark etmez.
+
+Bu pattern tez'in **"Pipeline reliability engineering"** bölümünde örnek olarak kullanılabilir: ML pipeline'larında veri formatı bir fazda değiştiğinde alt fazların **fonksiyonel doğrulama** (sadece syntax değil) ile taranması zorunlu. Sprint 10 patch'in fonksiyonel mini-test çıktısı belge: eski yöntem kolon bulamıyor, yeni yöntem buluyor.
+
+**Bulgu 3 (HPC worker limiti)**: TRUBA orfoz 110-cpu, kod 16 worker kullanıyordu → kaynak %14 kullanımı. PFAZ2 koşusu desktop tahminden ~7x uzun sürebilirdi. Bu **"environment-aware resource scaling"** alt-bölümünde ele alınabilir: aynı kod desktop'ta verimli, HPC'de değil — env flag (`HPC_MODE`) ile davranış branş'lanmalı.
+
+### Sprint 10 Bug Dağılımı
+
+| Kategori | Bug | Açıklama |
+|----------|-----|----------|
+| Pipeline veri akışı | BUG-65, 66, 67 | PFAZ2 -> PFAZ13 path + okuma standart tutarsızlığı |
+| HPC infrastructure | BUG-68, 70 | Job exit kodu, worker limit |
+| Bakım/temizlik | BUG-69, 71, 72 | Eski script, config alanları |
+
+### TRUBA Run Sonrası Verisi (Yapıldıktan Sonra Eklenecek)
+
+- PFAZ2 gerçek worker sayısı (TRUBA'da kaç paralel iş çalıştı?)
+- PFAZ13 AutoML summary doluyor mu? (`status='completed'` olmalı, `n_automl_results > 0`)
+- Job 3 ve Job 4 exit code'ları sacct'te (FAIL=0 mı?)
+- Toplam PFAZ2 süresi (BUG-70 fix öncesi tahmin vs sonrası gerçek)
+
+Bu veriler `4-RESULTS` bölümünde **"Computational performance"** alt-başlığı için anlamlı olacak.
+

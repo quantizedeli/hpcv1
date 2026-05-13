@@ -143,7 +143,7 @@ Example: `MM_150_S70_AZSMC_NoScaling_Random_NoAnomaly.csv`
 | BUG-37 | LOW | `pfaz10_thesis_compilation/pfaz10_thesis_orchestrator.py` | Hardcoded `/mnt/project` path (old v2.0, no longer active) | Informational |
 | BUG-38 | ~~LOW~~ | `pfaz09_aaa2_monte_carlo/monte_carlo_simulation_system.py` | **DÜZELTİLDİ 2026-05-09** — DEFAULT_MC_CONFIG n_bootstrap ve n_samples_per_level 100→1000 yapıldı. Tez K=1000 doğru. | DONE |
 
-**Pipeline status (2026-05-12):** Sprint 1-8 tamamlandi. CV gate (BUG-62) aktif -- max_train_cv_gap=0.6. Son patch: sprint8-only.patch (commit 2f1e594). v10 Sprint 8 sync bekliyor.
+**Pipeline status (2026-05-13):** Sprint 1-10 tamamlandi. Sprint 10 = TRUBA QA raporu duzeltmeleri (BUG-65..72) + inter-PFAZ denetim (BUG-73): PFAZ13 path+metadata-aware CSV okuma, Job 3/4 exit code, HPC_MODE worker (108), config data_file, PFAZ9 ANFIS path explicit. Son patch: sprint10-qa-fixes.patch. v10 Sprint 10 sync bekliyor. TRUBA dosya transferi patch uygulandiktan sonra yapilmali. Inter-PFAZ bagimlilik haritasi: docs/thesis-toolkit/inter-pfaz-dependency-map.md.
 
 ---
 

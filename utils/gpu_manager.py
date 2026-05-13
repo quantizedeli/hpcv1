@@ -178,24 +178,39 @@ class GPUManager:
         """
         n = self._n_cpu  # runtime'da okundu, her PC'de farkli
 
+        # BUG-70 FIX (Sprint 10): HPC modunda (TRUBA gibi) desktop limitleri kaldirilir.
+        # Sebep: orfoz partition #SBATCH -c 110 ayirir, eski kod min(16,...) yapardi
+        # -> ayrilan kaynagin %14'u kullanilirdi. PFAZ2 koşusu ~7x daha uzar -> 3-gun limit asma riski.
+        # HPC_MODE=1 env -> truba_slurm_job.sh ve truba/slurm_jobs/*.sh tarafindan set ediliyor.
+        import os
+        _hpc = os.environ.get('HPC_MODE', '0') == '1'
+
         if mode == 'ai':
-            # RF/GBM ic n_jobs=1 kullanir (PFAZ_PARALLEL_ACTIVE ile zorunlu)
-            # Formul: her 3 mantiksal cekirdege 1 outer worker
-            # Ust sinir 16: 48-core workstation'da bile guvenli
+            if _hpc:
+                # HPC: 2 cekirdek IO icin birak, geri kalan tum cekirdekler worker
+                # 110-cpu node -> 108 worker, 56-cpu node -> 54 worker
+                return max(4, n - 2)
+            # Desktop: RF/GBM ic n_jobs=1 kullanir (PFAZ_PARALLEL_ACTIVE ile zorunlu)
+            # Formul: her 3 mantiksal cekirdege 1 outer worker, ust sinir 16
             # i9-13900K (32t): 10 worker | i9-12900K (24t): 8 worker
             return max(4, min(16, n // 3))
 
         elif mode == 'anfis':
-            # ANFIS modelleri kucuk, cok worker = daha hizli paralel egitim
-            # 2 cekirdek sistem icin birakilir
-            # Ust sinir 20: asiri thread olusumunu engeller
+            if _hpc:
+                # ANFIS HPC: yine 2 cekirdek IO, geri kalan tum cekirdekler
+                return max(4, n - 2)
+            # Desktop: ANFIS modelleri kucuk, ust sinir 20
             return max(4, min(20, n - 2))
 
         elif mode == 'mc':
+            if _hpc:
+                return max(4, n - 2)
             # Inference + IO agirlikli, hesaplama hafif
             return max(4, min(16, n // 2))
 
         else:  # auto
+            if _hpc:
+                return max(4, n - 2)
             return max(4, min(16, n // 2))
 
     # ------------------------------------------------------------------
