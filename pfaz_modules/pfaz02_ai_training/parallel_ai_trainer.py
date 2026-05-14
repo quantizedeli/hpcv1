@@ -1387,7 +1387,8 @@ class ParallelAITrainer:
                         model=trainer.model,
                         model_name=f"{job.model_type}_{job.config['id']}",
                         X=_X_combined, y=_y_combined,
-                        cv_folds=_n_folds, cv_n_jobs=_cv_n_jobs
+                        cv_folds=_n_folds, cv_n_jobs=_cv_n_jobs,
+                        X_test=X_test, y_test=y_test  # BUG-96: RobustnessTester icin
                     )
                     if _cv_res.get('status') == 'completed':
                         _cv_r2 = _cv_res.get('cv_results', {}).get('r2_test_mean', float('nan'))
@@ -2098,22 +2099,25 @@ class ParallelAITrainer:
             logger.error(f"[HYPERPARAMETER TUNING] Error: {e}")
             return {'status': 'failed', 'error': str(e)}
 
-    def run_model_validation(self, model, model_name: str, X, y, cv_folds: int = 5, cv_n_jobs: int = 1) -> Dict:
+    def run_model_validation(self, model, model_name: str, X, y, cv_folds: int = 5, cv_n_jobs: int = 1,
+                             X_test=None, y_test=None) -> Dict:
         """
         Run cross-validation and robustness testing
 
         Args:
             model: Trained model
             model_name: Model name
-            X, y: Data for validation
+            X, y: Data for validation (train+val combined for CV)
             cv_folds: Number of CV folds
             cv_n_jobs: Number of parallel jobs for CV (default=1 to avoid nested parallelization deadlock)
+            X_test: Test features for robustness tests (optional, BUG-96)
+            y_test: Test targets for robustness tests (optional, BUG-96)
 
         Returns:
             Dictionary with validation results
         """
         try:
-            from pfaz_modules.pfaz02_ai_training.model_validator import CrossValidationAnalyzer
+            from pfaz_modules.pfaz02_ai_training.model_validator import CrossValidationAnalyzer, RobustnessTester
 
             logger.info(f"\n[MODEL VALIDATION] Starting for {model_name}")
 
@@ -2125,13 +2129,49 @@ class ParallelAITrainer:
 
             logger.info(f"[MODEL VALIDATION] CV Results: {cv_results}")
 
-            return {
+            result = {
                 'status': 'completed',
                 'cv_results': cv_results,
                 'model_name': model_name,
                 'cv_folds': cv_folds,
                 'cv_n_jobs': cv_n_jobs
             }
+
+            # BUG-96: RobustnessTester aktivasyonu -- CV sonrasi 3 test
+            # X_test/y_test verilmisse noise/outlier/perturbation testleri calistir
+            if X_test is not None and y_test is not None:
+                try:
+                    import numpy as _np
+                    robustness_dir = self.output_dir / 'robustness'
+                    rt = RobustnessTester(model, model_name, output_dir=str(robustness_dir))
+                    rt.test_noise_sensitivity(X_test, y_test)
+                    rt.test_outlier_sensitivity(X, y, X_test, y_test)
+                    rt.test_feature_perturbation(X_test, y_test)
+                    rt.generate_report()
+
+                    # robustness_summary.xlsx -- tum modeller icin ozet
+                    _rb_summary_path = self.output_dir / 'robustness_summary.xlsx'
+                    _rb_row = {
+                        'model_name': model_name,
+                        'noise_max_drop': float(max(rt.test_results.get('noise_sensitivity', {}).get('r2', [0])) -
+                                                min(rt.test_results.get('noise_sensitivity', {}).get('r2', [0]))),
+                        'outlier_max_drop': float(max(rt.test_results.get('outlier_sensitivity', {}).get('r2', [0])) -
+                                                  min(rt.test_results.get('outlier_sensitivity', {}).get('r2', [0]))),
+                        'tests_completed': str(list(rt.test_results.keys())),
+                    }
+                    import pandas as _pd
+                    if _rb_summary_path.exists():
+                        _existing = _pd.read_excel(_rb_summary_path)
+                        _new = _pd.concat([_existing, _pd.DataFrame([_rb_row])], ignore_index=True)
+                    else:
+                        _new = _pd.DataFrame([_rb_row])
+                    _new.to_excel(_rb_summary_path, index=False)
+                    logger.info(f"[BUG-96] Robustness summary updated: {_rb_summary_path}")
+                    result['robustness'] = _rb_row
+                except Exception as _rbe:
+                    logger.warning(f"[BUG-96] RobustnessTester skipped: {_rbe}")
+
+            return result
 
         except ImportError as e:
             logger.warning(f"[MODEL VALIDATION] Validator not available: {e}")

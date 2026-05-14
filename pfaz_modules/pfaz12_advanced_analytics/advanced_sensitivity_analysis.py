@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# DEAD_CODE_NOTE (BUG-98, Sprint 13): Bu modül run_pfaz_12 tarafından ÇAĞRILMIYOR.
+# Sobol/Morris yöntemleri SALib gerektirir (TRUBA apps/truba-ai/cpu-2024.0'da kurulu değil)
+# ve saatler sürer. Tez kapsamında "future work" olarak işaretlendi.
+# Aktive etmek için: pip install SALib, ardından run_pfaz_12 sonuna blok ekle.
 """
 ADVANCED SENSITIVITY ANALYSIS
 ==============================

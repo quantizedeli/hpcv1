@@ -927,3 +927,83 @@ Kullanici HPC/cluster ekran goruntusu gonderdiginde:
 
 **Pratik test:** "Bir HPC duyurusu kullanicinin tasarisini etkiler mi?" sorusunu sor. Etkiliyorsa hemen duzelt, sonra not al.
 
+---
+
+## KURAL 29 — Plan Sun, Onay Bekle, Sonra Hareket Et
+
+**Olay:** Defalarca planlamadan dosya degistirdim, Kemal "plan sunmadan is yapma" dedi.
+
+**Kural:**
+
+Dosya degistirmeden once her zaman:
+1. Mevcut durumu oku (kanit topla -- view/grep, **dosya degistirme**)
+2. Net plan sun: hangi dosya, ne degisikligi, hangi etki
+3. Onay bekle -- "hareket et" demeden ileri gitme
+4. **Tek istisna:** Sadece okuma operasyonlari (view, grep, bash -c "cat ...") -- bunlar dosya degistirmez
+
+**Pratik:** Bir istek aldigimda ilk reflex "hemen yaz" degil, "once oku, plan sun, onay al" olmali.
+
+---
+
+## KURAL 30 — Runtime Behavior Simulation
+
+**Olay:** Codex 5 bulgu cikardi, 4'u gercekti, ben hicbirini yakalamamistim. Sebep: Sadece kodu okudum, calistirma davranisini simule etmedim.
+
+**Ornek:** `python | tee` → `$?` `tee` exit, python exit DEGIL. `--run-all` HPC modda except yutar → process exit 0 → Slurm OK → afterok zincir devam → eksik veriyle PDF.
+
+**Kural:**
+
+Her kritik kod yolu icin en az 3 senaryo simule et:
+1. **Happy path:** Her sey calisiyor, ne oluyor?
+2. **Tek nokta fail:** Orta katman basarisiz, ust katman ne yapiyor? (exit code iletiliyor mu?)
+3. **Pipe/zincir fail:** `cmd | tee` → `$?` kimden geliyor? Slurm afterok dogru tetikleniyor mu?
+
+---
+
+## KURAL 31 — Single Source of Truth (SSoT)
+
+**Olay:** `setup_truba.sh` paket listesi vs `main.py REQUIRED_PACKAGES` farkli listeler iceriyordu. Drift kacınılmaz.
+
+**Kural:**
+
+Ayni bilgiyi iki yerde yazma. `setup_truba.sh` artik `main.py --check-deps`'e delege ediyor. Eger ayni veri iki dosyada varsa: biri diger(in)den okuyan/cagren yapi kur, yoksa biri mutlaka eskiyecek.
+
+**Pratik test:** "Bu bilgiyi degistirirsem kac dosyada degistirmem gerekir?" > 1 ise SSoT ihlali.
+
+---
+
+## KURAL 32 — VARSAYIM YASAGI (EN KRITIK)
+
+**Olay:** Kemal'in en buyuk sikayeti: "En buyuk sıkıntın işten kaçıp hep varsayman!"
+
+**Kural:**
+
+- "muhtemelen", "buyuk olasilikla", "varsayalim", "zaten dogrudur" cumlelerim KIRMIZI BAYRAK -- soyler soylmez hemen `grep`/`view`/test ile kanitla
+- Surekli "muhtemelen X'tir" demek = isten kacmak. Dogrudan kanit topla
+- **Fix sonrasi tutarlilik taramasi ZORUNLU:** Bir bug duzeltince "ayni pattern baska yerde var mi?" `grep` ile kontrol et (KURAL 26 operatif uygulamasi)
+- Codex'in 4 bulgusu Claude'un kacirdigi seylerdı -- sebep: yarim is + varsayim
+
+**Pratik:** Her "muhtemelen" kelimesini yazmadan once dur ve grep/view ile dogrula.
+
+---
+
+## KURAL 33 — Cross-Layer Failure Chain Audit
+
+**Olay:** Sprint 10'da Job 3/4 exit code duzeltildi ama altindaki Python katmani kontrol edilmedi. 2 katmanli failure: bash exit + python exit. Sadece bash'i duzeltildi.
+
+**Kural:**
+
+Bir exit code/status zincirini duzeltirken HER katmani kontrol et:
+
+```
+Python function return/raise
+    → sys.exit(code)
+        → Bash exit ${PIPESTATUS[0]}
+            → Slurm sacct ExitCode
+                → Slurm afterok zinciri
+```
+
+Hepsi senkron mu? Bir katman zinciri kopariyorsa downstream tamamen yaniltici olur.
+
+**Pratik test:** "Bu hata Slurm'a ulasir mi?" sorusunu sor ve her katmanı izle.
+

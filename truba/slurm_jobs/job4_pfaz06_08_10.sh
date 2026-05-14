@@ -40,8 +40,8 @@ export TF_CPP_MIN_LOG_LEVEL=3
 export HPC_MODE=1
 export THESIS_COMPILE_PDF=n
 
-PROJECT_DIR="/arf/home/ahmacar/hpcv1"
-OUTPUT_DIR="/arf/scratch/ahmacar/hpcv1_outputs"
+PROJECT_DIR="${PROJECT_DIR:-/arf/home/ahmacar/hpcv1}"  # BUG-89: env override
+OUTPUT_DIR="${OUTPUT_DIR:-/arf/scratch/ahmacar/hpcv1_outputs}"  # BUG-89: env override
 mkdir -p "$OUTPUT_DIR/logs" \
          "$OUTPUT_DIR/reports" \
          "$OUTPUT_DIR/visualizations" \

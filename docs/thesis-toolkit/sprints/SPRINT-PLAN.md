@@ -23,8 +23,9 @@
 | Sprint 9B | `sprint-09-truba.md` | TRUBA: 4 job script (weka flag, 110CPU, n_workers=100, zip) | YUKSEK | **TAMAMLANDI** 2026-05-13 |
 | Sprint 10 | `sprint-10-qa-fixes.md` | TRUBA QA raporu + inter-PFAZ denetim (BUG-65..74) | KRITIK | **TAMAMLANDI** 2026-05-13 |
 | Sprint 11+12 | `sprint-11-12-final-truba-ready.md` | Cikti tamligi + TRUBA 2025-12-15 kurali (BUG-75..84): PFAZ3/6/8/9/12 path explicit, training_configs_50.json, submit_all.sh, PFAZ8 helper-based, BandAnalyzer, -c 110->112 | KRITIK | **TAMAMLANDI** 2026-05-13 |
+| Sprint 13 | `sprint-13-final.md` | Codex audit + tez plani (BUG-85..99): PIPESTATUS fix, run_all RuntimeError, optuna/lightgbm REQUIRED, strict_truba, PFAZ2 fail→PFAZ3 skip, MC random_state, RobustnessTester aktif, PFAZ12 BootstrapCI+ANFIS, PFAZ5 AI_vs_ANFIS sheet, automl_trials_details.xlsx, KURAL 29-33 | KRITIK | **TAMAMLANDI** 2026-05-14 |
 
-**Uygulama sırası:** Sprint 1-12 TAMAMLANDI. **TRUBA AKMAYA HAZIR.** Acik adaylar (TRUBA sonrasi): v10 sync (BUG-65..84, notlar `docs/thesis-toolkit/v10-todo.md`), tez sonrasi PFAZ11.
+**Uygulama sırası:** Sprint 1-13 TAMAMLANDI. **TRUBA AKMAYA HAZIR.** Acik adaylar (TRUBA sonrasi): v10 sync (BUG-65..99, notlar `docs/thesis-toolkit/v10-todo.md`), PFAZ10 rewrite (Sprint 14 plan: `sprint-14-pfaz10-rewrite-plan.md`), tez sonrasi PFAZ11.
 
 ---
 
