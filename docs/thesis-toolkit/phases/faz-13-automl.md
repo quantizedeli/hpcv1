@@ -1,10 +1,10 @@
 # PFAZ 13: AutoML Yeniden Egitim Dongusu
 
-> **Belge Versiyonu:** v1.0
-> **Analiz Tarihi:** 2026-05-04
-> **Durum:** ~~FAILED (progress=0, 2026-03-24) -- SyntaxError: automl_retraining_loop.py:43~~
-> **DUZELTILDI 2026-05-09:** BUG-32 fix (satir 537-539 silindi); import calisiyor. PFAZ02 bittikten sonra yeniden calistir.
+> **Belge Versiyonu:** v2.0
+> **Ilk Analiz:** 2026-05-04 | **Son Guncelleme:** 2026-05-14 (Sprint 13)
+> **Durum:** ~~FAILED~~ DUZELTILDI (BUG-32 Sprint 4); TRUBA cikti bekleniyor
 > **Ana Sinif:** AutoMLRetrainingLoop + AutoMLOptimizer
+> **TRUBA Job:** Job 3 (`truba/slurm_jobs/job3_pfaz04_05_07_09_12_13.sh`)
 > **Kapsam:** 9 dosya (+ __init__), ~5968 satir
 
 ---
@@ -355,3 +355,81 @@ Gercek hata satir 41-43'te degil, `_run_anfis_for_category` metodunda satir 537-
 | BUG-35 | [BILGI] | r2_threshold vs POOR_MAX tutarsizligi (dokumantasyon) |
 
 *faz-13-automl.md v1.0 | 2026-05-04*
+
+---
+
+## Sprint 4-13 Guncellemeleri (2026-05-11 -> 2026-05-14)
+
+### Sprint 4 BUG-32 -- IndentationError Fix (KRITIK)
+
+Onceki durum: `automl_retraining_loop.py:539` `return []` sonrasi 3 satir hatali indent + tekrar; PFAZ13 hicbir zaman import edilemiyordu.
+
+Sprint 4 fix (2026-05-09):
+- Hatali 3 satir silindi
+- pfaz06 ayni kalip da duzeltildi (1267. satir)
+- Smoke test 8/8 PASS
+
+PFAZ13 artik import edilebiliyor ve calistirilabiliyor.
+
+### Sprint 6 BUG-53 -- Optuna TF Memory Leak Guard (KRITIK)
+
+`hyperparameter_tuner.py` + `automl_optimizer.py` + `automl_hyperparameter_optimizer.py` Optuna trial dongularinde TF `clear_session()` eksikti. 30+ trial x n_datasets boyunca GPU VRAM birikiyordu -- TRUBA'da `ResourceExhaustedError` riski yuksekti.
+
+Sprint 7 fix (BUG-53):
+```python
+try:
+    # Optuna trial logic
+finally:
+    tf.keras.backend.clear_session()
+    gc.collect()
+```
+
+### Sprint 6 BUG-57 -- Silent Exception Temizlendi
+
+`automl_retraining_loop.py:211, 305, 758` 3 yerde dataset yukleme ve config okuma hatalari sessizce yutuluyordu. PFAZ13 hicbir iz birakmazken calismis gozukuyordu. Sprint 7 fix ile `logger.warning(...)` eklendi.
+
+### Sprint 13 BUG-87 -- optuna + lightgbm REQUIRED_PACKAGES
+
+`main.py:REQUIRED_PACKAGES` listesine eklendi -- artik opsiyonel degil. TRUBA strict_truba modunda eksiklik RuntimeError verir.
+
+### Sprint 13 BUG-88 -- strict_truba Mode
+
+`config.json` icinde `strict_truba=true` ayari eklendi:
+- PFAZ13 skipped olursa RuntimeError (eski versiyon sessiz devam)
+- TRUBA'da AutoML eksik tez verir -- bu durum artik onlenir
+
+### Sprint 13 BUG-98 -- automl_trials_details.xlsx (YENI)
+
+`automl_improvement_report.xlsx` yaninda yeni Excel dosyasi uretilir:
+
+| Sayfa | Icerik |
+|-------|--------|
+| Summary | Toplam trial, basarili/prune ozet, model tipi bazinda |
+| All_Trials | Her trial: param degerleri, R2, duration_s, prune_status |
+| Convergence | Best-so-far R2 progress (Optuna learning curve) |
+
+Tez §4.6 (AutoML Optimizasyonu) icin **Convergence sayfasinin grafigi** dogrudan kullanilabilir. AM13-A grafigi olarak PFAZ8'e besleniyor.
+
+### Sprint 13 KURAL 33 -- Cross-Layer Failure Chain
+
+PFAZ13 skip -> Slurm afterok chain etkisi:
+
+```
+Python: PFAZ13 skip (strict_truba=true) -> RuntimeError -> sys.exit(1)
+Bash:   $? = 1 -> ${PIPESTATUS[0]} = 1 (Sprint 13 BUG-85)
+Slurm:  Job 3 exit 1 -> Job 4 afterok asla calismaz
+```
+
+Bu zincir Sprint 13'te `_check_upstream_failure` + PIPESTATUS fix ile dogrulandi.
+
+### TRUBA Operasyonel Notlar
+
+- **Job:** `job3_pfaz04_05_07_09_12_13.sh` icinde PFAZ12 sonrasi
+- **Sure:** ~3-5 saat (n_per_category=25 * n_trials=30 = 750 trial/kategori)
+- **Cikti:** `/arf/scratch/ahmacar/hpcv1_outputs/outputs/automl_results/`
+- **Bagimlilik:** PFAZ2 (AI metrics summary)
+- **Memory:** TF clear_session() guard (BUG-53)
+
+---
+
+*PFAZ 13 Belgesi v2.0 | Son Guncelleme: 2026-05-14*

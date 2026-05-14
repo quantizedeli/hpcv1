@@ -85,7 +85,8 @@
     "gpu": {
       "enabled": true,
       "device": "cuda:0"
-    }
+    },
+    "_models_active_note": "BUG-92: Aktif modeller: RF, XGBoost, DNN (BayesianNN, PINN dahil). LightGBM/CatBoost/SVR egitime DAHIL DEGIL -- tez kapsaminda gerekli degil, TRUBA sure butcesi kisitli. catboost TRUBA modülünde kurulu degil. Eklemek icin: parallel_ai_trainer.py MODEL_CONFIGS icerigini guncelleyin."
   },
   "pfaz03_anfis_training": {
     "enabled": true,
@@ -265,7 +266,9 @@
     "gpu_memory_gb": 4,
     "gpu_model": "GTX 1650 (4GB VRAM)",
     "disk_space_gb": 50,
-    "notes": "GPU auto-detect aktif: TF -> PyTorch -> config.json fallback sirasi"
+    "notes": "GPU auto-detect aktif: TF -> PyTorch -> config.json fallback sirasi",
+    "strict_truba": true,
+    "_strict_truba_note": "BUG-88: PFAZ13 skipped durumu Slurm job failure sayilir. False yaparak devre disi birakabilirsiniz (test amaçli)."
   },
   "output_dir": "/arf/scratch/ahmacar/hpcv1_outputs",
   "_output_dir_note": "TRUBA ARF: job ciktilari scratch a yazilir (1TB). Kod /arf/home/ahmacar/hpcv1 de."

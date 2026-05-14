@@ -381,11 +381,14 @@ class CrossModelAnalysisPipeline:
                 for target_key, target_results in results.items():
                     self._write_target_sheets(writer, target_key, target_results)
 
-                # Model stats
+                # Model stats (Sprint 13: Model_Type + R2 eklendi)
                 self._write_model_stats(writer)
 
                 # Pairwise R² agreement matrix
                 self._write_agreement_overview(writer, results)
+
+                # Sprint 13: AI vs ANFIS ozet karsilastirma sheet
+                self._write_ai_vs_anfis_sheet(writer)
 
             logger.info(f"  [OK] Master report saved: {master_file}")
         except Exception as e:
@@ -439,22 +442,93 @@ class CrossModelAnalysisPipeline:
             logger.info(f"    [OK] Sheet {sheet_name} ({len(nuclei_list)} nuclei)")
 
     def _write_model_stats(self, writer):
-        """Per-model error statistics across all targets."""
+        """Per-model error statistics across all targets.
+        Sprint 13: Model_Type (AI/ANFIS) ve R2 kolonlari eklendi -- tez karsilastirmasi icin.
+        """
         rows = []
         for target_key, models_dict in self.all_predictions.items():
             for model_label, df in models_dict.items():
                 err = (df['predicted'] - df['experimental']).abs()
+                exp_vals = df['experimental'].values
+                pred_vals = df['predicted'].values
+                ss_res = float(((exp_vals - pred_vals) ** 2).sum())
+                ss_tot = float(((exp_vals - exp_vals.mean()) ** 2).sum())
+                r2 = float(1 - ss_res / ss_tot) if ss_tot > 0 else float('nan')
+                model_type = 'ANFIS' if model_label.startswith('ANFIS_') else 'AI'
                 rows.append({
                     'Target': target_key,
+                    'Model_Type': model_type,
                     'Model': model_label,
                     'N': len(df),
+                    'R2': round(r2, 4),
                     'Mean_Error': float(err.mean()),
                     'Std_Error': float(err.std()),
                     'Median_Error': float(err.median()),
                     'Max_Error': float(err.max()),
                 })
         if rows:
-            pd.DataFrame(rows).to_excel(writer, sheet_name='Model_Statistics', index=False)
+            df_stats = pd.DataFrame(rows)
+            df_stats.to_excel(writer, sheet_name='Model_Statistics', index=False)
+            n_ai = sum(1 for r in rows if r['Model_Type'] == 'AI')
+            n_anfis = sum(1 for r in rows if r['Model_Type'] == 'ANFIS')
+            logger.info(f"  [OK] Model_Statistics: {len(rows)} satir (AI={n_ai}, ANFIS={n_anfis})")
+
+    def _write_ai_vs_anfis_sheet(self, writer):
+        """Sprint 13: AI vs ANFIS ozet karsilastirma sheet.
+
+        PFAZ3 anfis_vs_ai_comparison.xlsx'i okur (varsa), yoksa all_predictions
+        uzerinden ozet hesaplar. Tez sorusu: 'ANFIS AI'dan istatistiksel olarak
+        anlamli farkli mi?' icin ham materyal.
+        """
+        import numpy as np
+
+        # Once PFAZ3 anfis_vs_ai_comparison.xlsx'i dene (en zengin kaynak)
+        _cmp_xlsx = self.anfis_models_dir / 'anfis_vs_ai_comparison.xlsx'
+        if _cmp_xlsx.exists():
+            try:
+                df_cmp = pd.read_excel(_cmp_xlsx)
+                df_cmp.to_excel(writer, sheet_name='AI_vs_ANFIS_Comparison', index=False)
+                logger.info(f"  [OK] AI_vs_ANFIS_Comparison: PFAZ3 kaynaktan ({len(df_cmp)} satir)")
+                return
+            except Exception as e:
+                logger.warning(f"  [WARN] anfis_vs_ai_comparison.xlsx okunamadi: {e}")
+
+        # Fallback: all_predictions'dan ozet hesapla
+        rows = []
+        for target_key, models_dict in self.all_predictions.items():
+            ai_r2s, anfis_r2s = [], []
+            for model_label, df in models_dict.items():
+                exp_v = df['experimental'].values
+                pred_v = df['predicted'].values
+                ss_res = float(((exp_v - pred_v) ** 2).sum())
+                ss_tot = float(((exp_v - exp_v.mean()) ** 2).sum())
+                r2 = float(1 - ss_res / ss_tot) if ss_tot > 0 else float('nan')
+                if not np.isnan(r2):
+                    if model_label.startswith('ANFIS_'):
+                        anfis_r2s.append(r2)
+                    else:
+                        ai_r2s.append(r2)
+
+            rows.append({
+                'Target': target_key,
+                'AI_Model_Count': len(ai_r2s),
+                'AI_Mean_R2': round(float(np.mean(ai_r2s)), 4) if ai_r2s else float('nan'),
+                'AI_Best_R2': round(float(np.max(ai_r2s)), 4) if ai_r2s else float('nan'),
+                'ANFIS_Model_Count': len(anfis_r2s),
+                'ANFIS_Mean_R2': round(float(np.mean(anfis_r2s)), 4) if anfis_r2s else float('nan'),
+                'ANFIS_Best_R2': round(float(np.max(anfis_r2s)), 4) if anfis_r2s else float('nan'),
+                'Best_AI_vs_ANFIS_Delta': round(
+                    float(np.max(ai_r2s)) - float(np.max(anfis_r2s)), 4
+                ) if ai_r2s and anfis_r2s else float('nan'),
+                'Note': 'Sprint13: PFAZ3 anfis_vs_ai_comparison.xlsx bulunamadi, all_predictions ozet'
+            })
+
+        if rows:
+            pd.DataFrame(rows).to_excel(writer, sheet_name='AI_vs_ANFIS_Comparison', index=False)
+            logger.info(f"  [OK] AI_vs_ANFIS_Comparison: fallback ozet ({len(rows)} hedef)")
+        else:
+            pd.DataFrame([{'Note': 'Sprint13: AI veya ANFIS tahmin verisi yok'}]).to_excel(
+                writer, sheet_name='AI_vs_ANFIS_Comparison', index=False)
 
     def _write_agreement_overview(self, writer, results: Dict):
         """Agreement scores per target."""

@@ -129,8 +129,10 @@ DEFAULT_MC_CONFIG = {
 class MCDropoutSimulator:
     """Monte Carlo Dropout for DNN uncertainty estimation"""
     
-    def __init__(self, n_samples: int = 1000):  # BUG-38: 100->1000 (Efron & Tibshirani 1993)
+    def __init__(self, n_samples: int = 1000, random_state: int = 42):  # BUG-38: 100->1000 (Efron & Tibshirani 1993); BUG-94: random_state added
         self.n_samples = n_samples
+        self.random_state = random_state
+        np.random.seed(random_state)
         
         if not TF_AVAILABLE:
             logger.warning("TensorFlow not available - MC Dropout disabled")
@@ -196,11 +198,14 @@ class MCDropoutSimulator:
 class BootstrapSimulator:
     """Bootstrap resampling for confidence intervals"""
     
-    def __init__(self, n_bootstrap: int = 1000, stratified: bool = True):
+    def __init__(self, n_bootstrap: int = 1000, stratified: bool = True, random_state: int = 42):
         # BUG-38 (Sprint 5): default 100 -> 1000 (Efron & Tibshirani 1993)
+        # BUG-94: random_state added for reproducibility
         # DEFAULT_MC_CONFIG ile uyumlu; direkt cagirimda da stabil CI saglar.
         self.n_bootstrap = n_bootstrap
         self.stratified = stratified
+        self.random_state = random_state
+        np.random.seed(random_state)
     
     def estimate_confidence(self, model_class, model_params: Dict,
                            X_train: np.ndarray, y_train: np.ndarray,
@@ -293,11 +298,15 @@ class NoiseSimulator:
     
     def __init__(self, noise_levels: List[float] = None,
                  n_samples_per_level: int = 1000,
-                 noise_type: str = 'gaussian'):
+                 noise_type: str = 'gaussian',
+                 random_state: int = 42):
         # BUG-38 (Sprint 5): default 100 -> 1000 (Shang et al. 2022, n>=1000 stabil)
+        # BUG-94: random_state added for reproducibility
         self.noise_levels = noise_levels or [0.01, 0.02, 0.05, 0.1, 0.2]
         self.n_samples_per_level = n_samples_per_level
         self.noise_type = noise_type
+        self.random_state = random_state
+        np.random.seed(random_state)
     
     def analyze_noise_sensitivity(self, model, X: np.ndarray) -> Dict:
         """
@@ -383,9 +392,11 @@ class NoiseSimulator:
 class FeatureDropoutSimulator:
     """Feature dropout Monte Carlo for feature importance uncertainty"""
     
-    def __init__(self, dropout_probs: List[float] = None, n_samples: int = 1000):  # BUG-38: 500->1000
+    def __init__(self, dropout_probs: List[float] = None, n_samples: int = 1000, random_state: int = 42):  # BUG-38: 500->1000; BUG-94: random_state added
         self.dropout_probs = dropout_probs or [0.1, 0.2, 0.3]
         self.n_samples = n_samples
+        self.random_state = random_state
+        np.random.seed(random_state)
     
     def analyze_feature_importance(self, model, X: np.ndarray,
                                    feature_names: List[str] = None) -> Dict:

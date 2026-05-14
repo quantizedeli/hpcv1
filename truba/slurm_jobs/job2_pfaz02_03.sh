@@ -38,8 +38,8 @@ export TF_CPP_MIN_LOG_LEVEL=3
 export HPC_MODE=1
 export _PFAZ_PARALLEL_ACTIVE=0
 
-PROJECT_DIR="/arf/home/ahmacar/hpcv1"
-OUTPUT_DIR="/arf/scratch/ahmacar/hpcv1_outputs"
+PROJECT_DIR="${PROJECT_DIR:-/arf/home/ahmacar/hpcv1}"  # BUG-89: env override
+OUTPUT_DIR="${OUTPUT_DIR:-/arf/scratch/ahmacar/hpcv1_outputs}"  # BUG-89: env override
 mkdir -p "$OUTPUT_DIR/logs" "$OUTPUT_DIR/trained_models" "$OUTPUT_DIR/anfis_models"
 
 cd "$PROJECT_DIR" || { echo "[HATA] $PROJECT_DIR bulunamadi!"; exit 1; }
@@ -52,16 +52,22 @@ fi
 
 echo "[START] PFAZ 2 basliyor -- $(date)"
 python3 -u main.py --pfaz 2 2>&1 | tee "$OUTPUT_DIR/logs/pfaz02_${SLURM_JOB_ID}.log"
-EXIT_PFAZ2=$?
+EXIT_PFAZ2=${PIPESTATUS[0]}  # BUG-85: $? would capture tee exit, not python exit
 echo "[PFAZ2] Exit: $EXIT_PFAZ2 -- $(date)"
+
+# BUG-91: PFAZ2 basarisizsa PFAZ3'u calistirma -- eksik AI modelleriyle ANFIS secimi anlamsiz
+if [ "$EXIT_PFAZ2" -ne 0 ]; then
+    echo "[HATA] PFAZ2 basarisiz (exit=$EXIT_PFAZ2). PFAZ3 atlaniyor."
+    echo "[INFO] PFAZ2 loguna bakin: $OUTPUT_DIR/logs/pfaz02_${SLURM_JOB_ID}.log"
+    exit "$EXIT_PFAZ2"
+fi
 
 echo "[START] PFAZ 3 basliyor -- $(date)"
 python3 -u main.py --pfaz 3 2>&1 | tee "$OUTPUT_DIR/logs/pfaz03_${SLURM_JOB_ID}.log"
-EXIT_PFAZ3=$?
+EXIT_PFAZ3=${PIPESTATUS[0]}  # BUG-85: $? would capture tee exit, not python exit
 echo "[PFAZ3] Exit: $EXIT_PFAZ3 -- $(date)"
 
-# Birisi basarisiz olsa da devam
-EXIT_CODE=$(( EXIT_PFAZ2 + EXIT_PFAZ3 ))
+EXIT_CODE=$EXIT_PFAZ3
 
 echo "===================================================="
 echo " Job 2 tamamlandi: $(date)"

@@ -120,3 +120,55 @@ Eğer SHAP değerleri hesaplanmışsa:
 
 *Bu dosya araştırma notudur — tez metnine girecek kısımlar PFAZ 01 dokümantasyonuna taşınacak*
 *Güncelleme: 2026-05-03*
+
+---
+
+## Sprint 4-13 Güncellemeleri (2026-05-11 → 2026-05-14)
+
+### 6. NuclearBandAnalyzer Entegrasyonu (Sprint 4/11)
+
+Sprint 4 BUG-31 fix sonrasi `NuclearBandAnalyzer = NuclearMomentBandAnalyzer` alias eklendi -- PFAZ12 deger bandi ve kutle bolgesi oruntu analizini calistirabiliyor. Bu, **ani degisim hipotezi** icin dogrudan ampirik dogrulama saglar:
+
+- N veya Z sihirli sayinin (2,8,20,28,50,82,126) ±3 komsulugundaki cekirdekler ayri "band" olarak gruplanir
+- Bu bandlar icindeki MM/QM dagilimi geri kalanlardan istatistiksel olarak farkli mi?
+- KS test ve Mann-Whitney U test sonuclari `outputs/advanced_analytics/band_analysis/`'da
+
+Sprint 11+12 BUG-80 ile PFAZ8'e Band_Analizi grafikleri (ST12-C/D turevi) entegre edildi.
+
+### 7. PFAZ12 BootstrapCI Karsilastirmasi (Sprint 13 BUG-95/97)
+
+Sprint 13 ile PFAZ12 artik magic_character=1 ve magic_character=0 alt gruplarda **Bootstrap CI ayri** raporluyor:
+- Magic group R^2 [CI_lower, CI_upper]
+- Non-magic group R^2 [CI_lower, CI_upper]
+- Iki grup arasinda paired t-test p-value
+
+Bu cikti, "magic_character ozelligi olmadan model kapanis bolgesinde sistematik hata yapiyor mu?" sorusunun ampirik testidir. Tez §4.3 (Model Karsilastirma) icin asagidaki cumle eklenebilir:
+
+> "Kabuk kapanmasi cevresindeki cekirdekler (Z veya N sihirli sayilarin ±3 komsulugu) icin model performans (R^2) Bootstrap orneklem ile %95 CI'da [a, b] olarak hesaplanmis, diger cekirdekler icin [c, d] degerinde olcusulmustur. Paired t-test p-value [0.xx] istatistiksel anlamliligi gostermistir."
+
+### 8. RobustnessTester Permutation Importance (Sprint 13 BUG-96)
+
+Sprint 13 ile aktif edilen RobustnessTester (PFAZ2) her ozellik icin permutation importance ureriyor. Bu cikti **magic ozelliklerinin SHAP siralamasini empirik olarak dogrular**:
+
+- magic_character, Z_magic_dist, N_magic_dist en yuksek importance siralamasinda olmali (MM ve QM icin)
+- Ablation study gerekmez -- permutation importance ayni etkiyi olcuyor
+
+Tez §3.2 (Ozellik Muhendisligi) icin direkt kullanilabilir veri.
+
+### 9. Sprint 11+12 BandAnalyzer Yapilanma
+
+`pfaz_modules/pfaz12_advanced_analytics/nuclear_band_analyzer.py` (1174 satir) artik PFAZ12'nin ana akisinda. PFAZ4 unknown_predictions Excel'ini explicit path ile alir (BUG-81 / Sprint 12).
+
+### Tez §4.x Icin Ablation Study Onerisi (Acik)
+
+`research/acik-sorular.md` S-002 ve §4.3'te bahsedilen ablation study (magic ozellikler cikarildiginda performans degisimi) icin uygulama plani:
+
+1. PFAZ1 dataset varyantlarinda Basic+Magic vs Basic-NoMagic karsilastirmasi
+2. PFAZ2 her iki seti egit (otomatik degil, manuel script)
+3. R^2 farki ve sihirli bolge sistematik hatasi raporla
+
+Bu, TRUBA sonrasi tez yazim asamasinda ele alinacak ayri bir is paketidir.
+
+---
+
+*Sprint 4-13 guncelleme: 2026-05-14*

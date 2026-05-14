@@ -1,9 +1,10 @@
 # PFAZ 12: İleri İstatistiksel Analitik
 
-> **Belge Versiyonu:** v1.0
-> **Analiz Tarihi:** 2026-05-04
-> **Durum:** Kod hazir, FAILED (progress=0, 2026-03-24) -- import/calisma hatasi
+> **Belge Versiyonu:** v2.0
+> **Ilk Analiz:** 2026-05-04 | **Son Guncelleme:** 2026-05-14 (Sprint 13)
+> **Durum:** Kod hazir + Sprint 4-13 ile aktif edildi; ~~FAILED~~ DUZELTILDI (BUG-31/97)
 > **Ana Sinif:** StatisticalTestingSuite + NuclearPatternAnalyzer + NuclearBandAnalyzer
+> **TRUBA Job:** Job 3 (`truba/slurm_jobs/job3_pfaz04_05_07_09_12_13.sh`)
 > **Kapsam:** 7 dosya, ~4370 satir; 6 sinif
 
 ---
@@ -436,3 +437,70 @@ Isaret sirasi testi, etki buyuklugu ve ROPE kombinasyonu istatistiksel bulgulari
 | **TOPLAM** | **4370** | FAILED (progress=0) |
 
 *faz-12-ileri-analitik.md v1.0 | 2026-05-04*
+
+---
+
+## Sprint 4-13 Guncellemeleri (2026-05-11 -> 2026-05-14)
+
+### Sprint 4 BUG-31 -- NuclearBandAnalyzer Aktif (DUZELTILDI)
+
+Onceki durum: `nuclear_band_analyzer.py` sinif adi `NuclearMomentBandAnalyzer` idi, `__init__.py` ise `NuclearBandAnalyzer` arıyordu -- ImportError.
+
+Sprint 4 fix:
+```python
+# nuclear_band_analyzer.py:1177
+NuclearBandAnalyzer = NuclearMomentBandAnalyzer  # alias
+```
+
+Ayrica `__init__.py`'de export edildi. **PFAZ12 artik import edilebiliyor.**
+
+### Sprint 13 BUG-95 -- BootstrapCI Aktif
+
+`bootstrap_confidence_intervals.py` icindeki `BootstrapConfidenceIntervals` sinifi artik PFAZ12 ana akisinda aktif olarak cagriliyor (eski versiyon yalnizca tanimliyordu).
+
+Yeni cikti dosyalari:
+- `outputs/advanced_analytics/bootstrap_ci/bootstrap_ci_results.xlsx` (Model_Performance sheet)
+- `outputs/advanced_analytics/bootstrap_ci/bootstrap_distribution.png` (her model icin dagilim)
+
+PFAZ6 raporuna `Bootstrap_CI` sayfasi olarak besleniyor (BUG-95).
+
+### Sprint 13 BUG-97 -- ANFIS vs AI Karsilastirmasi Aktif (KRITIK)
+
+`StatisticalTestingSuite` artik PFAZ3 ANFIS modellerini AI modelleriyle paired t-test/Wilcoxon ile karsilastiriyor:
+
+1. PFAZ3 `anfis_vs_ai_comparison.xlsx` okur
+2. Her dataset varyanti icin paired test calistirir
+3. `outputs/advanced_analytics/ai_vs_anfis/` icine:
+   - `paired_test_results.xlsx` (p-value, Cohen's d, significant flag)
+   - `effect_sizes.png` (model x test grafigi)
+
+**Tezin ana istatistiksel analizi artik calisir hale geldi.**
+
+Tez §4.5 (Istatistiksel Analiz) ornek metin:
+> "Manyetik ve kuadrupol moment tahminlerinde AI ve ANFIS yaklasimlari paired t-test ve Wilcoxon signed-rank testleri ile karsilastirilmistir. Etki buyuklugu icin Cohen's d ve Cliff's delta hesaplanmis, alpha=0.05 anlamlilik esigi uygulanmistir."
+
+### Sprint 13 BUG-98 -- AdvancedSensitivityAnalysis Dead Code Not
+
+`advanced_sensitivity_analysis.py` icindeki Sobol/Morris hesaplaminin pipeline'da cagrilmadigi tespit edildi -- dosya ici `# DEAD CODE -- pipeline'da cagrilmayan analizler` notu eklendi. **Sebep:** SALib problem tanimi (A/Z/SPIN 3 degisken) gercekte 24+ ozellik var, yeniden tasarim gerekiyor. Tez §4.6 (Hassasiyet) icin kullanilmamali; alternatif olarak PFAZ2 RobustnessTester permutation importance kullanilabilir.
+
+### Sprint 7 BUG-53 -- TF Memory Leak Guard
+
+`bootstrap_confidence_intervals.py` icindeki sonsuz/buyuk dongulerde TF DNN modelleri yukleniyorsa `finally: tf.keras.backend.clear_session() + gc.collect()` eklendi. TRUBA uzun PFAZ12 calistirmalarinda GPU VRAM/RAM patlamasi onlendi.
+
+### TRUBA Operasyonel Notlar
+
+- **Job:** `job3_pfaz04_05_07_09_12_13.sh` icinde PFAZ9 sonrasi
+- **Sure:** ~30-60 dakika
+- **Cikti:** `/arf/scratch/ahmacar/hpcv1_outputs/outputs/advanced_analytics/`
+- **Bagimlilik:** PFAZ2 (AI metrics), PFAZ3 (ANFIS metrics)
+
+### KURAL Guncellemeleri
+
+| Kural | PFAZ 12 Etkisi |
+|-------|---------------|
+| KURAL 18 | "Belge != gercek fix" -- BUG-31 dogrulamasi bu kuralla yapildi |
+| KURAL 33 | Cross-layer failure chain -- PFAZ12 import zinciri (NuclearBandAnalyzer) |
+
+---
+
+*PFAZ 12 Belgesi v2.0 | Son Guncelleme: 2026-05-14*

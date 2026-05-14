@@ -78,6 +78,17 @@ class AutoInstaller:
         'plotly': 'plotly',
         'joblib': 'joblib',
         'tqdm': 'tqdm',
+        # BUG-87: PFAZ13 (AutoML) requires optuna; PFAZ2 uses lightgbm internally.
+        # Without these, PFAZ13 silently skips and --check-deps gives false OK.
+        'optuna': 'optuna',
+        'lightgbm': 'lightgbm',
+    }
+
+    # BUG-87: catboost is OPTIONAL -- not installed on TRUBA apps/truba-ai/cpu-2024.0.
+    # DEAD_CODE_NOTE: CatBoost model training disabled (see config.json _models_active_note).
+    # Install manually if needed: pip install catboost
+    OPTIONAL_PACKAGES = {
+        'catboost': 'catboost',
     }
     
     @staticmethod
@@ -139,6 +150,15 @@ class AutoInstaller:
                 sys.exit(1)
         else:
             print(f"\n[SUCCESS] Tüm kütüphaneler mevcut! ({len(installed)}/{len(AutoInstaller.REQUIRED_PACKAGES)})")
+
+        # BUG-87: Report optional packages (catboost) -- missing is OK, just inform
+        print("\n[OPTIONAL] Opsiyonel paket kontrolü:")
+        for package, import_name in AutoInstaller.OPTIONAL_PACKAGES.items():
+            try:
+                importlib.import_module(import_name)
+                print(f"[OK-OPT] {package}")
+            except ImportError:
+                print(f"[SKIP-OPT] {package} -- kurulu degil (opsiyonel, egitime dahil degil)")
 
 # ============================================================================
 # LOGGING CONFIGURATION
@@ -1262,6 +1282,128 @@ class NuclearPhysicsAIOrchestrator:
             except Exception as _npa_err:
                 logger.warning(f"[PFAZ12] Pattern analizi atlandı: {_npa_err}")
 
+            # ------------------------------------------------------------------
+            # BUG-97: ANFIS verisi toplama + BootstrapCI aktivasyonu
+            # PFAZ3 ciktisi (anfis_training_results.xlsx) okunarak AI modelleriyle
+            # birlikte istatistiksel karsilastirma yapilir.
+            # Tez sorusu: "ANFIS, en iyi AI modelinden istatistiksel olarak anlamli
+            # olcude farkli mi?" -- Bootstrap CI + p-value ile cevaplanir.
+            # ------------------------------------------------------------------
+            try:
+                logger.info("\n[PFAZ12] BootstrapCI + ANFIS karsilastirmasi basliyor...")
+                from pfaz_modules.pfaz12_advanced_analytics.bootstrap_confidence_intervals import (
+                    BootstrapConfidenceIntervals
+                )
+
+                bootstrap_output = str(self.pfaz_outputs[12] / 'bootstrap_ci')
+                bci = BootstrapConfidenceIntervals(
+                    n_bootstrap=10000,
+                    confidence_level=0.95,
+                    random_state=42,
+                    output_dir=bootstrap_output
+                )
+
+                # ---- ANFIS R² skorlarini PFAZ3 ciktisinden topla ----
+                anfis_scores: list = []
+                _anfis_xlsx = self.pfaz_outputs[3] / 'anfis_training_results.xlsx'
+                if _anfis_xlsx.exists():
+                    try:
+                        import pandas as _pd_bci
+                        _anfis_df = _pd_bci.read_excel(_anfis_xlsx, sheet_name='All_Results')
+                        # Val_R2 veya Test_R2 kolonu -- Val_R2 tercihli
+                        _r2_col = 'Val_R2' if 'Val_R2' in _anfis_df.columns else 'Test_R2'
+                        _vals = _anfis_df[_r2_col].dropna()
+                        # Gecersiz (< -10) ve nan degerleri filtrele
+                        anfis_scores = [float(v) for v in _vals if float(v) > -10]
+                        logger.info(f"[PFAZ12] ANFIS R² skorlari: {len(anfis_scores)} adet")
+                    except Exception as _ae:
+                        logger.warning(f"[PFAZ12] ANFIS xlsx okunamadi: {_ae}")
+                else:
+                    logger.warning(f"[PFAZ12] ANFIS xlsx bulunamadi: {_anfis_xlsx}")
+
+                # ANFIS skorlarini model_scores'a ekle (StatisticalTesting de gorecek)
+                if anfis_scores:
+                    model_scores['ANFIS'] = anfis_scores
+                    scores_dict['ANFIS'] = np.array(anfis_scores)
+                    logger.info(f"[PFAZ12] ANFIS scores_dict'e eklendi: mean={np.mean(anfis_scores):.4f}")
+
+                # ---- Bootstrap CI: her model icin R² guven araligi ----
+                bci_model_results = {}
+                for model_type, scores_arr in scores_dict.items():
+                    if len(scores_arr) < 3:
+                        continue
+                    try:
+                        ci_res = bci.bootstrap_statistic(
+                            data=np.array(scores_arr),
+                            statistic=np.mean,
+                            method='percentile'
+                        )
+                        bci_model_results[model_type] = ci_res
+                        logger.info(
+                            f"[PFAZ12] {model_type} R² CI: "
+                            f"{ci_res['point_estimate']:.4f} "
+                            f"[{ci_res['ci_lower']:.4f}, {ci_res['ci_upper']:.4f}]"
+                        )
+                    except Exception as _cie:
+                        logger.warning(f"[PFAZ12] Bootstrap CI {model_type}: {_cie}")
+
+                bci.results['model_r2_ci'] = bci_model_results
+
+                # ---- Bootstrap model karsilastirmasi: en iyi AI vs ANFIS ----
+                if anfis_scores and len(scores_dict) >= 2:
+                    # En iyi AI modeli (ANFIS haric, mean R²'ye gore)
+                    ai_only = {k: v for k, v in scores_dict.items() if k != 'ANFIS'}
+                    if ai_only:
+                        best_ai_name = max(ai_only, key=lambda k: float(np.mean(ai_only[k])))
+                        best_ai_scores = ai_only[best_ai_name]
+                        anfis_arr = np.array(anfis_scores)
+                        min_len = min(len(best_ai_scores), len(anfis_arr))
+                        try:
+                            cmp_res = bci.bootstrap_model_comparison(
+                                y_true=np.zeros(min_len),   # placeholder -- score-level comparison
+                                y_pred_a=best_ai_scores[:min_len],
+                                y_pred_b=anfis_arr[:min_len],
+                                metric='r2',
+                                model_a_name=best_ai_name,
+                                model_b_name='ANFIS'
+                            )
+                            logger.info(
+                                f"[PFAZ12] {best_ai_name} vs ANFIS: "
+                                f"diff={cmp_res['difference']:.4f} "
+                                f"p={cmp_res['p_value']:.4f} "
+                                f"significant={cmp_res['significant']}"
+                            )
+                            # Bootstrap dagilim grafigi
+                            try:
+                                bci.plot_bootstrap_distribution(
+                                    bootstrap_dist=cmp_res['bootstrap_distribution'],
+                                    point_estimate=cmp_res['difference'],
+                                    ci_lower=cmp_res['ci_lower'],
+                                    ci_upper=cmp_res['ci_upper'],
+                                    title=f'Bootstrap: {best_ai_name} vs ANFIS R² Farki',
+                                    xlabel='R² Farki'
+                                )
+                            except Exception as _pe:
+                                logger.warning(f"[PFAZ12] Bootstrap plot skipped: {_pe}")
+                        except Exception as _cmpe:
+                            logger.warning(f"[PFAZ12] Bootstrap comparison skipped: {_cmpe}")
+
+                # ---- Excel export ----
+                try:
+                    _bci_excel = bci.export_to_excel('bootstrap_ci_results.xlsx')
+                    results['bootstrap_ci'] = {
+                        'excel': str(_bci_excel),
+                        'models': list(bci_model_results.keys()),
+                        'anfis_included': bool(anfis_scores),
+                    }
+                    logger.info(f"[PFAZ12] Bootstrap CI Excel: {_bci_excel}")
+                except Exception as _bxe:
+                    logger.warning(f"[PFAZ12] Bootstrap CI Excel export skipped: {_bxe}")
+
+                logger.info("[PFAZ12] BootstrapCI tamamlandi")
+            except Exception as _bci_err:
+                logger.warning(f"[PFAZ12] BootstrapCI blogu atlandı: {_bci_err}")
+
             self.status_manager.update_pfaz(pfaz_id, 'completed', 100)
             logger.info("[SUCCESS] PFAZ 12 tamamlandı!")
             return results
@@ -1309,6 +1451,15 @@ class NuclearPhysicsAIOrchestrator:
 
             if not OPTUNA_AVAILABLE:
                 logger.warning("[PFAZ 13] optuna kurulu değil -> 'pip install optuna'")
+                # BUG-88: strict_truba=True ise skipped durumu hata sayilir.
+                # Slurm'a non-zero exit iletmek icin RuntimeError raise et.
+                _strict = self.config.get('system', {}).get('strict_truba', True)
+                if _strict and (os.environ.get('HPC_MODE') or 'SLURM_JOB_ID' in os.environ):
+                    raise RuntimeError(
+                        "[PFAZ 13] optuna eksik ve strict_truba=True -- TRUBA ortaminda "
+                        "PFAZ13 atlanilamaz. 'pip install optuna' ile yukleyin veya "
+                        "config.json 'system.strict_truba' = false yapın."
+                    )
                 self.status_manager.update_pfaz(pfaz_id, 'completed', 100)
                 return {'status': 'skipped', 'reason': 'optuna not installed'}
 
@@ -1446,6 +1597,56 @@ class NuclearPhysicsAIOrchestrator:
 
             self.status_manager.update_pfaz(pfaz_id, 'running', 88)
 
+            # BUG-93: automl_trials_details.xlsx -- 3 sheet: Best_Params, Trials_Detail, Convergence
+            try:
+                _trials_rows = []
+                _best_rows = []
+                _conv_rows = []
+                for target, target_res in automl_results.items():
+                    for mtype, mres in target_res.items():
+                        _best_rows.append({
+                            'Target': target,
+                            'Model_Type': mtype,
+                            'Best_R2': mres.get('best_r2'),
+                            'N_Trials': mres.get('n_trials'),
+                            **{f'param_{k}': v for k, v in mres.get('best_params', {}).items()}
+                        })
+                        # Trial detail: PFAZ13 JSON dosyasindan oku
+                        _json_path = output_dir / f'{target}_{mtype}_automl.json'
+                        if _json_path.exists():
+                            import json as _json_bci
+                            _jd = _json_bci.loads(_json_path.read_text(encoding='utf-8'))
+                            for t in _jd.get('trials_data', []):
+                                _trials_rows.append({
+                                    'Target': target, 'Model_Type': mtype,
+                                    'Trial_ID': t.get('trial_id'),
+                                    'Value': t.get('value'),
+                                    'State': t.get('state'),
+                                    **{f'param_{k}': v for k, v in t.get('params', {}).items()}
+                                })
+                                # Convergence: kümülatif en iyi
+                            _vals = [t.get('value') for t in _jd.get('trials_data', []) if t.get('value') is not None]
+                            _best_so_far = None
+                            for i, v in enumerate(_vals):
+                                if _best_so_far is None or v > _best_so_far:
+                                    _best_so_far = v
+                                _conv_rows.append({
+                                    'Target': target, 'Model_Type': mtype,
+                                    'Trial': i + 1, 'Best_R2_So_Far': _best_so_far
+                                })
+
+                _trials_xlsx = output_dir / 'automl_trials_details.xlsx'
+                with pd.ExcelWriter(str(_trials_xlsx), engine='openpyxl') as _wr:
+                    if _best_rows:
+                        pd.DataFrame(_best_rows).to_excel(_wr, sheet_name='Best_Params', index=False)
+                    if _trials_rows:
+                        pd.DataFrame(_trials_rows).to_excel(_wr, sheet_name='Trials_Detail', index=False)
+                    if _conv_rows:
+                        pd.DataFrame(_conv_rows).to_excel(_wr, sheet_name='Convergence', index=False)
+                logger.info(f"[BUG-93] AutoML trials details: {_trials_xlsx}")
+            except Exception as _tde:
+                logger.warning(f"[BUG-93] automl_trials_details.xlsx skipped: {_tde}")
+
             # ---- AutoML Retraining Loop -------------------------------------
             # Düşük skorlu PFAZ2 modelleri tespit et ve Optuna ile yeniden eğit
             retraining_result = {}
@@ -1516,6 +1717,17 @@ class NuclearPhysicsAIOrchestrator:
 
             self.status_manager.update_pfaz(pfaz_id, 'completed', 100)
             logger.info("[SUCCESS] PFAZ 13 tamamlandı!")
+
+            # BUG-88: strict_truba=True ise skipped durumları da hata sayilir
+            _strict = self.config.get('system', {}).get('strict_truba', True)
+            if _strict and _status.startswith('skipped') and (
+                os.environ.get('HPC_MODE') or 'SLURM_JOB_ID' in os.environ
+            ):
+                raise RuntimeError(
+                    f"[PFAZ 13] strict_truba=True -- status='{_status}' TRUBA'da kabul edilemez. "
+                    f"PFAZ2 ciktilarini ve dataset'leri kontrol edin."
+                )
+
             return results
         except Exception as e:
             logger.error(f"[ERROR] PFAZ 13 başarısız: {e}")
@@ -1817,8 +2029,9 @@ class NuclearPhysicsAIOrchestrator:
         logger.info("[NOTE] PFAZ 11 otomatik olarak atlanacaktir (deferred)")
         logger.info("[NOTE] PFAZ 6/10 bagimli fazlardan sonra calisacaktir (veri bütünlügü)")
 
-        results    = {}
-        done_count = 0
+        results      = {}
+        done_count   = 0
+        failed_phases: list = []  # BUG-86: track failed phases for final RuntimeError
 
         for pfaz_id in pfaz_list:
             mode = modes.get(pfaz_id, 'run')
@@ -1860,6 +2073,7 @@ class NuclearPhysicsAIOrchestrator:
             except Exception as e:
                 pfaz_elapsed = _time.time() - pfaz_start
                 logger.error(f"[ERROR] PFAZ {pfaz_id} başarısız ({_elapsed_str(pfaz_elapsed)}): {e}")
+                failed_phases.append(pfaz_id)  # BUG-86: record for final check
 
                 # Hata durumunda devam etmek istiyor musunuz?
                 if not sys.stdin.isatty() or os.environ.get('HPC_MODE'):
@@ -1906,6 +2120,14 @@ class NuclearPhysicsAIOrchestrator:
                 self._ask_prediction_after_pipeline()
             else:
                 logger.info("[AUTO] Non-interactive mode: skipping prediction prompt")
+
+        # BUG-86: HPC modda failed_phases varsa RuntimeError at -- main() except bunu
+        # yakalar ve sys.exit(1) ile Slurm'a non-zero exit iletir. Sessiz yuturma yok.
+        if failed_phases:
+            raise RuntimeError(
+                f"[PIPELINE FAILED] {len(failed_phases)} faz basarisiz: {failed_phases}. "
+                f"Logları kontrol et."
+            )
 
         return results
 
@@ -2256,6 +2478,9 @@ def main():
 
         # Tüm fazları çalıştır
         elif args.run_all:
+            # BUG-86: run_all_pfaz raises RuntimeError if any phase failed.
+            # We let it propagate to the outer except Exception block which calls sys.exit(1).
+            # This ensures Slurm sees a non-zero exit code when pipeline is incomplete.
             orchestrator.run_all_pfaz(
                 start_from=args.start_from,
                 end_at=args.end_at,

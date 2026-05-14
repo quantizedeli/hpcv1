@@ -2522,3 +2522,240 @@ main.py:991 `reporter.pfaz9_output_dir = str(self.pfaz_outputs[9])` aktariyor --
 ---
 
 *Sprint 12 raporu | Cikti tamligi + TRUBA kural guncellemesi (BUG-79..84) | 6 fix*
+
+---
+
+## Sprint 13 — Codex Audit + Tez Plani (BUG-85..99) | 2026-05-14
+
+*15 fix: Codex audit bulgulari (4), Claude ek bulgulari (11), dead-code notlari (2)*
+
+---
+
+### BUG-85 [KRITIK] Job 1/2 + truba_slurm_job.sh `$?` tee Exit Yakalamiyordu
+
+| Alan | Deger |
+|------|-------|
+| Dosya | truba/slurm_jobs/job1_pfaz01.sh, job2_pfaz02_03.sh, truba_slurm_job.sh |
+| Sprint | Sprint 13 |
+| Durum | **DUZELTILDI 2026-05-14** |
+
+**Kaynak:** Codex audit bulgusu #1.
+
+**Sorun:** `python3 main.py ... | tee log.txt; EXIT_CODE=$?` -- Bash'te `$?` pipeline'in **son komutunun** ciktisini doner. Son komut `tee` oldugundan, python fail etse bile `tee` basarili ise `EXIT_CODE=0` olur. Slurm `afterok` zinciri devam eder, eksik veriyle sonraki job baslar.
+
+**Fix:** `EXIT_CODE=${PIPESTATUS[0]}` -- pipeline'in **ilk** komutunu (python) yakalar.
+
+**Not:** Job3/Job4 Sprint 10'da duzeltilmisti. Job1/Job2/tek-parca script kaçmisti.
+
+---
+
+### BUG-86 [KRITIK] `--run-all` HPC Modda Faz Hatalarini Yutuyordu
+
+| Alan | Deger |
+|------|-------|
+| Dosya | main.py: run_all_pfaz, main() |
+| Sprint | Sprint 13 |
+| Durum | **DUZELTILDI 2026-05-14** |
+
+**Kaynak:** Codex audit bulgusu #2.
+
+**Sorun:** `run_all_pfaz` HPC modda exception yakalayip `logger.warning` yaziyordu, sonra devam ediyordu. En sonda `return results` -- process exit 0. Slurm `afterok` zinciri devam eder, eksik modelleri bilen job baslar, PDF eksik uretilir.
+
+**Fix:** `failed_phases` listesi eklendi. Sonunda `failed_phases` doluysa `RuntimeError` raise edilir. `main()` disindaki `except Exception: sys.exit(1)` bu RuntimeError'u yakalar -> Slurm non-zero exit gorur.
+
+---
+
+### BUG-87 [YUKSEK] `--check-deps` optuna/lightgbm Kontrolu Yapmiyor
+
+| Alan | Deger |
+|------|-------|
+| Dosya | main.py: AutoInstaller.REQUIRED_PACKAGES |
+| Sprint | Sprint 13 |
+| Durum | **DUZELTILDI 2026-05-14** |
+
+**Kaynak:** Codex audit bulgusu #3.
+
+**Sorun:** `REQUIRED_PACKAGES` 13 temel paketi kontrol ediyordu. `optuna` ve `lightgbm` eksik -- PFAZ13 `optuna` olmadan sessizce `skipped` donuyordu. Kullanici `--check-deps` calistirip "tamam" goruyordu ama PFAZ13 hic calismiyor.
+
+**Fix:** `optuna` ve `lightgbm` `REQUIRED_PACKAGES`'a eklendi. `catboost` `OPTIONAL_PACKAGES`'a tasindi (TRUBA modulunde yok, egitimde kullanilmiyor).
+
+---
+
+### BUG-88 [YUKSEK] PFAZ13 `skipped` Durumu Slurm'a Hata Olarak Iletilmiyordu
+
+| Alan | Deger |
+|------|-------|
+| Dosya | main.py: run_pfaz_13, config.json: system.strict_truba |
+| Sprint | Sprint 13 |
+| Durum | **DUZELTILDI 2026-05-14** |
+
+**Kaynak:** Codex audit bulgusu #4.
+
+**Sorun:** PFAZ13 `optuna` yoksa veya dataset bulunamazsa `status='skipped'` donup `completed` isaretleniyordu. Slurm job exit 0 aliyordu. PFAZ6 final raporu AutoML bolumunu eksik aliyordu.
+
+**Fix:** `config.json`'a `system.strict_truba: true` eklendi. HPC modda `skipped` durumunda `RuntimeError` raise edilir -> `sys.exit(1)` -> Slurm FAIL. Test ortaminda `strict_truba: false` yapilabilir.
+
+---
+
+### BUG-89 [ORTA] Slurm Job Script'lerinde Hardcoded Dizinler
+
+| Alan | Deger |
+|------|-------|
+| Dosya | truba/slurm_jobs/job1..4.sh |
+| Sprint | Sprint 13 |
+| Durum | **DUZELTILDI 2026-05-14** |
+
+**Sorun:** `PROJECT_DIR="/arf/home/ahmacar/hpcv1"` ve `OUTPUT_DIR="/arf/scratch/ahmacar/hpcv1_outputs"` hardcoded. Farkli scratch dizini veya kullanici icin her job script elle duzenlenmesi gerekiyordu.
+
+**Fix:** `${PROJECT_DIR:-/arf/home/ahmacar/hpcv1}` env override pattern. `export PROJECT_DIR=/baska/yol` ile override edilebilir.
+
+---
+
+### BUG-90 [ORTA] submit_all.sh Reset Talimatı Yoktu
+
+| Alan | Deger |
+|------|-------|
+| Dosya | truba/slurm_jobs/submit_all.sh |
+| Sprint | Sprint 13 |
+| Durum | **DUZELTILDI 2026-05-14** |
+
+**Sorun:** Yeniden baslatmadan once hangi dizinlerin silinmesi, hangilerinin korunmasi gerektigine dair talimat yoktu. Eski `pfaz_status.json` ile yeni calistirma cakisiyordu.
+
+**Fix:** Script basina reset notu eklendi: `pfaz_*/` sil, `pfaz_status.json` sil, `generated_datasets/` koru (PFAZ1 tekrar costurma). `squeue` kontrolu hatirlatan satir eklendi.
+
+---
+
+### BUG-91 [KRITIK] Job 2: PFAZ2 Fail → PFAZ3 Yine de Calisiyordu
+
+| Alan | Deger |
+|------|-------|
+| Dosya | truba/slurm_jobs/job2_pfaz02_03.sh |
+| Sprint | Sprint 13 |
+| Durum | **DUZELTILDI 2026-05-14** |
+
+**Sorun:** PFAZ2 (AI egitim) basarisiz olsa bile PFAZ3 (ANFIS egitim) basliyordu. PFAZ3 PFAZ2 ciktilarini okur -- eksik model listesiyle ANFIS dataset secimi anlamsiz.
+
+**Fix:** `if [ "$EXIT_PFAZ2" -ne 0 ]; then exit "$EXIT_PFAZ2"; fi` -- PFAZ2 fail ederse job erken cikiyor.
+
+---
+
+### BUG-92 [DUSUK] config.json'da Aktif Model Listesi Belirtilmemisti
+
+| Alan | Deger |
+|------|-------|
+| Dosya | config.json: pfaz02_ai_training._models_active_note |
+| Sprint | Sprint 13 |
+| Durum | **DUZELTILDI 2026-05-14** |
+
+**Sorun:** LightGBM/CatBoost/SVR'in neden egitimde olmadigi belirtilmemisti.
+
+**Fix:** `_models_active_note` eklendi: RF+XGBoost+DNN aktif, LightGBM/CatBoost/SVR pasif ve neden.
+
+---
+
+### BUG-93 [ORTA] PFAZ13 Trial-Level Detay Excel'i Uretilmiyordu
+
+| Alan | Deger |
+|------|-------|
+| Dosya | main.py: run_pfaz_13, pfaz6_final_reporting.py |
+| Sprint | Sprint 13 |
+| Durum | **DUZELTILDI 2026-05-14** |
+
+**Sorun:** PFAZ13 her model icin JSON kaydediyordu ama tum deneme detayi tek bir Excel'de yoktu. PFAZ6 final raporu da bu verileri gostermiyordu.
+
+**Fix:** `automl_trials_details.xlsx` (3 sheet: Best_Params, Trials_Detail, Convergence) PFAZ13 sonunda uretilir. PFAZ6'ya `AutoML_Trial_Details` sheet eklendi.
+
+---
+
+### BUG-94 [ORTA] PFAZ9 Monte Carlo Alt Siniflari random_state Almiyordu
+
+| Alan | Deger |
+|------|-------|
+| Dosya | pfaz_modules/pfaz09_aaa2_monte_carlo/monte_carlo_simulation_system.py |
+| Sprint | Sprint 13 |
+| Durum | **DUZELTILDI 2026-05-14** |
+
+**Sorun:** `MCDropoutSimulator`, `BootstrapSimulator`, `NoiseSimulator`, `FeatureDropoutSimulator` constructor'lari `random_state` parametresi almiyordu. TRUBA'da her kosulusta farkli MC sonuclari uretiliyordu -- reproducibility yok.
+
+**Fix:** 4 sinifa `random_state: int = 42` parametresi + `np.random.seed(random_state)` eklendi.
+
+---
+
+### BUG-95 [ORTA] PFAZ9 joblib.load Hatalari debug Seviyesinde Kaliyordu
+
+| Alan | Deger |
+|------|-------|
+| Dosya | pfaz_modules/pfaz09_aaa2_monte_carlo/aaa2_control_group_complete_v4.py |
+| Sprint | Sprint 13 |
+| Durum | **DUZELTILDI 2026-05-14** |
+
+**Sorun:** `joblib.load` exception'lari `logger.debug` ile susturuluyordu. Bozuk/eksik pkl dosyalari sessizce atlandi. Hata ayiklamasi cok zordu.
+
+**Fix:** `logger.warning` seviyesine tasinandi. `failed_models` listesi eklendi. Sonda ozet log: `{N}/{toplam} model yuklenemedi: [config_id listesi]`.
+
+---
+
+### BUG-96 [YUKSEK] PFAZ2 RobustnessTester Dead Code'du
+
+| Alan | Deger |
+|------|-------|
+| Dosya | pfaz_modules/pfaz02_ai_training/parallel_ai_trainer.py, model_validator.py |
+| Sprint | Sprint 13 |
+| Durum | **DUZELTILDI 2026-05-14** |
+
+**Sorun:** `RobustnessTester` sinifi (noise/outlier/perturbation testleri) `model_validator.py`'de yazilmisti ama `run_model_validation` onu hic cagirmiyordu. Tez icin kritik robustness analizi eksikti.
+
+**Fix:** `run_model_validation`'a `X_test`/`y_test` parametresi eklendi. CV sonrasi 3 test calistirilir (noise_sensitivity, outlier_sensitivity, feature_perturbation). `robustness_summary.xlsx` tum modeller icin ozet Excel. Her model icin ayri PNG + JSON.
+
+**Sure etkisi:** Model basina ~8-10 dakika ek sure. Toplam PFAZ2 sure etkisi beklenen aralikta.
+
+---
+
+### BUG-97 [YUKSEK] PFAZ12 BootstrapCI Dead Code + ANFIS Verisi Kullanilmiyordu
+
+| Alan | Deger |
+|------|-------|
+| Dosya | main.py: run_pfaz_12, pfaz12/bootstrap_confidence_intervals.py |
+| Sprint | Sprint 13 |
+| Durum | **DUZELTILDI 2026-05-14** |
+
+**Sorun (1):** `BootstrapConfidenceIntervals` sinifi yazilmisti ama `run_pfaz_12`'de hic import edilmemisti.
+
+**Sorun (2):** `run_pfaz_12` sadece PFAZ2 (AI modeller) verisi kullaniyordu. PFAZ3 (ANFIS) `anfis_training_results.xlsx` hic okunmuyordu. Tezin ana sorusu -- "ANFIS istatistiksel olarak AI'dan anlamli mi farkli?" -- cevaplanamiyordu.
+
+**Fix:**
+- PFAZ3 `anfis_training_results.xlsx`'ten `Val_R2` skorlari okunur, `model_scores['ANFIS']` olarak eklenir.
+- Tum modeller (RF, XGBoost, DNN, ANFIS) icin Bootstrap CI hesaplanir (10.000 resample, %95 CI).
+- En iyi AI modeli vs ANFIS bootstrap karsilastirmasi: p-value + CI + significant flag.
+- `bootstrap_ci_results.xlsx` (Summary, Model_Performance, Model_Comparison) + `bootstrap_distribution.png`.
+- ANFIS skorlari `scores_dict`'e eklendiginden mevcut ANOVA/Wilcoxon testleri de ANFIS'i kapsıyor.
+
+**Sure etkisi:** ~2-5 dakika. numpy/scipy only, SALib gerektirmez.
+
+---
+
+### BUG-98 [DUSUK] PFAZ12 AdvancedSensitivityAnalysis Dead Code (Future Work)
+
+| Alan | Deger |
+|------|-------|
+| Dosya | pfaz_modules/pfaz12_advanced_analytics/advanced_sensitivity_analysis.py |
+| Sprint | Sprint 13 |
+| Durum | **DEAD CODE NOTE EKLENDI** |
+
+**Karar:** AKTIVE EDILMEDI. Sobol/Morris SALib gerektirir (TRUBA'da yok), saatlerce surebilir. Tez kapsaminda "future work" olarak isaretlendi. Dosya basina DEAD_CODE_NOTE eklendi.
+
+---
+
+### BUG-99 [DUSUK] PFAZ5 OptimizerComparisonReporter Dead Code (Future Work)
+
+| Alan | Deger |
+|------|-------|
+| Dosya | pfaz_modules/pfaz05_cross_model/optimizer_comparison_reporter.py |
+| Sprint | Sprint 13 |
+| Durum | **DEAD CODE NOTE EKLENDI** |
+
+**Karar:** AKTIVE EDILMEDI. PFAZ5 MASTER_CROSS_MODEL_REPORT'ta kismen kapsaniyor. Zaman darligi. Dosya basina DEAD_CODE_NOTE eklendi.
+
+---
+
+*Sprint 13 raporu | Codex audit + Tez plani (BUG-85..99) | 15 fix/not | 2026-05-14*

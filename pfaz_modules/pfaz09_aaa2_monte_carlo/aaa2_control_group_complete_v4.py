@@ -705,6 +705,7 @@ class AAA2ControlGroupAnalyzerComplete:
 
         predictions_array = []
         timing_info = {}
+        failed_models = []  # BUG-95: track failures for summary log
 
         for record in (tqdm(model_records, desc=f"Predicting {target}") if TQDM_AVAILABLE else model_records):
             try:
@@ -719,6 +720,7 @@ class AAA2ControlGroupAnalyzerComplete:
                     pd.to_numeric, errors='coerce'
                 ).fillna(0.0).values
 
+                # BUG-95: joblib.load hatasını debug→warning seviyesine taşı
                 model = joblib.load(record['model_path'])
 
                 start_time = time.perf_counter()
@@ -732,8 +734,19 @@ class AAA2ControlGroupAnalyzerComplete:
                 timing_info[record['config_id']] = pred_time
 
             except Exception as e:
-                logger.debug(f"  Failed {record.get('config_id', '?')}: {e}")
+                # BUG-95: debug → warning, kayıt failed_models'e ekle
+                cfg_id = record.get('config_id', '?')
+                model_path = record.get('model_path', '?')
+                logger.warning(f"  [WARN] Model yüklenemedi {cfg_id} ({model_path}): {e}")
+                failed_models.append({'config_id': cfg_id, 'error': str(e)})
                 continue
+
+        # BUG-95: özet log -- kaç model başarısız, hangileri
+        if failed_models:
+            logger.warning(
+                f"[BUG-95 SUMMARY] {target}: {len(failed_models)}/{len(model_records)} model "
+                f"yüklenemedi. Başarısızlar: {[f['config_id'] for f in failed_models]}"
+            )
 
         if not predictions_array:
             logger.warning(f"No successful predictions for {target}")

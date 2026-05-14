@@ -22,10 +22,10 @@
 | 7 | pfaz07 | Topluluk & Meta-Modeller | ✅ Tamamlandi | `faz-07-topluluk-modeller.md` | `EnsemblePipeline` | 2026-05-04 |
 | 8 | pfaz08 | Gorsellestirme | ✅ Tamamlandi | `faz-08-gorsellestirme.md` | `MasterVisualizationSystem` | 2026-05-04 |
 | 9 | pfaz09 | Monte Carlo Analizi | ✅ Tamamlandi (Analiz) | `faz-09-monte-carlo.md` | `MonteCarloSimulationSystem` | 2026-05-04 |
-| 10 | pfaz10 | Tez Derleme (LaTeX) | ✅ Tamamlandi (Analiz) | `faz-10-tez-derleme.md` | `MasterThesisIntegration` | 2026-05-04 |
+| 10 | pfaz10 | Tez Derleme (LaTeX) | 🔄 Sprint 14 Rewrite | `faz-10-tez-derleme.md` | `MasterThesisIntegration` v6.0.0 | 2026-05-14 |
 | 11 | pfaz11 | Üretim Dağıtımı | ⛔ Atlandı | — | (kasıtlı devre dışı) | — |
-| 12 | pfaz12 | İleri İstatistiksel Analitik | ✅ Tamamlandi (Analiz) | `faz-12-ileri-analitik.md` | `StatisticalTestingSuite` | 2026-05-04 |
-| 13 | pfaz13 | AutoML Yeniden Egitim | ✅ Tamamlandi (Analiz) | `faz-13-automl.md` | `AutoMLRetrainingLoop` | 2026-05-04 |
+| 12 | pfaz12 | İleri İstatistiksel Analitik | ✅ Aktif (Sprint 13 BUG-95/97) | `faz-12-ileri-analitik.md` | `StatisticalTestingSuite` | 2026-05-14 |
+| 13 | pfaz13 | AutoML Yeniden Egitim | ✅ Aktif (Sprint 4 BUG-32) | `faz-13-automl.md` | `AutoMLRetrainingLoop` | 2026-05-14 |
 
 **Durum simgeleri:**
 - ⏳ Beklemede (analiz başlamadı)
@@ -164,7 +164,7 @@ Bir faz dokümanı oluşturulduktan sonra:
 
 ---
 
-*phases/README.md v0.4 | Son güncelleme: 2026-05-03 (Faz 1 v2.0: ölçekleme, SHAP, dataset ağacı, özellik tablosu eklendi)*
+*phases/README.md v1.0 | Son güncelleme: 2026-05-14 (Sprint 4-14 etkileri tüm faz dökümanlarına işlendi)*
 
 ---
 
@@ -315,16 +315,37 @@ Bir faz dokümanı oluşturulduktan sonra:
 
 ---
 
-## Sprint Ozeti (2026-05-07/09)
+## Sprint Ozeti (2026-05-07 / 2026-05-14)
 
 | Sprint | Tarih | Konu | Etkilenen Dosyalar |
 |--------|-------|------|--------------------|
-| Sprint 1 | 2026-05-08 | Cift R2 Filtresi | parallel_ai_trainer.py, config.json, config_desktop.json |
-| Sprint 2 | 2026-05-09 | Config Senkronizasyonu (Robust/N75) | repo+truba+desktop config.json ve main.py |
-| Sprint 3 | 2026-05-09 | Belge Senkronizasyonu | faz-01/02, pipeline-hatalari.md, faz-degerlendirme-notlari.md |
+| Sprint 1 | 2026-05-08 | Cift R2 Filtresi (val + cv + gap) | parallel_ai_trainer.py, config.json |
+| Sprint 2 | 2026-05-09 | Config Senkronizasyonu (Robust/N75 kaldir) | repo+truba+desktop config.json |
+| Sprint 3 | 2026-05-09 | Belge Senkronizasyonu | faz-01/02, pipeline-hatalari.md |
+| Sprint 4 | 2026-05-11 | TRUBA hazirlik + BUG-02/03/31/32/38 | constants.py, monte_carlo, automl_retraining |
+| Sprint 5 | 2026-05-11 | Inter-PFAZ data flow audit + BUG-42..46 | main.py, pfaz08, pfaz03, pfaz01 |
+| Sprint 6 | 2026-05-12 | 8 kategori parallel scan -> BUG-47..61 | 14 dosya tarama |
+| Sprint 7 | 2026-05-12 | BUG-47..61 fix (15 bug, 14 dosya) | hardcoded path, optuna leak, silent except |
+| Sprint 8 | 2026-05-12 | BUG-62/63/64 -- Sprint 1/2/4 eksik fix'ler + CV gate gercek | parallel_ai_trainer.py constructor, MC defaults |
+| Sprint 9A | 2026-05-13 | v10 sync | truba+v10 config |
+| Sprint 9B | 2026-05-13 | TRUBA 4 job script (weka flag, 110 CPU) | truba/slurm_jobs/* |
+| Sprint 10 | 2026-05-13 | TRUBA QA raporu (BUG-65..74) | pfaz13, pfaz08, main.py |
+| Sprint 11+12 | 2026-05-13 | Cikti tamligi + BUG-75..84 (PFAZ8 helper-based, -c 110->112) | pfaz3/6/8/9, training_configs_50.json |
+| Sprint 13 | 2026-05-14 | Codex audit + BUG-85..99 + KURAL 29-33 | PIPESTATUS, strict_truba, RobustnessTester, BootstrapCI+ANFIS |
+| Sprint 14 | 2026-05-14 | PFAZ10 REWRITE (MM/QM odakli, 6 bolum) + phases/research doc guncelleme | pfaz_modules/pfaz10_*, docs/thesis-toolkit/{phases,research}/* |
 
-**BUG sayisi (2026-05-09):**
-- Toplam: 41 (BUG-01..41)
-- Duzeltildi: 16 (BUG-02, 03, 06, 10, 11, 19, 20, 29, 30, 31, 32, 34, 37, 39, 40, 41)
+**BUG sayisi (2026-05-14):**
+- Toplam: 99 (BUG-01..99)
+- Duzeltildi: ~75 (Sprint 1-13 kapsaminda)
 - Gecersiz: 4 (BUG-01, 04, 12, 16)
-- Bekliyor / Tez notu: 21
+- Bekliyor / Tez notu: ~20 (TRUBA cikisi sonrasi degerlendirilecek)
+
+**KURAL sayisi (2026-05-14):** 33 toplam (KURAL 1-33)
+- KURAL 18: "Belge != gercek fix" -- kod dogrulama zorunlu
+- KURAL 19: Inter-PFAZ veri akisi her sprint sonu denetlenir
+- KURAL 25: TRUBA `-C weka` flag zorunlu
+- KURAL 29: Plan sun, onay bekle, sonra hareket et
+- KURAL 30: Runtime behavior simulation (3 senaryo)
+- KURAL 31: Single Source of Truth (ayni bilgi iki yerde olmaz)
+- KURAL 32: VARSAYIM YASAGI -- "muhtemelen" yerine grep/view
+- KURAL 33: Cross-layer failure chain audit

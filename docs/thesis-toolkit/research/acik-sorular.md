@@ -83,3 +83,37 @@
 ---
 
 *Güncelleme: 2026-05-03 | Yanıtlar araştırma dosyalarına eklenecek*
+
+---
+
+## Sprint 4-13 Güncellemeleri (2026-05-11 → 2026-05-14)
+
+### Yanıtlanan / Daraltılan Sorular
+
+**S-002 (SHAP/discontinuity):** Sprint 13 BUG-96 ile aktif edilen `RobustnessTester` (PFAZ2) `permutation importance` analizi sağlar. Bu çıktı TRUBA sonrası şu soruyu yanıtlar: "Kabuk kapanmasındaki çekirdeklerde hangi özellik en kritik?" Cevap `outputs/trained_models/robustness_per_model/*.png` dosyalarında. SHAP analizi ayrıca PFAZ8 `shap_analysis.py` ile devam eder.
+
+**S-003 (IQR=3.0):** Sprint 6/7 BUG-47..61 tarama bulgularında IQR=3.0'ın savunulabilirliği teyit edildi. `research/istatistik-justifikasyonlari.md` §2.1'de detaylandırıldı. **Daraltılmış soru:** Hangi 21 çekirdek IQR=3.0 ile kaldırılıyor? (TRUBA çıktısı sonrası ölçülecek)
+
+**S-004 (IsolationForest contamination=0.08):** Sprint 6/7 8 kategori taraması, contamination değerinin grid search ile değil sezgisel olarak belirlendiğini doğruladı. Tez sınırlılık bölümünde belirtilecek.
+
+**S-005 (S70/S80 dışı senaryolar):** Sprint 2 N=75 kaldırma kararı ile S60 senaryosu zaten dışlandı (DNN_MIN_SAMPLES=80 ihlali). Sprint 8 BUG-62 CV gate ek koruma sağlıyor. **Yanıt:** S70/S80 yeterli; başka senaryo gerekmez.
+
+**S-006 (Kütle grupları):** Sprint 10 BUG-65..74 inter-PFAZ denetiminde A_group tanımının veri dağılımına göre (literatür değil) belirlendiği teyit edildi. Tezde "veri-güdümlü tanım" olarak sunulmalı.
+
+**S-007 (DNN 128-64-32):** Sprint 13 RobustnessTester sonrası alternatif mimari karşılaştırması için ek veri toplanabilir. Mevcut hâlinde tez sınırlılığı olarak belirtilebilir.
+
+**S-008 (PINN physics_weight=0.5):** PINN Sprint 4'te Pipeline'dan çıkarıldı (bounds ±20 vs veri ±7 → ceza sıfır, etkisiz). `tez-yazim-not-defteri.md` 2026-05-08 karar günlüğü.
+
+**S-009 (ANFIS 8 konfigürasyon):** Sprint 5 BUG-45 ile ANFISDatasetSelector aktif edildi. Tez §3.4 (Adaptif Dataset Seçimi) için zengin metin oluştu (Top=50/Mid=50/Low=100). Yanıt: 8 konfig 2 MF tipi × 4 kümeleme yöntemi yeterli kapsama sağlar; akademik gerekçe `tez-yazim-not-defteri.md`'de var.
+
+**S-010 (SHAP hedef-bağımlı):** Sprint 13 PFAZ12 BootstrapCI + ANFIS karşılaştırması her hedef için ayrı analiz veriyor. SHAP seçimi hedef-bağımlıdır (MM ve QM ayrı özellik setleri); kodda `target` parametresi ile.
+
+### Hâlâ Açık Kalan Sorular
+
+- **²⁰⁸Pb IQR filtre durumu:** TRUBA çıktısı sonrası `outputs/generated_datasets/*/metadata.json` kayıtları ile kontrol edilebilir.
+- **`epsilon_nilsson` birim:** Kod incelemesiyle hâlâ doğrulanmamış (yüksek öncelik değil; Nilsson özellikleri pipeline'da KAPALI tutuluyor, `tez-yazim-not-defteri.md` 2026-05-08 karar).
+- **Ablation study (magic özellikler olmadan):** Sprint sonu işi olarak `research/ani-degisim-arastirmasi.md`'ye ek bölüm yazılması planlandı.
+
+---
+
+*Sprint 4-13 güncelleme: 2026-05-14*

@@ -1,5 +1,6 @@
 # PFAZ 04 -- Bilinmeyen Cekirdek Tahminleri
-**Surum:** v1.0 | **Guncelleme:** 2026-05-03
+**Surum:** v2.0 | **Ilk Tarih:** 2026-05-03 | **Son Guncelleme:** 2026-05-14 (Sprint 13)
+**TRUBA Job:** Job 3 (`truba/slurm_jobs/job3_pfaz04_05_07_09_12_13.sh`, 18 saat limit)
 
 ---
 
@@ -419,3 +420,40 @@ Yuksek std -> modeller anlasamiyor -> bu cekirdek belirsiz/zorlu
 - Freeze panes: baslik satirinda
 - AutoFilter: tum sutunlarda
 - Sutun genisligi: otomatik, max 40 karakter
+
+---
+
+## Sprint 4-13 Guncellemeleri (2026-05-11 -> 2026-05-14)
+
+### Sprint 7 BUG-55 -- Silent Exception Temizlendi
+
+`unknown_nuclei_predictor.py` ve `single_nucleus_predictor.py` model yukleme yerlerinde 2x silent `except: pass` kalibi `logger.warning(...)` ile degistirildi. Top-25 konsensus listesinde eksik model varsa artik nedeni TRUBA loglarinda gozukur. Tezde "model havuzu ayrintilari" §4.x bolumunde bu warning'lerden ozet cikarilabilir.
+
+### Sprint 10 BUG-65..74 -- Inter-PFAZ Akis Standardi
+
+PFAZ04 girdi format kontrolü:
+- PFAZ02/03 metrics JSON yapisi: `{'metrics': {'val': {'r2': ...}, 'test': {'r2': ...}}}` ic sozluk yapisi sutun seviyesinde dogrulandi (BUG-73)
+- Tek seviyeli `{'val_r2': ...}` fallback hala destekleniyor (BUG-74)
+
+### Sprint 13 BUG-93 -- MC random_state=42
+
+`SingleNucleusPredictor` Top-25 consensus hesabinda bootstrap CI uretimi artik deterministik:
+- `random_state=42` sabit (eski versiyon her cagrida farkliydi)
+- Tekrar uretilebilir 95% CI
+
+### Sprint 13 PFAZ2 fail/skip Etkisi
+
+PFAZ2 PRE-CONDITION zayifladi:
+- PFAZ2 'failed' veya 'skipped' ise PFAZ4 da sessizce skip edilir
+- Sebep: model havuzu bos -- consensus anlamsiz
+- main.py'de `_check_upstream_failure(4)` ile
+
+### TRUBA Operasyonel Notlar
+
+- **Job:** `job3_pfaz04_05_07_09_12_13.sh` icindeki ilk PFAZ
+- **Sure:** ~30-60 dakika
+- **Cikti:** `/arf/scratch/ahmacar/hpcv1_outputs/outputs/unknown_predictions/`
+
+---
+
+*PFAZ 04 Belgesi v2.0 | Son Guncelleme: 2026-05-14*

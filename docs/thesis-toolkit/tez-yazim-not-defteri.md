@@ -1310,3 +1310,49 @@ Sprint 1-12 tamamlandi. **20 bug fix** Sprint 10-12'de (Sprint 10: 10, Sprint 11
 **Yeni sprint patch yok** -- TRUBA'ya akacak hal hazir.
 v10 sync bekliyor (notlar `docs/thesis-toolkit/v10-todo.md`).
 
+---
+
+## Sprint 13 Ozeti (2026-05-14)
+
+### Codex Audit + Tez Plani
+
+Sprint 13, paralel AI ajanı Codex'in denetim raporundaki 4 kritik bulguyu + Claude'un ek 11 bulgusunu kapatiyor. Toplam 15 bug (BUG-85..99) + 5 yeni kural (KURAL 29-33).
+
+**En kritik duzeltmeler:**
+
+1. **PIPESTATUS (BUG-85):** Job 1/2 `$?` yerine `${PIPESTATUS[0]}` -- Slurm artik Python exit'ini gercekten yakalıyor
+2. **run_all RuntimeError (BUG-86):** HPC modda faz hatalari artik process'i durduruyor -- sessiz yuturma yok
+3. **strict_truba (BUG-88):** PFAZ13 skipped = TRUBA'da FAIL. Onlensiz AutoML eksik tez verir
+4. **PFAZ2 fail → PFAZ3 skip (BUG-91):** AI egitim basarisizsa ANFIS secimi anlamsiz, artik atlaniyor
+
+**Tez icin kritik aktivasyonlar:**
+
+- **RobustnessTester (BUG-96):** Her AI modeli icin noise/outlier/perturbation testleri -- `robustness_summary.xlsx` + PNG. Tez §4.x robustness bolumu icin ham veri.
+- **BootstrapCI + ANFIS (BUG-97):** PFAZ12 artik PFAZ3 ciktisini okuyor. R²=0.97 [0.954, 0.982] (%95 CI) formatinda raporlama. ANFIS vs AI bootstrap karsilastirmasi: p-value + significant flag. **Tezin ana istatistiksel analizi artik calisacak.**
+- **PFAZ5 AI_vs_ANFIS sheet:** `MASTER_CROSS_MODEL_REPORT.xlsx`'e `AI_vs_ANFIS_Comparison` sheet + `Model_Statistics`'e `Model_Type` ve `R2` kolonlari eklendi.
+- **automl_trials_details.xlsx (BUG-93):** PFAZ13 trial-level detay -- convergence grafigi tez icin kullanilabilir.
+
+### Tez Yazimi Icin Yeni Malzeme
+
+TRUBA kosulduğunda bu veriler uretilecek:
+
+| Analiz | Dosya | Tez Bolumu |
+|--------|-------|------------|
+| R² CI Bootstrap | `pfaz12_outputs/bootstrap_ci/bootstrap_ci_results.xlsx` | §4.5 İstatistiksel Analiz |
+| AI vs ANFIS p-value | `pfaz12_outputs/bootstrap_ci/bootstrap_distribution.png` | §4.5 Şekil X |
+| Robustness testleri | `pfaz02_outputs/robustness_summary.xlsx` + PNG | §4.4 Sağlamlık Analizi |
+| AI vs ANFIS karsilastirma | `pfaz05_outputs/MASTER_CROSS_MODEL_REPORT.xlsx → AI_vs_ANFIS_Comparison` | §4.3 Model Karsilastirma |
+| AutoML convergence | `pfaz13_outputs/automl_trials_details.xlsx → Convergence` | §4.6 AutoML |
+
+### Tez İçin "Dual R² in PFAZ2 → PFAZ3 Single R2_test" Deseni
+
+PFAZ2 çift R² filtresi (val_R2 + cv_R2) sonrası en iyi modeller seçiliyor.
+PFAZ3 bu modeller için tek hedef R²_test ile ANFIS dataset seçiyor.
+Bu mimari karar tezde §3.4 "Adaptif Dataset Seçimi" olarak sunulabilir.
+
+### Sprint Zinciri Guncellendi
+
+Sprint 1-13 tamamlandi. **15 bug fix** Sprint 13'te.
+TRUBA akmaya hazir -- `./truba/slurm_jobs/submit_all.sh`.
+Sonraki adim: PFAZ10 rewrite (Sprint 14 plani: `sprint-14-pfaz10-rewrite-plan.md`).
+

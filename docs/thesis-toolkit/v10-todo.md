@@ -73,3 +73,31 @@ Kemal: "Daha sonra tum hatalari vs. sana v10'da duzeltmeni isticem. Simdi degil 
 ---
 
 *Sprint 12 sonu | v10 sync to-do | Kemal'in talebi "yeri geldiginde unutmayalim"*
+
+---
+
+## Sprint 13 Eki (2026-05-14) — BUG-85..99
+
+Sprint 13 fix'leri de v10'a tasinmali (TRUBA sonrasi):
+
+### Sprint 13 (15 fix)
+- [ ] **BUG-85**: PIPESTATUS[0] -- job1/job2/truba_slurm_job.sh (sadece TRUBA Slurm'a etki eder, v10 desktop atlanabilir)
+- [ ] **BUG-86**: run_all_pfaz failed_phases + RuntimeError + sys.exit(1) -- **v10'da da OLMALI** (production kalite)
+- [ ] **BUG-87**: REQUIRED_PACKAGES optuna+lightgbm -- **v10'da da OLMALI**
+- [ ] **BUG-88**: strict_truba config + PFAZ13 skipped→RuntimeError -- v10 desktop'ta `strict_truba: false` yapilabilir
+- [ ] BUG-89: ${PROJECT_DIR:-...} env override -- TRUBA'ya ozel, v10 atlanabilir
+- [ ] BUG-90: submit_all.sh reset notu -- TRUBA'ya ozel
+- [ ] **BUG-91**: PFAZ2 fail→PFAZ3 skip -- **v10'da da OLMALI**
+- [ ] BUG-92: _models_active_note config -- dokumantasyon, v10'da da eklenebilir
+- [ ] **BUG-93**: automl_trials_details.xlsx -- **v10'da da OLMALI** (tez materyal)
+- [ ] **BUG-94**: MC random_state=42 -- **v10'da da OLMALI** (reproducibility)
+- [ ] **BUG-95**: joblib.load warning + failed_models ozet -- **v10'da da OLMALI**
+- [ ] **BUG-96**: RobustnessTester aktif -- **v10'da da OLMALI** (tez materyal)
+- [ ] **BUG-97**: BootstrapCI + ANFIS karsilastirmasi -- **v10'da da OLMALI** (tezin ana istatistiksel analizi)
+- [ ] BUG-98: AdvancedSensitivity dead note -- v10'da da eklenebilir
+- [ ] BUG-99: OptimizerComparison dead note -- v10'da da eklenebilir
+- [ ] **PFAZ5 AI_vs_ANFIS sheet** -- **v10'da da OLMALI** (tez materyal, BUG-97 ile baglantili)
+
+### v10'da Oncelikli (kalın): BUG-86, 87, 91, 93, 94, 95, 96, 97 + PFAZ5 fix
+
+*Sprint 13 eki | 2026-05-14*

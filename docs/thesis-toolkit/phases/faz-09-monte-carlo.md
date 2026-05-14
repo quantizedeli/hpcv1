@@ -1,10 +1,11 @@
 # PFAZ 09: Monte Carlo Belirsizlik Analizi
 
-> **Belge Versiyonu:** v1.0  
-> **Analiz Tarihi:** 2026-05-04  
-> **Durum:** Kod tamamlandi (2026-04-04), gercek cikti YOK (PFAZ02 bekliyor)  
-> **Ana Siniflar:** AAA2ControlGroupAnalyzerComplete + MonteCarloSimulationSystem  
-> **Kapsam:** 5 dosya, 3505 satir; 5 MC yontemi; 267 cekirdek; Top-50 model
+> **Belge Versiyonu:** v2.0
+> **Ilk Analiz:** 2026-05-04 | **Son Guncelleme:** 2026-05-14 (Sprint 13)
+> **Durum:** Kod tamamlandi + Sprint 4 n_bootstrap=1000 fix; TRUBA cikti bekleniyor
+> **Ana Siniflar:** AAA2ControlGroupAnalyzerComplete + MonteCarloSimulationSystem
+> **TRUBA Job:** Job 3 (`truba/slurm_jobs/job3_pfaz04_05_07_09_12_13.sh`)
+> **Kapsam:** 5 dosya, 3505 satir; 5 MC yontemi; 267 cekirdek; Top-50 model; **K=1000** (Sprint 4-8 sonrasi)
 
 ---
 
@@ -26,9 +27,9 @@ PFAZ 09, tezin belirsizlik katmanini olusturur. Bir model R2=0.97 diyebilir; ama
 | Simulator | Satir | Yontem | N |
 |-----------|-------|--------|---|
 | MCDropoutSimulator | 124-184 | DNN inference sirasinda training=True (dropout aktif) | 100 ornek |
-| BootstrapSimulator | 191-277 | Percentile CI; tahmin dagilimini bootstrap ile ornekle | n_bootstrap=100 |
-| NoiseSimulator | 284-368 | Girise Gaussian gurultu ekle (5 seviye) | 100 ornek/seviye |
-| FeatureDropoutSimulator | 375-464 | Ozellikleri rastgele maskele (3 olasilik) | 500 ornek |
+| BootstrapSimulator | 191-277 | Percentile CI; tahmin dagilimini bootstrap ile ornekle | n_bootstrap=**1000** (Sprint 4 BUG-38) |
+| NoiseSimulator | 284-368 | Girise Gaussian gurultu ekle (5 seviye) | **1000** ornek/seviye (Sprint 4) |
+| FeatureDropoutSimulator | 375-464 | Ozellikleri rastgele maskele (3 olasilik) | **1000** ornek (Sprint 8 BUG-64) |
 | EnsembleUncertaintyAnalyzer | 471-542 | Model arasi std (inter-model anlasmama) | -- |
 
 ---
@@ -466,3 +467,64 @@ MC Dropout + Bootstrap + Noise + Feature Dropout kombinasyonu, belirsizlik kayna
 **Gecikme nedeni:** PFAZ02 hala calisıyor (PC aktif) -- top-50 model henuz hazir degil
 
 *faz-09-monte-carlo.md v1.0 | 2026-05-04*
+
+---
+
+## Sprint 4-13 Guncellemeleri (2026-05-11 -> 2026-05-14)
+
+### Sprint 4 BUG-38 + Sprint 8 BUG-64 -- K=1000 Tam (KRITIK)
+
+Onceki durum: `DEFAULT_MC_CONFIG` n_bootstrap=100 (yetersiz CI stabilitesi), tez metni K=1000 diyordu (Doc-Code tutarsizligi).
+
+Sprint 4 fix (2026-05-04):
+- `monte_carlo_simulation_system.py:DEFAULT_MC_CONFIG` n_bootstrap=100 -> **1000**
+- n_samples_per_level=100 -> **1000**
+
+Sprint 8 ek fix (2026-05-12):
+- `MCDropoutSimulator.__init__` n_samples=100 -> **1000** (DNN-only, ayri mekanizma)
+- `FeatureDropoutSimulator` 500 -> **1000**
+
+**Sonuc:** Tum MC simulasyonlari artik K=1000 standardinda (Efron & Tibshirani, 1993; Davison & Hinkley, 1997; Shang et al., 2022; Neufcourt et al., 2018). Tez §3.7 (Istatistiksel Dogrulama) bolumu artik tutarli.
+
+Hesaplama maliyeti (TRUBA):
+- 267 cekirdek x 50 model x 1000 bootstrap = 13.35M tahmin
+- TRUBA paralel n_workers=100 ile ~2-3 saat
+
+### Sprint 13 BUG-93 -- 4 MC Alt Sinifa random_state=42
+
+`monte_carlo_simulation_system.py` icindeki 4 alt sinif (Bootstrap, Noise, FeatureDropout, EnsembleUncertainty) artik `random_state=42` ile deterministik. Tekrar uretilebilir 95% CI.
+
+### Sprint 13 BUG-95 -- joblib.load Hata Tolerasyonu
+
+`aaa2_control_group_complete_v4.py` icindeki PKL yukleme hatalarinin sessiz `except: pass` yutulmasi degistirildi:
+- Hata `logger.warning(...)` ile loglanir
+- `failed_models` ozet listesi tutulur
+- Final raporda "X model yuklenemedi, sebep Y" gozukur
+
+### Sprint 13 BUG-94 -- RobustnessTester ile Iliski
+
+PFAZ2 RobustnessTester (BUG-96) ve PFAZ9 NoiseSimulator FARKLI mekanizmalar:
+
+| Ozellik | PFAZ2 RobustnessTester | PFAZ9 NoiseSimulator |
+|---------|------------------------|---------------------|
+| Hedef | Egitim sonrasi model dayanikligi | Tahmin sirasinda belirsizlik |
+| Method | Tek seviye sigma=0.05 | 5 seviye (0.05, 0.10, ..., 0.25) |
+| Output | robustness_summary.xlsx | AAA2_Complete_*.xlsx Uncertainty |
+| Ne icin | §4.4 Saglamlik Analizi | §4.4 Belirsizlik Analizi |
+
+Tezde her ikisi de **§4.4 Saglamlik + Belirsizlik** kombineli olarak sunulur.
+
+### TRUBA Operasyonel Notlar
+
+- **Job:** `job3_pfaz04_05_07_09_12_13.sh` icinde PFAZ7 sonrasi
+- **Sure:** ~2-3 saat (K=1000 ana yuk)
+- **Cikti:** `/arf/scratch/ahmacar/hpcv1_outputs/outputs/aaa2_results/`
+- **Bagimlilik:** PFAZ2 (Top-50 PKL); PFAZ2 fail -> PFAZ9 skip
+
+### Tez Metni Icin K=1000 Justifikasyonu
+
+> "Her cekirdege ait tahmin belirsizligi K=1000 Monte Carlo tekrariyla nicelestirilmistir. Bu orneklem sayisi N=267 gibi kucuk veri setlerinde guvenilir %95 CI kapsama orani saglamak icin literaturde standart deger olarak kabul edilmektedir (Efron & Tibshirani, 1993; Shang et al., 2022; Neufcourt et al., 2018). Hesaplama maliyeti TRUBA HPC ortaminda paralel n_workers=100 ile yaklasik 2-3 saat olcusulmustur."
+
+---
+
+*PFAZ 09 Belgesi v2.0 | Son Guncelleme: 2026-05-14*

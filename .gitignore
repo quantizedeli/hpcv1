@@ -118,3 +118,7 @@ test_*.json
 
 # Claude Code local files
 .claude/
+
+# Git patch artifacts (sprint patches uygulamak icin gecici)
+*.patch
+

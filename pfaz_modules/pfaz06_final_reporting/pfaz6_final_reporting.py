@@ -800,6 +800,10 @@ class FinalReportingPipeline:
             _safe_write(self._write_automl_improvements, writer)
             _fmt('AutoML_Improvements')
 
+            # BUG-93: SHEET: AutoML Trial Details (PFAZ13 optuna trial-level verisi)
+            _safe_write(self._write_automl_trial_details, writer)
+            _fmt('AutoML_Trial_Details')
+
             # SHEET: Band Analizi (NuclearMomentBandAnalyzer ozeti — PFAZ12)
             _safe_write(self._write_band_analysis_sheet, writer)
             _fmt('Band_Analizi')
@@ -1576,6 +1580,51 @@ class FinalReportingPipeline:
             df_used.to_excel(writer, sheet_name='Feature_Abbreviations', index=False, startrow=startrow)
 
         logger.info(f"  [OK] Feature_Abbreviations ({len(abbrev_rows)} kisaltma, {len(set_rows)} set)")
+
+    def _write_automl_trial_details(self, writer):
+        """
+        BUG-93: PFAZ13 automl_trials_details.xlsx iceriğini PFAZ6 raporuna aktar.
+        Best_Params + Trials_Detail + Convergence sheet'lerini ozet olarak yazar.
+        Kaynak: pfaz13_output_dir/automl_trials_details.xlsx
+        """
+        import pandas as pd
+        from pathlib import Path
+
+        pfaz13_dir = self.pfaz13_output_dir
+        if pfaz13_dir is None:
+            for candidate in [
+                self.output_dir.parent / 'automl_results',
+                self.output_dir.parent.parent / 'automl_results',
+            ]:
+                if candidate.exists():
+                    pfaz13_dir = candidate
+                    break
+
+        trials_xlsx = Path(pfaz13_dir) / 'automl_trials_details.xlsx' if pfaz13_dir else None
+
+        if trials_xlsx and trials_xlsx.exists():
+            try:
+                for sheet_name in ['Best_Params', 'Trials_Detail', 'Convergence']:
+                    try:
+                        df = pd.read_excel(trials_xlsx, sheet_name=sheet_name)
+                        # Trials_Detail cok buyuk olabilir -- max 500 satir
+                        if sheet_name == 'Trials_Detail' and len(df) > 500:
+                            df = df.head(500)
+                            logger.info(f"  [INFO] Trials_Detail 500 satira kisaltildi")
+                        df.to_excel(writer, sheet_name=f'AutoML_Trial_Details', index=False)
+                        logger.info(f"  [OK] AutoML_Trial_Details yazildi ({len(df)} satir)")
+                        return  # Best_Params yeterli ozet olarak
+                    except Exception as _se:
+                        logger.warning(f"  [WARN] {sheet_name} okunamadi: {_se}")
+            except Exception as e:
+                logger.warning(f"  [WARN] automl_trials_details.xlsx okunamadi: {e}")
+
+        # Veri yoksa yer tutucu
+        pd.DataFrame([{
+            'Info': 'BUG-93: PFAZ13 automl_trials_details.xlsx henuz uretilmedi.',
+            'Beklenen_Yol': str(trials_xlsx) if trials_xlsx else 'pfaz13_output_dir tanimsiz'
+        }]).to_excel(writer, sheet_name='AutoML_Trial_Details', index=False)
+        logger.info("  [INFO] AutoML_Trial_Details: yer tutucu yazildi")
 
     def _write_band_analysis_sheet(self, writer):
         """

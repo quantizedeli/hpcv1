@@ -96,3 +96,50 @@ WOODS_SAXON_PARAMS = {
 
 ### Bug 4 (Q=0 Filtreleme) — GEÇERSİZ (tasarım kararı)
 `qm_filter_manager.py:153` Q=0 filtresi kasıtlıdır — aaa2.txt dışındaki çekirdekler zaten kullanılmıyor. Değişiklik gerekmez.
+
+---
+
+## Sprint 4-13 — Eski "Bug N" Numaralandırması ile Resmi BUG-ID Eşleme
+
+Bu dosyada kullanılan eski "Bug 1/2/3/4" numaraları sonradan resmi BUG-ID sistemine geçirildi. Aşağıdaki tablo eşleştirmeyi gösterir:
+
+| Eski No | Resmi BUG-ID | Sprint | Durum |
+|---------|--------------|--------|-------|
+| Bug 1 (HBAR_C) | **BUG-02** | Sprint 4 (2026-05-04) | DÜZELTİLDİ |
+| Bug 2 (V_so) | **BUG-03** | Sprint 4 (2026-05-04) | DÜZELTİLDİ (V_so=6.0) |
+| Bug 3 (MAT KeyError) | BUG-12 (geçersiz) | — | GEÇERSİZ (tasarım) |
+| Bug 4 (Q=0 filtre) | BUG-01 (geçersiz) | — | GEÇERSİZ (tasarım) |
+
+---
+
+## Sprint 4-13 — Bu Dosyaya Eklenen Yeni Buglar (Özet)
+
+Bu dosya yalnızca Sprint 4 öncesi tespit edilen 4 bug'ı kapsıyordu. Sprint 4-13 sonrası toplam BUG sayısı **99**'a ulaştı. Detaylar için ana kaynak:
+
+- **`docs/thesis-toolkit/pipeline-hatalari.md`** — Tam bug katalog (BUG-01..99)
+- **`docs/thesis-toolkit/CLAUDE.md`** — Sprint özetleri
+- **`docs/thesis-toolkit/sprints/sprint-XX-*.md`** — Her sprint için detaylı bug analizi
+
+### Önemli Sprint 4-13 Bug'ları (Bu Dosya İle İlgili)
+
+| BUG-ID | Konu | Sprint | Durum |
+|--------|------|--------|-------|
+| BUG-31 | NuclearBandAnalyzer alias | Sprint 4 | DÜZELTİLDİ |
+| BUG-32 | automl IndentationError | Sprint 4 | DÜZELTİLDİ |
+| BUG-38 | MC n_bootstrap=100 yetersiz | Sprint 4+8 | DÜZELTİLDİ (1000) |
+| BUG-47/48 | TRUBA-CRITICAL hardcoded sys.path | Sprint 7 | DÜZELTİLDİ |
+| BUG-53 | Optuna TF clear_session eksik | Sprint 7 | DÜZELTİLDİ |
+| BUG-62 | CV gate gerçekten aktif değildi | Sprint 8 | DÜZELTİLDİ |
+| BUG-85 | PIPESTATUS Slurm exit code | Sprint 13 | DÜZELTİLDİ |
+
+### Kapatma Tablosu Sync Notu
+
+Sprint 4 sonrası "DÜZELTİLDİ ✓" işaretli bug'lar (Bug 1/2) **kapatılma tarihleri**:
+- **Bug 1 (BUG-02) HBAR_C:** Kapatıldı 2026-05-04 (Sprint 4 patch)
+- **Bug 2 (BUG-03) V_so:** Kapatıldı 2026-05-04 (Sprint 4 patch)
+
+Bu eşleme `docs/thesis-toolkit/CLAUDE.md` "Known Critical Bugs" tablosu ile senkronize tutulmalıdır (KURAL 31 -- Single Source of Truth).
+
+---
+
+*Sprint 4-13 güncelleme: 2026-05-14*

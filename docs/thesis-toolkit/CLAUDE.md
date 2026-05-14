@@ -143,7 +143,7 @@ Example: `MM_150_S70_AZSMC_NoScaling_Random_NoAnomaly.csv`
 | BUG-37 | LOW | `pfaz10_thesis_compilation/pfaz10_thesis_orchestrator.py` | Hardcoded `/mnt/project` path (old v2.0, no longer active) | Informational |
 | BUG-38 | ~~LOW~~ | `pfaz09_aaa2_monte_carlo/monte_carlo_simulation_system.py` | **DÜZELTİLDİ 2026-05-09** — DEFAULT_MC_CONFIG n_bootstrap ve n_samples_per_level 100→1000 yapıldı. Tez K=1000 doğru. | DONE |
 
-**Pipeline status (2026-05-13):** Sprint 1-12 tamamlandi. **TRUBA AKMAYA HAZIR.** Sprint 10=TRUBA QA + inter-PFAZ (BUG-65..74). Sprint 11+12=Cikti tamligi + TRUBA 2025-12-15 kurali (BUG-75..84): PFAZ3/6/8/9/12 path explicit, training_configs_50.json deterministik, submit_all.sh afterok, PFAZ8 helper-based path (22 sub-method), BandAnalyzer pfaz4_excel_path, **-c 110 -> 112 (TRUBA 2025-12-15 yeni kurali: 56/112 katlari)**. Son patch: sprint11-12-truba-ready.patch. TRUBA workflow: `./truba/slurm_jobs/submit_all.sh`. v10 sync bekliyor (notlar docs/thesis-toolkit/v10-todo.md). PFAZ8 14 visualization eksiksiz uretilir.
+**Pipeline status (2026-05-14):** Sprint 1-13 tamamlandi. **TRUBA AKMAYA HAZIR.** Sprint 13=Codex audit + tez plani (BUG-85..99): PIPESTATUS fix (job1/2), run_all_pfaz RuntimeError, optuna/lightgbm REQUIRED_PACKAGES, strict_truba config, env override slurm, PFAZ2 fail→PFAZ3 skip, MC random_state=42, RobustnessTester aktif, PFAZ12 BootstrapCI + ANFIS karsilastirmasi aktif, automl_trials_details.xlsx. Son patch: sprint13-codex-and-thesis-plan.patch. TRUBA workflow: `./truba/slurm_jobs/submit_all.sh`. v10 sync bekliyor (notlar docs/thesis-toolkit/v10-todo.md).
 
 ---
 

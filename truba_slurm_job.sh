@@ -90,8 +90,8 @@ if [ $# -gt 0 ]; then
 else
     python3 -u main.py --run-all 2>&1 | tee "logs/run_${SLURM_JOB_ID}.log"
 fi
-
-EXIT_CODE=$?
+# BUG-85: capture python exit, not tee exit. $? after pipe returns last cmd (tee).
+EXIT_CODE=${PIPESTATUS[0]}
 echo "========================================================"
 echo " Job $SLURM_JOB_ID tamamlandi -- $(date) -- Exit: $EXIT_CODE"
 echo "========================================================"

@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# DEAD_CODE_NOTE (BUG-99, Sprint 13): Bu modül run_pfaz_05 veya run_pfaz_02 tarafından
+# ÇAĞRILMIYOR. Optimizer karşılaştırma raporu PFAZ5'in MASTER_CROSS_MODEL_REPORT.xlsx
+# içinde kısmen kapsanıyor. Tez kapsamında "future work" -- etkinleştirmek için
+# faz5_complete_cross_model.py içine import ve çağrı ekle.
 """
 PFAZ 2: Optimizer Comparison Reporter
 ======================================

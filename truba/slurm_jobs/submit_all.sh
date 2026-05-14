@@ -2,6 +2,15 @@
 # ============================================================================
 # Sprint 11 BUG-78: SLURM --dependency=afterok chain
 # Sprint 12: Production-ready -- log dizini ve cikti dogrulama
+# Sprint 13 BUG-90: Reset notu eklendi
+# ============================================================================
+# BUG-90 RESET NOTU: Yeniden baslatmadan once eski ciktilari temizle:
+#   rm -rf /arf/scratch/ahmacar/hpcv1_outputs/pfaz_*/
+#   rm -f  /arf/home/ahmacar/hpcv1/pfaz_status.json
+#   (generated_datasets/ ve trained_models/ SILME -- PFAZ1/2 yeniden kosmak istemiyorsan)
+#   Sadece belirli fazlari yeniden kosmak icin: --mode resume kullanin.
+#   DIKKAT: Bu script calistirmadan once onceki joblar iptal edildi mi kontrol edin:
+#   squeue -u ahmacar
 # ============================================================================
 
 set -e
@@ -9,8 +18,8 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/../.."
 
-# logs dizini hazirla (PFAZ8 LogAnalyticsViz arar)
-OUTPUT_DIR="/arf/scratch/ahmacar/hpcv1_outputs"
+# BUG-89+90: env override -- farkli scratch dizini icin: export OUTPUT_DIR=/baska/yol
+OUTPUT_DIR="${OUTPUT_DIR:-/arf/scratch/ahmacar/hpcv1_outputs}"
 mkdir -p "$OUTPUT_DIR/logs"
 
 echo "===================================================="
