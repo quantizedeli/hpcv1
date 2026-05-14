@@ -187,3 +187,39 @@ B(E2), kolektif kuadrupol hareketi ölçer ve β₂ ile doğrudan bağlantılıd
 
 *Araştırma notu — 2026-05-03*
 *Bu notlar PFAZ 01 Bölüm 7 (Formüller) ve Bölüm 10 (Uygulama) yazımında kullanılacak*
+
+---
+
+## Sprint 4-13 Güncellemeleri (2026-05-11 → 2026-05-14)
+
+### Woods-Saxon Aktif (Sprint 4 BUG-02/03)
+
+**Önemli güncelleme:** Bu dokümanın §8 (Woods-Saxon) bölümünde "WS henüz çalışmıyor" notu artık geçersiz. Sprint 4'te BUG-02 (HBAR_C eksik) ve BUG-03 (V_so/r_so/a_so eksik) düzeltildi:
+
+- `core_modules/constants.py:44` — `HBAR_C = 197.3269804` eklendi
+- `core_modules/constants.py:72-74` — `WOODS_SAXON_PARAMS` literatür değerleri: `V_so=6.0` (literatür baz alındı; eski belge "V_so=7.5" hatalı), `r_so=1.25`, `a_so=0.67`
+- TRUBA yeniden çalıştırma ile WS özellikleri (V_ws_center, V_ws_so, epsilon_WS) gerçek değer alacak
+
+§8 metnine "Sprint 4 sonrası WS aktif" notu eklenmeli. Özet tabloda WS satırı **aktif (post-BUG-02)** olarak işaretlendi.
+
+### Sprint 13 PFAZ12 BandAnalyzer ile Empirik Doğrulama
+
+Sprint 11+12 BUG-80 ile aktif edilen BandAnalyzer artık her fizik özelliğinin **kabuk kapanması bölgelerindeki dağılımını** ölçüyor:
+
+- Magic group (Z veya N sihirli ±3): MM/QM dağılımı ayrı raporlanır
+- Non-magic group: kontrol grubu
+- KS test p-value ile ayrı dağılımlar mı sorusu yanıtlanır
+
+Bu çıktı `outputs/advanced_analytics/band_analysis/` altında. Tezde "Bölüm 4: Bulgular" için bu veriler **fizik özelliklerinin gerekliliğini empirik olarak kanıtlar** (S-002 sorusunun yanıtı).
+
+### Nilsson Hâlâ Kapalı (2026-05-08 Karar)
+
+Nilsson modeli %34 NaN üretiyor (deforme çekirdek olmayan küresel çekirdekler için), küçük dataset'lerde orantısız veri kaybı. Karar `tez-yazim-not-defteri.md` 2026-05-08 günlüğünde:
+
+> "Nilsson özellikleri mevcut pipeline'da KAPALI tutulur. Nilsson sadece yüksek deformasyon bölgesi analizleri için (ileride ayrı çalışma) aktif edilebilir."
+
+Bu, §9 (Nilsson) bölümünün geçerliliğini değiştirmez; yalnızca **uygulama kapsamı dışı** notu eklenmeli.
+
+---
+
+*Sprint 4-13 güncelleme: 2026-05-14*

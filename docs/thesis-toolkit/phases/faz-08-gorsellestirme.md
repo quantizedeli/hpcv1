@@ -1,10 +1,11 @@
 # PFAZ 08: Gorsellestirme Sistemi (Visualization System)
 
-> **Belge Versiyonu:** v1.0  
-> **Analiz Tarihi:** 2026-05-04  
-> **Durum:** Kod tamamlandi (2026-04-04), gercek cikti dosyasi YOK (dinamik uretim)  
-> **Ana Sinif:** MasterVisualizationSystem + ThesisChartGenerator  
-> **Kapsam:** 14 dosya, 13201 satir, 70+ grafik turu, PNG + HTML cikti
+> **Belge Versiyonu:** v2.0
+> **Ilk Analiz:** 2026-05-04 | **Son Guncelleme:** 2026-05-14 (Sprint 13)
+> **Durum:** Kod tamamlandi + Sprint 12 helper-based refactor, gercek cikti TRUBA bekleniyor
+> **Ana Sinif:** MasterVisualizationSystem + ThesisChartGenerator
+> **TRUBA Job:** Job 4 (`truba/slurm_jobs/job4_pfaz06_08_10.sh`)
+> **Kapsam:** 14 dosya, 13201 satir, 70+ grafik turu, PNG (300 DPI) + HTML cikti
 
 ---
 
@@ -656,5 +657,60 @@ AM13-A/C/D grafikleri PFAZ13 calistiktan sonra uretilecek.
 
 PFAZ 02'de `[DUAL_FILTER] KABUL/RET` ile filtrelenen modeller artik kaydedilmiyor.
 PFAZ 08 grafikleri daha temiz model havuzunu gorsellestiriyor -- asiri uyum modeller disarida.
+
+---
+
+## Sprint 4-13 Guncellemeleri (2026-05-11 -> 2026-05-14)
+
+### Sprint 5 BUG-42 -- model_comparison_dashboard Kolon Uyumu
+
+`model_comparison_dashboard.py` 15+ yerde `R2_test`/`RMSE_test`/`MAE_test` (eski) ariyordu, PFAZ2 `Test_R2`/`Test_RMSE`/`Test_MAE` yaziyor (yeni standart). Tum dosyada kolon adlari uyumlanmistir. **Etki:** "pc error.md"de PFAZ8'in `pending` kalma sebebi ortadan kalkti.
+
+### Sprint 6 BUG-51 -- Robustness Sheet Adlandirma
+
+`visualization_master_system.py` icinde `Robustness_CV_Results` (yanlis) -> `Robustness_CV` (PFAZ2 cikisi ile uyumlu). Robustness grafikleri artik dogru sayfayi okuyabilir.
+
+### Sprint 11+12 BUG-79 -- PFAZ8 Helper-Based Refactor (KRITIK)
+
+PFAZ8'in visualization katmaninda **22 noktada "sibling-path inference" pattern'i** tespit edildi. Bu, modulun cikti dizin hiyerarsisine hardcoded varsayim yapmasini iceriyordu (`output_dir.parent / 'X'`). TRUBA HPC ortaminda 2 kritik visualization modulu bu nedenle cikti uretmiyordu:
+
+- **LogAnalyticsVisualizationsComplete:** log dosyalarini scratch root'unda ariyordu (gercek konum: `outputs/logs/`)
+- **MasterReportVisualizationsComplete:** 'final_report' adinda olmayan bir klasor ariyordu (gercek konum: PFAZ6 'reports/')
+
+Sprint 12 cozumu (BUG-79/80):
+- **MasterVisualizationSystem constructor**'a 6 explicit path parametresi eklendi: `reports_dir`, `trained_models_dir`, `anfis_models_dir`, `datasets_dir`, `log_dir`, `project_root`
+- 5 generic helper method (`_find_reports_dir`, `_find_trained_models_dir`, vs.) yazildi
+- 22 sub-method bu helper'lari kullanir hale getirildi
+- Main pipeline (`main.py`) explicit aktarir; modul bagimsiz cagrilirsa sibling-inference fallback
+
+Pattern: **explicit > fallback** -- KURAL 31 (Single Source of Truth) tezahuru.
+
+### Sprint 11+12 BUG-80 -- BandAnalyzer Path Explicit
+
+`pfaz4_excel_path` artik BandAnalyzer constructor'una explicit gecirilir. Eski sibling-inference fallback hala devrede.
+
+### Sprint 13 BUG-96 -- RobustnessTester Grafikleri
+
+Yeni grafik tipleri (RobustnessVisualizer'a eklendi):
+- Model bazli noise tolerans bar grafigi
+- Outlier impact heatmap (model x dataset)
+- Permutation importance ozet (feature x model)
+
+Cikti: `outputs/visualizations/robustness_per_model/*.png` (PFAZ2 BUG-96 ile uyumlu)
+
+### TRUBA Operasyonel Notlar
+
+- **Job:** `job4_pfaz06_08_10.sh` icinde PFAZ6 sonrasi
+- **Sure:** ~2-3 saat (70+ grafik uretimi)
+- **Cikti:** `/arf/scratch/ahmacar/hpcv1_outputs/outputs/visualizations/`
+- **Iki gecisli mimari:** Pass-1 PFAZ6 verisi -> standart grafikler; Pass-2 PFAZ9/12/13 verisi -> supplemental/ (MC9/ST12/AM13/Robustness)
+
+### Tez Anlatisi Icin
+
+§5 "Software Engineering Practices" bolumune **helper-based explicit path resolution case study** olarak Sprint 12 BUG-79/80 anlatisi eklenebilir (tez-yazim-not-defteri.md Sprint 11+12 bolumu zaten metin hazır).
+
+---
+
+*PFAZ 08 Belgesi v2.0 | Son Guncelleme: 2026-05-14*
 
 *Belge v1.2 | 2026-05-09 | Sprint 1/2 + BUG-32 guncellendi*

@@ -1,10 +1,12 @@
 ﻿# PFAZ 10: Tez Derleme (LaTeX Entegrasyonu)
 
-> **Belge Versiyonu:** v1.0
-> **Analiz Tarihi:** 2026-05-04
-> **Durum:** Kod hazir, RUNNING (progress=50, 2026-04-21) -- kismi tamamlanma
-> **Ana Sinif:** MasterThesisIntegration v5.0.0
-> **Kapsam:** 11 dosya, ~4000+ satir; 10 sinif
+> **Belge Versiyonu:** v2.0
+> **Ilk Analiz:** 2026-05-04 | **Son Guncelleme:** 2026-05-14 (Sprint 13 + Sprint 14 hazirlik)
+> **Durum:** **Sprint 14 REWRITE aktif** -- mevcut kod MM/QM odakli olmadigi icin yeniden yazilacak
+> **Ana Sinif:** MasterThesisIntegration v6.0.0 (Sprint 14 sonrasi)
+> **TRUBA Job:** Job 4 (`truba/slurm_jobs/job4_pfaz06_08_10.sh`, 10 saat limit)
+> **Yeni Yapi (Sprint 14):** 6 Chapter (Giris, Literatur, Yontem, Bulgular, Tartisma, Sonuc) + 3-4 Appendix
+> **Kapsam:** 11 dosya, ~4000+ satir; 10 sinif + yeni PFAZ10DataReader
 
 ---
 
@@ -224,6 +226,13 @@ Diger fazlardan farkli olarak `MasterThesisIntegration` **try/except olmadan** d
 
 ## 7. Tespit Edilen Buglar
 
+### NOT (Sprint 14): Asagidaki Buglarin Cogu Sprint 4-13'te Kapandi
+
+- **BUG-31 (NuclearBandAnalyzer):** Sprint 4 ile DUZELTILDI -> PFAZ12 calisir hale geldi -> PFAZ10 chapter 11 dolar
+- **BUG-32 (automl IndentationError):** Sprint 4 ile DUZELTILDI -> PFAZ13 calisir hale geldi -> PFAZ10 chapter 12 dolar
+- **BUG-38 (MC K=1000 tutarsizligi):** Sprint 4+8 ile DUZELTILDI -> kod n=1000, tez metni K=1000 ile tutarli
+- **BUG-37 (ThesisOrchestrator Linux yolu):** Sprint 14 rewrite ile bu eski sinif tamamen kaldirilacak
+
 ### BUG-37: ThesisOrchestrator Linux Yolu (DUSUK)
 
 **Dosya:** `pfaz10_thesis_orchestrator.py:42`
@@ -324,3 +333,79 @@ PFAZ10 yeniden calistir (pfaz_status.json'da status="pending" yap)
   → 12_automl.tex dolu olur (before/after R2 tablosu)
   → progress: 50 → 100
 ```
+
+---
+
+## Sprint 14 REWRITE Plani (2026-05-14)
+
+PFAZ10'un mevcut kodu "binding energy", "nuclear radius" gibi YANLIS konular ureten icerik mantigi kullaniyordu (projedeki gercek hedef MM ve QM oldugu halde). Sprint 14'te tam yeniden yazim yapilmistir:
+
+### Yeni Mimari (6 Bolum + 3-4 Ek)
+
+| Bolum | Icerik | Veri Kaynagi |
+|-------|--------|--------------|
+| 1. Giris | Motivasyon, problem tanimi (267 izotop, MM+QM), katki | Manuel |
+| 2. Literatur | IEEE atifli literatur taramasi | `thesis/bolum-02-literatur-incelemesi.md` |
+| 3. Yontem | Veri seti, ozellik mühendisligi, AI/ANFIS, Ensemble, istatistiksel dogrulama | PFAZ1/2/3/7/12 |
+| 4. Bulgular | AI/ANFIS performans, karsilastirma, robustness, Bootstrap CI, AutoML, MC | PFAZ2/3/5/12/13/9 |
+| 5. Tartisma | Genel bulgular, ANFIS vs AI, sinirliliklar, gelecek calismalar | PFAZ5/12 + manuel |
+| 6. Sonuc | Ozet ve oneri | Manuel |
+
+### Yeni Bilesenler
+
+- **PFAZ10DataReader (yeni):** PFAZ2-13 gercek ciktilarini okur, unified dict doner; graceful fallback (`data.get(key, 'N/A')`)
+- **pfaz10_content_generator.py rewrite:** "binding energy" referanslari kaldirildi
+- **pfaz10_chapter_generator.py rewrite:** Bolum 2 `thesis/bolum-02-literatur-incelemesi.md`'den LaTeX'e cevirilir
+- **pfaz10_discussion_conclusion.py rewrite:** Bootstrap CI p-value gercek degerlerle
+- **pfaz10_master_integration.py rewrite:** DataReader entegrasyonu, 6 bolum yapisi
+- **pfaz10_latex_integration.py:** MM/QM odakli sablon dogrulanir (Beta_2/binding_energy yok)
+
+### Cikti Hedefi
+
+```
+outputs/thesis_compilation/
+├── main.tex                    # 6 bolum + 3-4 ek; 80+ sayfa
+├── chapters/
+│   ├── chapter1_giris.tex
+│   ├── chapter2_literatur.tex
+│   ├── chapter3_metodoloji.tex
+│   ├── chapter4_sonuclar.tex
+│   ├── chapter5_tartisma.tex
+│   └── chapter6_sonuc.tex
+├── figures/                    # PFAZ8'den kopyalanan PNG
+├── tables/                     # PFAZ2-13'ten uretilen LaTeX tablolar
+├── references.bib              # IEEE format
+├── main.pdf                    # (compile_pdf=True ise)
+└── execution_report.json
+```
+
+### Graceful Fallback Davranisi
+
+TRUBA ciktilari henuz yok. PFAZ10DataReader.read_all() eksik veriyi `'N/A'` placeholder ile doldurur:
+- Tum bolumler olusur (yapi tam)
+- Veri yoksa LaTeX'te `\textit{Veri TRUBA'dan beklenmektedir}` notu yazilir
+- Kemal TRUBA cikisi gelince `python main.py --pfaz 10 --mode update` ile yeniden uretir
+
+### Sprint 14 Branch
+
+- `sprint14-pfaz10-and-docs`
+- TRUBA cikisi sonrasi yeniden uretim icin Kemal'in onayina sunulacak
+
+---
+
+## Sprint 4-13 Genel Etki Ozeti (PFAZ 10'a)
+
+| Sprint | Etki |
+|--------|------|
+| Sprint 4 | BUG-31/32 fix -> PFAZ12/13 calisabilir -> PFAZ10 chapter 11/12 dolabilir |
+| Sprint 4 | BUG-38 fix -> tez metni K=1000 ile tutarli |
+| Sprint 11+12 | BUG-79/80 PFAZ8 path explicit -> PFAZ10 figures/ kopyalama dogru |
+| Sprint 13 | PFAZ12 BootstrapCI + ANFIS karsilastirmasi aktif -> chapter 4.5 dolu icerik |
+| Sprint 13 | PFAZ5 AI_vs_ANFIS sheet -> chapter 4.3 tek tablo |
+| Sprint 13 | automl_trials_details.xlsx -> chapter 4.6 convergence grafigi |
+| Sprint 14 | PFAZ10 tam rewrite -> MM/QM odakli yeni mimari (6 bolum) |
+
+---
+
+*PFAZ 10 Belgesi v2.0 | Son Guncelleme: 2026-05-14*
+*Sprint 14 rewrite plan: `docs/thesis-toolkit/sprints/sprint-14-pfaz10-rewrite-plan.md`*

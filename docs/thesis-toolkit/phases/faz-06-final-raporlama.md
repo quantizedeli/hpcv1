@@ -1,9 +1,10 @@
 # PFAZ 06: Final Raporlama
 
-> **Ana Sinif:** `FinalReportingPipeline`  
-> **Dosya:** `repo/pfaz_modules/pfaz06_final_reporting/pfaz6_final_reporting.py` (1961 satir)  
-> **Durum:** Kod hazir; cikti YOK (outputs/ dizini henuz olusturulamadi)  
-> **Surum:** v1.0 | Analiz Tarihi: 2026-05-04
+> **Ana Sinif:** `FinalReportingPipeline`
+> **Dosya:** `repo/pfaz_modules/pfaz06_final_reporting/pfaz6_final_reporting.py` (1961 satir)
+> **Durum:** Kod hazir; TRUBA cikti bekleniyor
+> **Surum:** v2.0 | Ilk Analiz: 2026-05-04 | Son Guncelleme: 2026-05-14 (Sprint 13)
+> **TRUBA Job:** Job 4 (`truba/slurm_jobs/job4_pfaz06_08_10.sh`, 10 saat limit)
 
 ---
 
@@ -581,3 +582,66 @@ olarak kullanilmistir" ifadesi THESIS_COMPLETE_RESULTS.xlsx ile tutarlidir.
 - BUG-32 duzeltildi: AutoML sayfalari PFAZ13 ciktisi gelince dolacak
 
 *Belge v1.2 | 2026-05-09 | Sprint 1/2 + BUG-31/32 guncellendi*
+
+---
+
+## Sprint 4-13 Guncellemeleri (2026-05-11 -> 2026-05-14)
+
+### Sprint 6 BUG-59 -- 18+ Sayfa Dinamik
+
+CLAUDE.md eski versiyonu "18 sayfa" diyordu, toolkit "29" diyordu, gercek **22-29** arasinda degisiyor. Sebep: sayfa sayisi `(hedef sayisi) x (config sayisi)` kombinasyonuna gore dinamik. Tezde "haftalik guncellemelerle buyuyen ortalama 22+ sayfa" formulasyonu kullanilmali.
+
+### Sprint 11+12 BUG-77 -- Path TRUBA Uyumu
+
+`pfaz06_final_reporting` modul constructor parametreleri:
+- `cross_model_excel` -- PFAZ5 explicit (BUG-82)
+- `unknown_predictions_excel` -- PFAZ4 explicit (BUG-82)
+- `datasets_dir` -- PFAZ1 explicit (BUG-82)
+- `pfaz9_dir` -- PFAZ9 fallback dogru klasor (BUG-83)
+
+main.py explicit aktarir, modul bagimsiz cagrilirsa sibling-path inference devrede.
+
+### Sprint 13 BUG-95 -- BootstrapCI Excel Sayfasina Yazim
+
+PFAZ12 BootstrapCI sonuclari artik `THESIS_COMPLETE_RESULTS.xlsx` icine `Bootstrap_CI` sheet'i olarak yazilir. Onceden sadece ayri JSON dosyasindaydi.
+
+Sheet icerigi:
+- `Model_Name` (RF_MM_S70_..., XGBoost_QM_S80_..., ANFIS_CFG001_..., vs.)
+- `R2_Mean`, `R2_CI_Lower`, `R2_CI_Upper` (yuzdelik %2.5 ve %97.5)
+- `Bootstrap_N` (1000 standart)
+
+Tez metni:
+> "Model performans guvenilirligi 5000-ornek Bootstrap CI ile dogrulanmistir (Efron & Tibshirani, 1993; K=1000 PFAZ12 + 5000 PFAZ6 raporlama uyumu icin). PFAZ6 raporu Bootstrap_CI sayfasinda her model icin R2 nokta tahmini ve %95 guven aralig sunar."
+
+### Sprint 13 BUG-98 -- automl_trials_details.xlsx
+
+`automl_improvement_report.xlsx` yaninda yeni **automl_trials_details.xlsx** uretilir (3 sayfa):
+- `Summary`: Toplam trial, basarili/prune ozet
+- `All_Trials`: Her trial icin param/R2/duration/prune-status
+- `Convergence`: Best-so-far R2 progress (Optuna learning curve)
+
+PFAZ6'da bu detay ayrica `AutoML_Details` sheet'i olarak son rapora aktarilir.
+
+### Sprint 7 BUG-56 -- Silent Exception Temizlendi
+
+`pfaz6_final_reporting.py` icindeki 3 yer JSON okuma silent except'leri `logger.warning(...)` ile degistirildi:
+- Eksik PFAZ ciktisi varsa artik TRUBA log'unda warning gozukur
+- Excel rapora `[VERI YOK]` placeholder ile yazilir (kullanici fark eder)
+
+### TRUBA Operasyonel Notlar
+
+- **Job:** `job4_pfaz06_08_10.sh` icinde ilk PFAZ
+- **Sure:** ~2-3 saat (Bootstrap CI hesabi ana yuk)
+- **Cikti:** `/arf/scratch/ahmacar/hpcv1_outputs/outputs/reports/`
+- **Bagimlilik:** PFAZ 5, 7, 9, 12, 13 tamamlanmasi sart (ama silent fail-tolerant)
+
+### KURAL Guncellemeleri
+
+| Kural | PFAZ 06 Etkisi |
+|-------|---------------|
+| KURAL 29 | Yeni sayfa eklemeden once plan + onay |
+| KURAL 31 | Sayfa sayisi tek yerden tanimli (kod, doc senkron) |
+
+---
+
+*PFAZ 06 Belgesi v2.0 | Son Guncelleme: 2026-05-14*

@@ -1,10 +1,11 @@
 # PFAZ 01: Veri Kümesi Üretimi ve Özellik Mühendisliği
 
-> **Sürüm:** 2.0 (Derin Akademik Revizyon)  
-> **Tarih:** 2026-05-03  
-> **Ana Sınıf:** `DatasetGenerationPipelineV2`  
-> **Kaynak:** `pfaz_modules/pfaz01_dataset_generation/`  
+> **Sürüm:** 3.0 (Sprint 13 sonrası güncelleme)
+> **İlk Tarih:** 2026-05-03 — **Son Güncelleme:** 2026-05-14
+> **Ana Sınıf:** `DatasetGenerationPipelineV2`
+> **Kaynak:** `pfaz_modules/pfaz01_dataset_generation/`
 > **Şablon:** `03-PHASE-DOC-TEMPLATE.md` (17 Bölüm)
+> **TRUBA Job:** Job 1 (`truba/slurm_jobs/job1_pfaz01.sh`, 6 saat limit, -c 112)
 
 ---
 
@@ -181,7 +182,7 @@ Bu adımların sırası önemlidir. Özellikle adım 4, hedef filtresinden önce
 | 6 | SchmidtCalculator | mu_schmidt, Q_schmidt |
 | 7 | WoodsSaxonNilsson | V_ws_center, epsilon_nilsson |
 
-Modül 7'nin (WoodsSaxon/Nilsson) bir import hatası var: `woods_saxon.py:15` satırında `HBAR_C` sabiti `core_modules/constants.py`'den alınamamaktadır. Bu nedenle `WoodsSaxonPotential` sınıfı mevcut kodda kullanılamamaktadır. Değer `try/except` bloğuyla atlatılmakta, WS potansiyeli varsayılan değerle doldurulmaktadır.
+Modül 7'nin (WoodsSaxon/Nilsson) önceki import hatası **BUG-02 olarak DÜZELTİLDİ (2026-05-04 / Sprint 4)**: `HBAR_C = 197.3269804` sabiti `core_modules/constants.py:44` satırına eklendi, V_so/r_so/a_so sabitleri `constants.py:72-74`'e tamamlandı. WS özellikleri (V_ws_center, epsilon_WS) artık aktif olarak hesaplanır; TRUBA yeniden çalıştırma ile bu özellikler dataset'lere girer. Bkz. `pipeline-hatalari.md` BUG-02/03 ve `tez-yazim-not-defteri.md` "Sprint 2026-05-04" bölümü.
 
 ---
 
@@ -946,8 +947,73 @@ Aşağıdaki soruların bazıları kod incelemesiyle, bazıları PFAZ çıktıla
 
 ---
 
-*PFAZ 01 Veri Kümesi Üretimi Derin Analizi v2.0 | 2026-05-03*  
+*PFAZ 01 Veri Kümesi Üretimi Derin Analizi v3.0 | Son Güncelleme: 2026-05-14*
 *Sonraki adım: PFAZ 02 (Yapay Zeka Eğitimi) analizi*
+
+---
+
+## 18. Sprint 4-13 Güncellemeleri (2026-05-11 → 2026-05-14)
+
+PFAZ 01 dokümanının ilk sürümü 2026-05-03 tarihlidir. O tarihten itibaren 10 sprint daha gerçekleştirildi; aşağıdaki güncellemeler bu fazı doğrudan etkileyen değişiklikleri özetler.
+
+### 18.1 Bug Kapanışları
+
+| Bug ID | Konu | Durum | Sprint | Notlar |
+|--------|------|-------|--------|--------|
+| BUG-02 | Woods-Saxon HBAR_C eksik | KAPATILDI | Sprint 4 (2026-05-04) | `constants.py:44` HBAR_C=197.3269804 eklendi |
+| BUG-03 | Woods-Saxon V_so/r_so/a_so eksik | KAPATILDI | Sprint 4 (2026-05-04) | `constants.py:72-74` literatür değerleri eklendi |
+| BUG-04 | Q=0 küresel çekirdek filtreleme | GEÇERSİZ | — | `aaa2.txt`'te Q=0 zaten yok; intentional tasarım |
+| BUG-44 | dataset_sizes int vs 'ALL' str | KAPATILDI | Sprint 5 (2026-05-11) | 267 ↔ 'ALL' eşdeğer; NOANOMALY_SIZES'e 267 eklendi |
+
+### 18.2 Aktif Hale Gelen Özellikler
+
+**Woods-Saxon Aktivasyonu (Sprint 4 sonrası):**
+Mevcut PC çalıştırmalarında WS özellikleri NaN/0 olarak doluyordu (BUG-02 öncesi). Sprint 4 düzeltmesi sonrası TRUBA yeniden çalıştırma ile aşağıdaki sütunlar gerçek değer alacak:
+- `V_ws_center` — Woods-Saxon merkezi potansiyel değeri (MeV)
+- `V_ws_so` — Spin-orbit potansiyel katkısı (MeV)
+- `epsilon_WS` — Tek-parçacık enerji düzeyi (MeV)
+
+Tez §3.2 (Özellik Mühendisliği) bölümüne aşağıdaki cümle eklenmelidir:
+
+> "Mevcut çalışmanın TRUBA yeniden çalıştırma aşamasında Woods-Saxon potansiyel parametreleri (HBAR_C ve V_so sabitleri tamamlandıktan sonra) ilk kez aktif olarak hesaplanmıştır."
+
+### 18.3 Doküman-Kod Tutarlılık Kontrolleri
+
+**Sprint 6/7 (BUG-47/48 — TRUBA-CRITICAL):**
+- `analysis_modules/real_data_integration_manager.py` ve `visualization_modules/visualization_integration.py` dosyalarındaki `/home/claude` ve `/mnt/user-data/outputs` hardcoded `sys.path` girişleri kaldırıldı. PFAZ 1 dataset üretiminin TRUBA'da import aşamasında crash yaratan en kritik sebep ortadan kaldırıldı.
+
+**Sprint 10 (BUG-65/74 — Inter-PFAZ Veri Akışı):**
+- PFAZ 1 → PFAZ 2 akışında headerless CSV + `metadata.json` + `header=None, names=col_names` standardı resmi belge haline geldi. PFAZ 13'ün eski metadata-aware olmayan okuma kalıbı bu standarda göre güncellendi (BUG-65). PFAZ 1 çıktıları artık metadata.json olmadan tüketilemez — bu zorunluluk akış belgesine `inter-pfaz-dependency-map.md` dosyasına eklendi.
+
+### 18.4 TRUBA Operasyonel Notlar
+
+PFAZ 01, TRUBA'da Job 1 olarak `truba/slurm_jobs/job1_pfaz01.sh` ile çalıştırılır:
+
+- **Süre limiti:** 6 saat (gerçek ~2-3 saat beklenir)
+- **CPU:** `-c 112` (Sprint 12 BUG-84: TRUBA 2025-12-15 kuralı, eski -c 110 geçersiz)
+- **n_workers:** 100 (Sprint 9B BUG-89: dinamik scaling devre dışı, sabit)
+- **Çıktı:** `/arf/scratch/ahmacar/hpcv1_outputs/outputs/generated_datasets/`
+- **Exit-code yakalama:** `${PIPESTATUS[0]}` ile (Sprint 13 BUG-85)
+
+### 18.5 KURAL Güncellemeleri (PFAZ 01'i Etkileyenler)
+
+| Kural | İçerik | PFAZ 01 Etkisi |
+|-------|--------|---------------|
+| KURAL 19 | Inter-PFAZ veri akışı her sprint sonu doğrulanır | Metadata.json zorunlu, headerless CSV standardı |
+| KURAL 25 | TRUBA `-C weka` flag zorunlu | job1_pfaz01.sh'a eklendi |
+| KURAL 29 | Plan sun → onay al → hareket et | Yeni dataset varyantı ekleme için zorunlu |
+| KURAL 30 | Runtime behavior simulation (3 senaryo) | Anomali pipeline değişikliklerinde uygulanır |
+| KURAL 31 | Single Source of Truth | dataset_sizes tek yerde tanımlanır (config.json) |
+| KURAL 33 | Cross-layer failure chain audit | PIPESTATUS Bash↔Python↔Slurm |
+
+### 18.6 Açık Kalan Konular
+
+- Woods-Saxon aktivasyonu sonrası MM/QM tahmin performansının nasıl değiştiği — TRUBA çalıştırması sonrası ölçülecek. `tez-yazim-not-defteri.md`'de bu karşılaştırma için ayrı bir bölüm yer almalı.
+- Nilsson NaN oranı (%34) küçük dataset'lerde sorun yaratmaya devam ediyor; ayrı bir "Nilsson aktivasyon stratejisi" araştırma maddesi olarak `research/acik-sorular.md` dosyasına aktarıldı.
+
+---
+
+*Sprint 4-13 güncelleme bölümü — Son ekleme: 2026-05-14*
 
 ---
 

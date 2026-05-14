@@ -1,5 +1,6 @@
 # PFAZ 02 -- Paralel Yapay Zeka Egitimi
-**Surum:** v2.0 | **Guncelleme:** 2026-05-03
+**Surum:** v3.0 | **Ilk Tarih:** 2026-05-03 | **Son Guncelleme:** 2026-05-14 (Sprint 13)
+**TRUBA Job:** Job 2 (`truba/slurm_jobs/job2_pfaz02_03.sh`, 1 gun limit, -c 112)
 
 ---
 
@@ -18,7 +19,10 @@
 | CV Stratejisi | 5-fold (CrossValidationAnalyzer) |
 | Paralel | ThreadPoolExecutor |
 | Seed | 42 sabit (parallel_ai_trainer.py:1363) |
-| R2 Kayit Esigi | val_R2 >= 0.5 (POOR_R2_FILTER) + cv_R2 >= 0.0 + gap < 0.6 (DUAL_FILTER) |
+| R2 Kayit Esigi | val_R2 >= 0.5 (POOR_R2_FILTER) + cv_R2 >= 0.0 + gap < 0.6 (DUAL_FILTER, Sprint 8 BUG-62 ile gercekten aktif) |
+| RobustnessTester | AKTIF (Sprint 13 BUG-96): noise + outlier + perturbation testleri her AI modeli icin |
+| Konfig Kaynagi | `training_configs_50.json` (Sprint 12 BUG-78): hardcoded `_create_default_configs()` artik degil |
+| PFAZ Bagimliligi | PFAZ2 FAIL --> PFAZ3 SKIP (Sprint 13 BUG-91) |
 
 ---
 
@@ -451,6 +455,82 @@ outputs/trained_models/
   model_path, error }
 ```
 
-**PKL_Saved Kolonu:** True = R2>=0.5 kosulu saglandi, model kaydedildi; False = POOR_R2_FILTER.  
-**Status_Note Kolonu:** POOR_R2_FILTER | DIVERGED | SMALL_DATASET | SUCCESS  
+**PKL_Saved Kolonu:** True = val_R2>=0.5 + cv_R2>=0.0 + gap<0.6 (DUAL_FILTER) kosullari saglandi, model kaydedildi; False = POOR_R2_FILTER veya CV_GATE_RET.
+**Status_Note Kolonu:** POOR_R2_FILTER | CV_GATE_RET | DIVERGED | SMALL_DATASET | SUCCESS
 **Training_Time_s Kolonu:** Saniye cinsinden; hiz karsilastirmasi icin.
+
+---
+
+## 11. Sprint 4-13 Guncellemeleri (2026-05-11 -> 2026-05-14)
+
+Ilk surum 2026-05-03 tarihlidir. Asagidaki guncellemeler bu fazi dogrudan etkileyen sprint sonuclarini ozetler.
+
+### 11.1 Sprint 8 BUG-62 -- CV Gate Gercekten Aktif
+
+Sprint 1 (2026-05-08) "cv_R2>=0.0 + gap<0.5 filtresi eklendi" demisti. Sprint 8 (2026-05-12) Claude Code analizinde ortaya cikti ki **ParallelAITrainer constructor bu parametreleri kabul etmiyordu**. main.py 5 parametreyi geciriyordu ama hepsi sessizce kayboluyordu -- filtre hic calismiyordu.
+
+**Sprint 8 duzeltmesi:**
+- Constructor imzasina 5 parametre eklendi: `cv_r2_min_threshold`, `max_train_cv_gap`, `cv_folds`, `cv_folds_large_n`, `cv_large_n_threshold`
+- Gate blogu kayit oncesine tasindi
+- `max_train_cv_gap`: 0.5 -> **0.6** (kucuk N varyans toleransi, Vabalas et al. 2019)
+
+**Tez metni:**
+> "Model seciminde val_R2 esigine (>=0.5) ek olarak capraz dogrulama R2 esigi (>=0.0) ve train-CV ayrim aralig (gap<0.6) birlikte uygulanmistir. Bu cift filtre kucuk orneklem dogrulama kumesinin (N~15) yaniltici yuksek R2'sine karsi ek guvence saglar (Shang et al., 2022; Utama et al., 2016)."
+
+### 11.2 Sprint 12 BUG-78 -- training_configs_50.json Deterministik
+
+50 konfigurasyon hardcoded `_create_default_configs()` cagrisindan disari alindi:
+
+- Dosya: `pfaz_modules/pfaz02_ai_training/training_configs_50.json`
+- Icerik: 20 RF + 15 XGB + 15 DNN konfig
+- Loglama: `[CFG-SOURCE] training_configs_50.json` mesaji TRUBA log'unda gozukur
+- Yararlanim: TRUBA ve PC arasinda konfig farkı engellendi (KURAL 31 - Single Source of Truth)
+
+### 11.3 Sprint 13 BUG-91 -- PFAZ2 FAIL -> PFAZ3 SKIP
+
+run_all_pfaz akisinda yeni davranis:
+- PFAZ2 status='failed' donerse, PFAZ3 otomatik 'skipped' isaretlenir
+- Sebep: AI egitim ciktisi olmadan ANFIS dataset seciminin anlamsiz oldugu (BUG-91)
+- main.py'de `_check_upstream_failure(pfaz_id)` helper ile
+
+### 11.4 Sprint 13 BUG-96 -- RobustnessTester Aktif
+
+Her AI modeli icin egitim sonrasi 3 robustness testi:
+1. **Noise sensitivity:** Input ozelliklerine Gaussian gurultu (sigma=0.05) ekle, R2 dusus oranı
+2. **Outlier impact:** Test setine sentetik outlier (IQR > 4) ekle, MSE artisi
+3. **Feature perturbation:** Her ozelligi tek tek karistir (permutation), R2 dususu
+
+Cikti dosyalari:
+- `outputs/trained_models/robustness_summary.xlsx` (model x test matrisi)
+- `outputs/trained_models/robustness_per_model/*.png` (PFAZ 8 ile entegre)
+
+Tez metni icin §4.4 Saglamlik Analizi:
+> "Egitilen modellerin saglamlik analizi uc agirlikli senaryoyla yapilmistir: girdi ozelliklerine sigma=0.05 standartlasmis Gaussian gurultu uygulanarak R^2 dususu olculmus; test seti sentetik IQR>4 outlier ile zenginlestirilmis ve MSE artisi raporlanmis; her ozellik tek tek permutation ile karistirilarak ozellik onem siralamasi cikarilmistir."
+
+### 11.5 Sprint 13 BUG-87 -- optuna ve lightgbm REQUIRED_PACKAGES
+
+`main.py:REQUIRED_PACKAGES` listesine eklendi -- artik opsiyonel degil. TRUBA strict_truba modunda eksiklik dogrudan RuntimeError verir.
+
+### 11.6 TRUBA Operasyonel Notlar
+
+- **Job:** `truba/slurm_jobs/job2_pfaz02_03.sh` (PFAZ2+PFAZ3 birlikte)
+- **Sure limiti:** 1 gun (gercek ~14-27 saat beklenir)
+- **Bellek:** TF GPU off (`CUDA_VISIBLE_DEVICES=""`), CPU-only
+- **Memory leak guard:** `tf.keras.backend.clear_session() + gc.collect()` (Sprint 7 BUG-53)
+- **Cikti:** `/arf/scratch/ahmacar/hpcv1_outputs/outputs/trained_models/`
+
+### 11.7 KURAL Guncellemeleri (PFAZ 02'yi Etkileyenler)
+
+| Kural | Icerik | PFAZ 02 Etkisi |
+|-------|--------|---------------|
+| KURAL 18 | "Belge != gercek fix"; kod dogrulama zorunlu | BUG-62 keşfi bu kuralla yapildi |
+| KURAL 19 | Inter-PFAZ veri akisi her sprint sonu denetlenir | metadata.json zorunlu okuma |
+| KURAL 29 | Plan sun, onay bekle | Yeni model tipi ekleme icin |
+| KURAL 30 | Runtime behavior simulation (3 senaryo) | CV gate akış simulasyonu |
+| KURAL 32 | VARSAYIM YASAGI; "muhtemelen" yerine grep/view | BUG-62 keşif yontemi |
+| KURAL 33 | Cross-layer failure chain audit | PFAZ2 FAIL -> PFAZ3 SKIP zinciri |
+
+---
+
+*PFAZ 02 Belgesi v3.0 | Son Guncelleme: 2026-05-14*
+*Kaynak: parallel_ai_trainer.py (2094 satir) + training_configs_50.json*

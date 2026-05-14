@@ -1,5 +1,6 @@
 # PFAZ 03 -- ANFIS Egitimi
-**Surum:** v1.0 | **Guncelleme:** 2026-05-03
+**Surum:** v2.0 | **Ilk Tarih:** 2026-05-03 | **Son Guncelleme:** 2026-05-14 (Sprint 13)
+**TRUBA Job:** Job 2 (`truba/slurm_jobs/job2_pfaz02_03.sh`, PFAZ2 ile birlikte)
 
 ---
 
@@ -16,8 +17,11 @@
 | ANFIS Turu | Takagi-Sugeno 1. Dereceden (TakagiSugenoANFIS) |
 | Konfigurasyon | 8 (CFG001-CFG008) |
 | Paralel | ThreadPoolExecutor |
-| MATLAB | Opsiyonel (Python fallback mevcut) |
+| MATLAB | Opsiyonel (Python fallback mevcut); TRUBA'da disabled |
 | R2 Kayit Esigi | val_R2 >= 0.5 |
+| ANFISDatasetSelector | AKTIF (Sprint 8): Top=50, Mid=50, Low=100 (200/target) |
+| PFAZ2 Bagimliligi | PFAZ2 FAIL --> PFAZ3 SKIP (Sprint 13 BUG-91) |
+| Downstream | PFAZ5 AI_vs_ANFIS sheet (Sprint 13) + PFAZ12 BootstrapCI karsilastirmasi |
 | Max Iterasyon | 300 |
 | Erken Durma | patience=30 (val RMSE bazli) |
 | Regularizasyon | L2 alpha=0.01 (ridge LSE) |
@@ -418,5 +422,94 @@ config dosyasındaki liste yalnızca dokümantasyon amacıyla var. Kod değişik
 `CFG_` öneki, `get_config_by_name()` lookup'ı için kasıtlı. Tutarsızlık değil, katmanlı yapı.
 
 ---
+
+## 12. Sprint 4-13 Guncellemeleri (2026-05-11 -> 2026-05-14)
+
+### 12.1 Sprint 5 BUG-45 -- Selector Belge-Kod Drift'i Kapandi
+
+Sprint 2 sonrasi belge "ANFISDatasetSelector aktif (2026-05-08)" diyordu ama `anfis_parallel_trainer_v2.py:1427-1428` hala `deactivated` log basiyordu. Sprint 5'te (BUG-45) selector gercekten `train_all_anfis_parallel` icinde cagrildi:
+
+- Top=50, Mid=50, Low=100 kotasiyla (akademik gerekce: tez-yazim-not-defteri.md "Selector R² Stratejisi" + "Adaptive Quota" bolumleri)
+- Eksik tier varsa round-robin redistribution (anfis_dataset_selector.py:130-158)
+
+### 12.2 Sprint 5 BUG-46 -- Dosya Adlandirma Tutarsizligi Kapandi
+
+PFAZ2 `training_results_summary.xlsx` yaziyor, selector ise once `training_summary.xlsx` ariyordu. Selector artik her iki dosya adini siralı olarak dener:
+1. `training_results_summary.xlsx` (yeni, PFAZ2 cikisi)
+2. `training_summary.xlsx` (geri uyumluluk)
+
+Kolon adlandirma: `R2_test` --> `Test_R2` (PFAZ2 ile birebir uyum).
+
+### 12.3 Sprint 11+12 BUG-75/79 -- PFAZ3 Path Explicit
+
+ANFIS modulu yeni constructor parametreleri:
+- `pfaz2_summary_path` -- main pipeline'dan explicit gecirilir
+- `datasets_dir` -- robustness icin (BUG-79)
+
+Sibling-path fallback hala devrede (modul bagimsiz cagrilirsa).
+
+### 12.4 Sprint 13 BUG-91 -- PFAZ2 FAIL -> PFAZ3 SKIP
+
+Yeni davranis:
+```python
+# main.py run_all_pfaz icinde
+if pfaz_id == 3 and self.status_manager.get_status(2) == 'failed':
+    self.logger.warning("[SKIP] PFAZ2 failed -> PFAZ3 skipped (BUG-91)")
+    return 'skipped'
+```
+
+Mantik: AI egitim ciktisi yoksa ANFIS dataset secimi anlamsiz; bos havuzdan secim FileNotFoundError verir. Erken atlama Slurm zaman tasarrufu saglar.
+
+### 12.5 Sprint 13 BUG-97 -- ANFIS Modelleri Downstream Aktif
+
+ANFIS modelleri artik **iki yerde** AI modelleriyle karsilastiriliyor:
+
+1. **PFAZ5** (BUG-96 -- `pfaz05_cross_model/faz5_cross_model_analysis.py`):
+   - `MASTER_CROSS_MODEL_REPORT.xlsx` icine `AI_vs_ANFIS_Comparison` sheet eklendi
+   - `Model_Statistics` sheet'e `Model_Type` (AI/ANFIS) + `R2` kolonlari
+
+2. **PFAZ12** (BUG-97 -- `pfaz12_advanced_analytics/bootstrap_confidence_intervals.py`):
+   - PFAZ3 `anfis_vs_ai_comparison.xlsx` okunup BootstrapCI'a besleniyor
+   - Output: paired t-test p-value + significant flag
+
+Tez §4.3 (Model Karsilastirma) artik tek tablo halinde ANFIS+AI sunabilir.
+
+### 12.6 Sprint 13 KURAL 31 (SSOT) -- Configuration Kayna
+
+`config.json:pfaz03_anfis_training.configurations` listesi hala kod tarafindan okunmuyor. Sprint 6 BUG-63'te `_configurations_note` aciklama anahtari eklendi:
+
+```json
+{
+  "pfaz03_anfis_training": {
+    "_configurations_note": "Hardcoded PILOT_IDS kullanilir (anfis_parallel_trainer_v2.py:1171). Bu liste yalnizca dokumantasyon amacli."
+  }
+}
+```
+
+KURAL 31 (Single Source of Truth) geregi: dokuman + kod tek bir yerden okumalı. Bu durum gelecek refactor'da ele alinacak.
+
+### 12.7 TRUBA Operasyonel Notlar
+
+- Job: `truba/slurm_jobs/job2_pfaz02_03.sh` icinde PFAZ2 sonrasi
+- Sure: ~6-12 saat (PFAZ2 + PFAZ3 toplam 14-27 saat icinde)
+- Cikti: `/arf/scratch/ahmacar/hpcv1_outputs/outputs/anfis_models/`
+- MATLAB engine: DISABLED (Python fallback)
+
+### 12.8 Tez §4.5 (Istatistiksel Analiz) icin AI vs ANFIS Veri Akisi
+
+```
+PFAZ3 anfis_vs_ai_comparison.xlsx
+  -> PFAZ12 BootstrapCI.compare_models(ai_preds, anfis_preds)
+    -> Bootstrap distribution + p-value
+      -> PFAZ6 THESIS_RESULTS.xlsx (Bootstrap_CI sheet)
+        -> PFAZ10 chapter4_sonuclar.tex (§4.5 sayisal degerler)
+```
+
+Tez metni icin §4.3 ornek cumle:
+> "Model karsilastirma analizinde her cekirdek uzerinde AI ve ANFIS tahminleri es zamanli olarak hesaplanmistir. Bootstrap orneklem yontemi (K=1000) ile R^2 farklarinin %95 guven aralig ve paired t-test p-degerleri raporlanmistir. p<0.05 anlamlı kabul edilmis, p>=0.05 modellerin esit performansli oldugu kabul edilmistir."
+
+---
+
+*PFAZ 03 Belgesi v2.0 | Son Guncelleme: 2026-05-14*
 
 *PFAZ 03 Belgesi v1.2 | 2026-05-08 | Güncelleme: ANFISDatasetSelector AKTİF edildi (Top=50 Mid=50 Low=100), configurations alanı not, ANFIS_MAX_INPUTS keşifleri*

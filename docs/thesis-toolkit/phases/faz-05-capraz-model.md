@@ -1,9 +1,10 @@
 # PFAZ 05: Capraz Model Analizi
 
-> **Ana Sinif:** `CrossModelEvaluator` + `CrossModelAnalysisPipeline`  
-> **Dosya:** `repo/pfaz_modules/pfaz05_cross_model/cross_model_evaluator.py`  
-> **Durum:** Tamamlandi (completed 100%, 2026-04-02)  
-> **Surum:** v1.0 | Analiz Tarihi: 2026-05-04
+> **Ana Sinif:** `CrossModelEvaluator` + `CrossModelAnalysisPipeline`
+> **Dosya:** `repo/pfaz_modules/pfaz05_cross_model/cross_model_evaluator.py`
+> **Durum:** Kod hazir; TRUBA cikti bekleniyor
+> **Surum:** v2.0 | Ilk Analiz: 2026-05-04 | Son Guncelleme: 2026-05-14 (Sprint 13)
+> **TRUBA Job:** Job 3 (`truba/slurm_jobs/job3_pfaz04_05_07_09_12_13.sh`)
 
 ---
 
@@ -644,3 +645,51 @@ Bu degerler PFAZ 07 belgesi icin dogru referans; PFAZ 05 ciktisi degil.
 ---
 
 *faz-05-capraz-model.md v1.0 | 2026-05-04 | PFAZ 05: 5 sinif, 7 dosya, 3 formul (F-040..F-044), 3 algoritma (A-019..A-021)*
+
+---
+
+## Sprint 4-13 Guncellemeleri (2026-05-11 -> 2026-05-14)
+
+### Sprint 13 BUG-96 -- AI vs ANFIS Sheet Eklendi (KRITIK)
+
+`MASTER_CROSS_MODEL_REPORT.xlsx` icine **yeni AI_vs_ANFIS_Comparison sayfasi** eklendi. Bu, tez §4.3 (Model Karsilastirma) icin **tek noktada** AI ve ANFIS modellerinin yan yana sunumunu saglar.
+
+Onceki durum:
+- AI sonuclari: ML modulu metricleri uzerinden, sutun isimleri farkli
+- ANFIS sonuclari: PFAZ3 ciktilarinda ayri Excel
+- Karsilastirma: manuel kopyala/yapistir ile yapiliyordu
+
+Yeni durum (BUG-96):
+- `Model_Statistics` sheet: `Model_Type` (AI/ANFIS) + `R2` kolonu eklendi
+- `AI_vs_ANFIS_Comparison` sheet: PFAZ3 `anfis_vs_ai_comparison.xlsx` icinden mean R2 farkli, p-value, sample size, significant flag
+- Fallback: PFAZ3 ciktisi yoksa minimal ozet (NaN ile)
+
+Etkilenen dosyalar:
+- `pfaz_modules/pfaz05_cross_model/faz5_cross_model_analysis.py`
+- `pfaz_modules/pfaz05_cross_model/optimizer_comparison_reporter.py` (BUG-99 dead code note)
+
+Tez metni icin §4.3 ornek paragraf:
+> "Manyetik ve kuadrupol moment tahminlerinde AI (RF/XGBoost/LightGBM/CatBoost/SVR/DNN) ve ANFIS (Takagi-Sugeno) yaklasimlari paired t-test ile karsilastirilmistir. Bootstrap orneklem yontemi (K=1000) ile R^2 farklarinin %95 guven aralig ve p-value degerleri raporlanmistir. AI_vs_ANFIS_Comparison sayfasinda her dataset varyanti icin sonuclar tablo halinde sunulmustur."
+
+### Sprint 11+12 BUG-76 -- PFAZ5 Path TRUBA Uyumu
+
+`pfaz05_cross_model` modul constructor'i yeni explicit path parametreleri kabul ediyor:
+- `pfaz4_excel_path` -- PFAZ4 unknown_predictions Excel'i
+- `output_dir` -- final cross_model_analysis dizini
+
+Sibling-path fallback hala devrede.
+
+### Sprint 10 BUG-73 -- BestModelSelector Veri Akisi
+
+`BestModelSelector` girdileri PFAZ04 GS sutunlariyla **sutun seviyesinde** dogrulandi. Eski tek seviyeli `{'val_r2': ...}` formati yerine `{'metrics': {'val': {'r2': ...}}}` ic sozluk yapisi tercih ediliyor.
+
+### TRUBA Operasyonel Notlar
+
+- **Job:** Job 3 icinde PFAZ4 sonrasi
+- **Sure:** ~15-30 dakika
+- **Cikti:** `/arf/scratch/ahmacar/hpcv1_outputs/outputs/cross_model_analysis/MASTER_CROSS_MODEL_REPORT.xlsx`
+- **PFAZ2 bagimliligi:** PFAZ2 'failed' ise PFAZ5 da skip
+
+---
+
+*PFAZ 05 Belgesi v2.0 | Son Guncelleme: 2026-05-14*

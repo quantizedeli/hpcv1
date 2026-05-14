@@ -123,16 +123,72 @@ Gauss2MF/Gauss3MF × Grid/SubClust × standart konfigürasyonlar
 
 ## Özet Tablo
 
-| Model | Temel Neden | Küçük Veri | Belirsizlik | Fizik Bilgisi |
-|-------|-------------|-----------|------------|--------------|
-| RF | Güvenilir baseline, özellik önemi | +++ | - | - |
-| GBM | Sistematik hata düzeltimi | ++ | - | - |
-| XGBoost | Regularize gradient boosting | ++ | - | - |
-| DNN | Çok-yönlü etkileşimler | + | - | - |
-| BNN | Belirsizlik tahmini (PFAZ 04 için zorunlu) | + | +++ | - |
-| PINN | Fizik kısıtlı öğrenme | + | - | +++ |
-| ANFIS | Yorumlanabilir bulanık kurallar | ++ | - | ++ |
+| Model | Temel Neden | Küçük Veri | Belirsizlik | Fizik Bilgisi | AutoML | Robustness |
+|-------|-------------|-----------|------------|--------------|--------|-----------|
+| RF | Güvenilir baseline, özellik önemi | +++ | - | - | Var (Sprint 13) | Var (Sprint 13) |
+| GBM | Sistematik hata düzeltimi | ++ | - | - | Var | Var |
+| XGBoost | Regularize gradient boosting | ++ | - | - | Var | Var |
+| LightGBM | Hızlı leaf-wise boosting | ++ | - | - | Var | Var |
+| CatBoost | Ordered boosting, kategorik | ++ | - | - | Var | Var |
+| SVR | SRM, kernel garantili | +++ | - | - | Hayır | Var |
+| DNN | Çok-yönlü etkileşimler | + (n≥200) | - | - | Var | Var |
+| ~~BNN~~ | ~~Belirsizlik tahmini~~ | İPTAL | İPTAL | İPTAL | İPTAL | İPTAL |
+| ~~PINN~~ | ~~Fizik kısıtlı öğrenme~~ | İPTAL | İPTAL | İPTAL | İPTAL | İPTAL |
+| ANFIS | Yorumlanabilir bulanık kurallar | ++ | - | ++ | Var (CFG opt) | Hayır |
 
 ---
 
 *Araştırma notu — 2026-05-03*
+
+---
+
+## Sprint 4-13 Güncellemeleri (2026-05-11 → 2026-05-14)
+
+### Aktif Modeller (Sprint 6 BUG-60 Sonrasi Kesin Liste)
+
+Mevcut pipeline'da aktif **6 model + ANFIS:**
+- RF, XGBoost, LightGBM, CatBoost, SVR, DNN (PFAZ02 — `parallel_ai_trainer.py`)
+- ANFIS 8 konfig (PFAZ03 — `anfis_parallel_trainer_v2.py`)
+
+**İPTAL EDİLEN (Sprint 4 karar):**
+- **BNN:** TensorFlow Probability gerektiriyor; eğitim süresi ~5x artar; küçük örneklemde prior seçimi kritik. Belirsizlik tahmini PFAZ09 MC Dropout + Bootstrap ile yerine getirildi.
+- **PINN:** physics_weight=0.5 etkili çalışmıyordu (bounds ±20 vs veri ±7 → ceza sıfır). Fizik bilgisi özellik mühendisliği (SEMF, Schmidt, WS) yoluyla zaten aktarılıyor. `tez-yazim-not-defteri.md` 2026-05-08 karar günlüğü.
+
+### Sprint 1 + Sprint 8 — Dual R² Filter (Model Kabul Kriterleri)
+
+Her model için kabul filtresi (val_R²≥0.5 + cv_R²≥0.0 + gap<0.6):
+- **Shang et al. 2022:** CV ile val R² farki >0.2-0.3 "asiri uyum sinyali"
+- **Utama et al. 2016:** Nükleer kutleler BNN, CV-based değerlendirme zorunlu
+- **Vabalas et al. 2019:** Kucuk N CV varyansi (gap toleransi 0.5 → 0.6)
+
+Tezde tüm model bolumlerine "Sprint 8 DUAL FILTER kabul kriterleri" alt başlığı eklenebilir.
+
+### Sprint 13 BUG-96 — RobustnessTester Aktif
+
+Her AI modeli için egitim sonrasi 3 robustness testi (yukarıdaki tabloda "Robustness" sütunu):
+- **Noise sensitivity:** Input ozelliklerine Gaussian gurultu (sigma=0.05), R² düşüş oranı
+- **Outlier impact:** Test setine sentetik outlier (IQR>4), MSE artisi
+- **Feature perturbation:** Her ozelligi tek tek karistir (permutation), R² düşüşü
+
+Cıktı: `outputs/trained_models/robustness_summary.xlsx` + PNG. ANFIS için bu test henüz tanımlı değil (PFAZ3 ayrı modul).
+
+### Sprint 13 BUG-98 — AutoML Yeniden Eğitim (PFAZ13)
+
+Düşük R² modeller için Optuna TPE+MedianPruner yeniden eğitim:
+- Poor (R²<0.70) — 25 model/kategori, n_trials=30
+- Medium (0.70<R²<0.90) — 25 model/kategori
+- Sonuç: `automl_improvement_report.xlsx` + `automl_trials_details.xlsx` (Sprint 13 BUG-98)
+- Convergence grafigi: tez §4.6 (AutoML Optimizasyonu) için doğrudan kullanılır
+
+Tabloya "AutoML" sütunu eklendi.
+
+### Sprint 13 BUG-97 — PFAZ12 BootstrapCI ile AI vs ANFIS
+
+Yukarıdaki 6 model + ANFIS karşılaştırması artık PFAZ12'de paired t-test + Wilcoxon ile yapılıyor:
+- Her dataset varyantı için ayrı test
+- R² farkı %95 CI ve p-value raporlanır
+- Tez §4.5 (İstatistiksel Analiz) için hazır veri
+
+---
+
+*Sprint 4-13 güncelleme: 2026-05-14*

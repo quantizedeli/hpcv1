@@ -1,10 +1,11 @@
 # PFAZ 07: Topluluk ve Meta-Modeller (Ensemble Pipeline)
 
-> **Belge Versiyonu:** v1.0  
-> **Analiz Tarihi:** 2026-05-04  
-> **Durum:** Gercek cikti mevcut (comprehensive_report.json)  
-> **Ana Sinif:** pfaz7_complete_ensemble_pipeline.py  
-> **Kapsam:** 12 ensemble yontemi, 7 sinif, 2045 satir kod
+> **Belge Versiyonu:** v2.0
+> **Ilk Analiz:** 2026-05-04 | **Son Guncelleme:** 2026-05-14 (Sprint 13)
+> **Durum:** Gercek cikti mevcut (comprehensive_report.json -- eski PC)
+> **Ana Sinif:** pfaz7_complete_ensemble_pipeline.py
+> **TRUBA Job:** Job 3 (`truba/slurm_jobs/job3_pfaz04_05_07_09_12_13.sh`)
+> **Kapsam:** Sprint 6 BUG-60 sonrasi: 4 voting + 4 stacking (stacking_MLP eski analizdeki "12 yontem" yanlis)
 
 ---
 
@@ -472,3 +473,39 @@ AdaBoost zayifligi, RF max_depth tutarsizligi, tam PFAZ 02 entegrasyonu belirsiz
 - ensemble_comparison.xlsx -- YOK
 
 *faz-07-topluluk-modeller.md v1.0 | 2026-05-04*
+
+---
+
+## Sprint 4-13 Guncellemeleri (2026-05-11 -> 2026-05-14)
+
+### Sprint 6 BUG-60 -- Ensemble Yontem Sayisi Duzeltildi
+
+CLAUDE.md eski versiyonu "5 voting + 6 stacking + AdaBoost = 12" diyordu, **gercek 4 voting + 4 stacking**. comprehensive_report.json'da "stacking_mlp R2=0.9794" var ama bu eski PC ciktisi -- TRUBA'da farkli yapilacak.
+
+**Aktif kod (2026-05-14):**
+- 4 Voting: Simple, WeightedR2, WeightedRMSE, WeightedInvError
+- 4 Stacking: Ridge, Lasso, RF, GBM
+- AdaBoost YOK (CLAUDE.md eski "AdaBoost" eklemesi yanlis)
+- stacking_MLP YOK (eski analizdeki R2=0.9794 PC eski ciktisindandi)
+
+Tezde **4+4** sayisini kullan:
+> "Bu calismada sekiz ensemble yontemi karsilastirilmistir: dort agirlikli oylama (Simple/WeightedR2/WeightedRMSE/WeightedInvError) ve dort yiglama yaklasimi (Ridge/Lasso/RF/GBM meta-modeller)."
+
+### Sprint 6 BUG-58 -- ThreadPoolExecutor Yorumu
+
+`parallel_ai_trainer.py` icindeki yaniltici "ProcessPoolExecutor" yorumu duzeltildi -- gercek implementasyon `ThreadPoolExecutor` (GIL ile sklearn calisir). Bu fix dolayli olarak PFAZ7 ensemble OOF stacking icin de gecerli.
+
+### Sprint 13 BUG-93 -- random_state=42 Sabit
+
+EnsembleEvaluator ve stacking OOF olusturma artik `random_state=42` sabit. Tekrar uretilebilir sonuc icin kritik. Yeniden calistirma ayni R2 verir (data degismediği surece).
+
+### TRUBA Operasyonel Notlar
+
+- **Job:** `job3_pfaz04_05_07_09_12_13.sh` icinde PFAZ4/5 sonrasi
+- **Sure:** ~1-2 saat
+- **Cikti:** `/arf/scratch/ahmacar/hpcv1_outputs/outputs/ensemble_results/`
+- **Bagimlilik:** PFAZ2 (AI modelleri PKL) + PFAZ3 (ANFIS PKL); PFAZ2 fail -> PFAZ7 skip
+
+---
+
+*PFAZ 07 Belgesi v2.0 | Son Guncelleme: 2026-05-14*
