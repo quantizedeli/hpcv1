@@ -3084,3 +3084,20 @@ ile sessizce yutuluyordu, warning log'ları kayboluyordu).
 | BUG-116 | pfaz10_master_integration.py | _resolve_pfaz_dir çalışmıyor |
 
 *Sprint 17 raporu | PFAZ10 path fix'leri (BUG-111..116) | 6 fix | 2026-05-20*
+
+---
+
+### BUG-117
+**Başlık:** PFAZ3 anfis_parallel_trainer_v2 — `r2_category` UnboundLocalError
+**Dosya:** `pfaz_modules/pfaz03_anfis_training/anfis_parallel_trainer_v2.py`
+**Durum:** KAPATILDI (Sprint 17)
+
+**Sorun:** `save_summary_report` içinde `r2_category` fonksiyonu sadece başarılı
+result bloğunun nested scope'unda tanımlanıyordu (satır 1696). Başarısız result
+bloğu (hata durumu) dışarıdan `r2_category` çağırınca `UnboundLocalError` veriyordu.
+TRUBA'da PFAZ3 2 saat çalıştıktan sonra `save_summary_report` aşamasında patladı.
+
+**Fix:** `r2_category` nested def kaldırıldı, `save_summary_report` fonksiyon
+scope'unun başına taşındı — her iki blok da erişebilir.
+
+*Sprint 17 ek bug | 2026-05-20*

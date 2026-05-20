@@ -1649,6 +1649,20 @@ class ANFISParallelTrainerV2:
     def save_summary_report(self):
         """Save summary report as JSON and Excel."""
 
+
+        # BUG-117 FIX (Sprint 17): r2_category onceden sadece basarili result
+        # blogunun icinde (nested def) tanimlaniyordu. Basarisiz result blogu
+        # o scope disinda kullaninca UnboundLocalError veriyordu.
+        def r2_category(r2):
+            if r2 is None or (isinstance(r2, float) and r2 != r2):
+                return 'N/A'
+            if r2 < 0:      return 'Failed (<0)'
+            if r2 < 0.5:    return 'Poor (0-0.5)'
+            if r2 < 0.7:    return 'Low (0.5-0.7)'
+            if r2 < 0.85:   return 'Medium (0.7-0.85)'
+            if r2 < 0.95:   return 'Good (0.85-0.95)'
+            return 'Excellent (>=0.95)'
+
         report_file = self.output_dir / 'anfis_training_summary.json'
 
         summary = {
@@ -1692,16 +1706,6 @@ class ANFISParallelTrainerV2:
                     target = ds.split('_')[0] if '_' in ds else ds
 
                 parts = ds.replace('Beta_2_', 'Beta2_').replace('MM_QM_', 'MMQM_').split('_')
-
-                def r2_category(r2):
-                    if r2 is None or (isinstance(r2, float) and r2 != r2):
-                        return 'N/A'
-                    if r2 < 0:       return 'Failed (<0)'
-                    if r2 < 0.5:    return 'Poor (0-0.5)'
-                    if r2 < 0.7:    return 'Low (0.5-0.7)'
-                    if r2 < 0.85:   return 'Medium (0.7-0.85)'
-                    if r2 < 0.95:   return 'Good (0.85-0.95)'
-                    return 'Excellent (>=0.95)'
 
                 val_r2  = val_m.get('r2')
                 test_r2 = test_m.get('r2')
