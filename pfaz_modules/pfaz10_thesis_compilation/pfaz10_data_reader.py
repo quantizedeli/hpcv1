@@ -34,27 +34,48 @@ class PFAZ10DataReader:
     `\\textit{Veri TRUBA'dan beklenmektedir}` notu ile isaretlenir.
 
     Args:
-        project_dir: Proje kok dizini (Path). `outputs/` bu dizin altinda aranir.
-        pfaz_outputs: PFAZ adi -> dizin yolu inject sozlugu (opsiyonel).
-            Eger verilmezse, varsayilan `project_dir/outputs/*` yapisi kullanilir.
+        project_dir: Cikti ana dizini (Path). Dosyalar bu dizin altinda aranir.
+            TRUBA'da /arf/scratch/ahmacar/hpcv1_outputs olmali.
+        pfaz_outputs: PFAZ no (int veya str) -> dizin yolu inject sozlugu (opsiyonel).
+            main.py'den {1: Path(...), 2: Path(...)} seklinde gelir.
+            Bu sozluk verildiginde DEFAULT_PATHS fallback yerine bu dizinler kullanilir.
+
+    BUG-A FIX (Sprint 17): pfaz_outputs integer key'leri (1,2,3...) string key'lerle
+        ('pfaz2_summary' gibi) eslestiriliyor. Onceden override hic calismiyordu.
+    BUG-B FIX (Sprint 17): DEFAULT_PATHS'teki 'outputs/' prefix kaldirildi.
+        project_dir zaten output_dir oldugunda 'outputs/trained_models' ->
+        '/scratch/.../outputs/trained_models' yanlis yola gidiyordu.
     """
 
+    # BUG-B FIX: 'outputs/' prefix kaldirildi -- project_dir zaten output_dir'dir
     DEFAULT_PATHS = {
-        "pfaz2_summary": "outputs/trained_models/training_summary.xlsx",
-        "pfaz2_results_summary": "outputs/trained_models/training_results_summary.xlsx",
-        "pfaz2_robustness": "outputs/trained_models/robustness_summary.xlsx",
-        "pfaz3_summary": "outputs/anfis_models/anfis_training_results.xlsx",
-        "pfaz3_comparison": "outputs/anfis_models/anfis_vs_ai_comparison.xlsx",
-        "pfaz5_master": "outputs/cross_model_analysis/MASTER_CROSS_MODEL_REPORT.xlsx",
-        "pfaz6_thesis": "outputs/reports/THESIS_COMPLETE_RESULTS.xlsx",
-        "pfaz7_ensemble_report": "outputs/ensemble_results/evaluation/comprehensive_report.json",
-        "pfaz9_aaa2_mm": "outputs/aaa2_results/AAA2_Complete_MM.xlsx",
-        "pfaz9_aaa2_qm": "outputs/aaa2_results/AAA2_Complete_QM.xlsx",
-        "pfaz12_stats": "outputs/advanced_analytics/statistical_tests/pfaz12_statistical_tests.xlsx",
-        "pfaz12_bootstrap": "outputs/advanced_analytics/bootstrap_ci/bootstrap_ci_results.xlsx",
-        "pfaz12_ai_vs_anfis": "outputs/advanced_analytics/ai_vs_anfis/paired_test_results.xlsx",
-        "pfaz13_summary": "outputs/automl_results/automl_improvement_report.xlsx",
-        "pfaz13_trials": "outputs/automl_results/automl_trials_details.xlsx",
+        "pfaz2_summary":        "trained_models/training_summary.xlsx",
+        "pfaz2_results_summary":"trained_models/training_results_summary.xlsx",
+        "pfaz2_robustness":     "trained_models/robustness_summary.xlsx",
+        "pfaz3_summary":        "anfis_models/anfis_training_results.xlsx",
+        "pfaz3_comparison":     "anfis_models/anfis_vs_ai_comparison.xlsx",
+        "pfaz5_master":         "cross_model_analysis/MASTER_CROSS_MODEL_REPORT.xlsx",
+        "pfaz6_thesis":         "reports/THESIS_COMPLETE_RESULTS.xlsx",
+        "pfaz7_ensemble_report":"ensemble_results/evaluation/comprehensive_report.json",
+        "pfaz9_aaa2_mm":        "aaa2_results/AAA2_Complete_MM.xlsx",
+        "pfaz9_aaa2_qm":        "aaa2_results/AAA2_Complete_QM.xlsx",
+        "pfaz12_stats":         "advanced_analytics/statistical_tests/pfaz12_statistical_tests.xlsx",
+        "pfaz12_bootstrap":     "advanced_analytics/bootstrap_ci/bootstrap_ci_results.xlsx",
+        "pfaz12_ai_vs_anfis":   "advanced_analytics/ai_vs_anfis/paired_test_results.xlsx",
+        "pfaz13_summary":       "automl_results/automl_improvement_report.xlsx",
+        "pfaz13_trials":        "automl_results/automl_trials_details.xlsx",
+    }
+
+    # BUG-A FIX: integer pfaz_outputs key -> DEFAULT_PATHS string key eslestirmesi
+    _PFAZ_INT_TO_SUBDIR: dict[int, str] = {
+        2:  "trained_models",
+        3:  "anfis_models",
+        5:  "cross_model_analysis",
+        6:  "reports",
+        7:  "ensemble_results",
+        9:  "aaa2_results",
+        12: "advanced_analytics",
+        13: "automl_results",
     }
 
     def __init__(
@@ -63,11 +84,27 @@ class PFAZ10DataReader:
         pfaz_outputs: dict[str, str | Path] | None = None,
     ) -> None:
         self.project_dir = Path(project_dir)
-        overrides = pfaz_outputs or {}
-        self.paths: dict[str, Path] = {
-            key: Path(overrides.get(key, self.project_dir / default))
-            for key, default in self.DEFAULT_PATHS.items()
-        }
+        raw_overrides = pfaz_outputs or {}
+
+        # BUG-A FIX: integer key'leri (1,2,3...) subdir override'a donustur
+        # main.py {2: Path('/scratch/.../trained_models')} -> subdir_overrides['trained_models'] = Path(...)
+        subdir_overrides: dict[str, Path] = {}
+        for k, v in raw_overrides.items():
+            if isinstance(k, int) and k in self._PFAZ_INT_TO_SUBDIR:
+                subdir_overrides[self._PFAZ_INT_TO_SUBDIR[k]] = Path(v)
+
+        # DEFAULT_PATHS uzerinden gercek path'leri hesapla:
+        # Once DEFAULT_PATHS subdir'ini subdir_overrides'da ara, yoksa project_dir altinda bul
+        self.paths: dict[str, Path] = {}
+        for key, rel in self.DEFAULT_PATHS.items():
+            rel_path = Path(rel)
+            subdir = rel_path.parts[0]  # orn. 'trained_models'
+            if subdir in subdir_overrides:
+                # inject edilmis dizin kullan
+                self.paths[key] = subdir_overrides[subdir] / Path(*rel_path.parts[1:])
+            else:
+                self.paths[key] = self.project_dir / rel_path
+
         self._fallback_count = 0
         self._read_count = 0
 

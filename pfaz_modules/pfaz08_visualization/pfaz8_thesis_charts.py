@@ -128,9 +128,13 @@ class ThesisChartGenerator:
     # Data loading
     # ------------------------------------------------------------------
     def load_all_data(self):
-        project_root = self._project_root
-        reports = project_root / 'outputs' / 'reports'
-        aaa2_dir = project_root / 'outputs' / 'aaa2_results'
+        # BUG-E FIX (Sprint 17): project_root/'outputs'/... yanlistı.
+        # project_root kod diziniydi (/arf/home/.../hpcv1), ciktilar ise scratch'te.
+        # self.out = pfaz_outputs[8] = /arf/scratch/.../hpcv1_outputs/visualizations
+        # Bu yuzden parent'i (hpcv1_outputs) kullanmak dogru.
+        output_root = self.out.parent  # .../hpcv1_outputs
+        reports = output_root / 'reports'
+        aaa2_dir = output_root / 'aaa2_results'
 
         # THESIS Excel
         thesis_xl = reports / 'THESIS_COMPLETE_RESULTS.xlsx'

@@ -209,12 +209,18 @@ def setup_logging(
     # --- WarningTracker: WARNING/ERROR'ları JSON + Excel'e yaz ---
     try:
         from utils.warning_tracker import WarningTracker
+        # BUG-D FIX (Sprint 17): 'outputs/pipeline_warnings.json' relative path
+        # TRUBA'da --chdir scratch oldugundan cwd=/arf/scratch/.../hpcv1_outputs,
+        # bu dizinde 'outputs/' alt dizini yok -> FileNotFoundError.
+        # Cozum: OUTPUT_DIR env (job script'leri set eder) veya 'logs/' fallback.
+        _out = Path(os.environ.get('OUTPUT_DIR', 'logs'))
+        _out.mkdir(parents=True, exist_ok=True)
         _wt = WarningTracker(
-            json_path='outputs/pipeline_warnings.json',
-            excel_path='outputs/pipeline_warnings_report.xlsx',
+            json_path=str(_out / 'pipeline_warnings.json'),
+            excel_path=str(_out / 'pipeline_warnings_report.xlsx'),
         )
         _wt.attach(root)
-        logging.info("[LOG] WarningTracker aktif: outputs/pipeline_warnings.json")
+        logging.info(f"[LOG] WarningTracker aktif: {_out}/pipeline_warnings.json")
     except Exception as _wt_e:
         logging.warning(f"[LOG] WarningTracker başlatılamadı: {_wt_e}")
 
