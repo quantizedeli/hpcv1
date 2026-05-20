@@ -51,7 +51,17 @@ TARGET_COLORS = {'MM': '#1565C0', 'QM': '#2E7D32', 'Beta_2': '#E65100', 'MM_QM':
 TARGET_LABELS = {'MM': 'Manyetik Moment (MM)', 'QM': 'Kuadrupol Moment (QM)',
                  'Beta_2': 'Beta_2 Deformasyon', 'MM_QM': 'MM + QM (Birlesik)'}
 MODEL_COLORS = {'DNN': '#1565C0', 'RF': '#2E7D32', 'XGBoost': '#E65100',
-                'RandomForest': '#2E7D32', 'ANFIS': '#6A1B9A'}
+                'RandomForest': '#2E7D32', 'ANFIS': '#6A1B9A',
+                # Sprint 15 BUG-106: dinamik model listesi (gelecek modelleri kapsamak icin)
+                'LightGBM': '#FF6F00', 'CatBoost': '#7B1FA2', 'SVR': '#C62828'}
+
+def get_model_color(model_type: str, default: str = '#808080') -> str:
+    """Sprint 15 BUG-106: Bilinmeyen model tipi icin defansif renk lookup.
+
+    DNN/LightGBM/CatBoost/SVR Sprint 15'te aktif kapsamadan cikti ama eski
+    veride bulunabilir; yeni bir model tipi eklenirse renk varsayilana duser.
+    """
+    return MODEL_COLORS.get(model_type, default)
 
 # Feature code → readable description mapping
 FEATURE_MAP = {

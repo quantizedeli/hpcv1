@@ -614,10 +614,27 @@ class NuclearPhysicsAIOrchestrator:
             logger.info(f"[GPU] PFAZ2 gpu={_gpu_available}, workers={_n_workers}")
 
             _pfaz02_cfg = config  # BUG-14: helper zaten flat+nested birlestirdi
+
+            # Sprint 15 BUG-104: model_types whitelist config.json'dan oku (SSoT, KURAL 31)
+            # config.json -> pfaz02_ai_training.models = ["RF", "XGBoost"] -> sadece bu ikisi egitilir
+            # None ise eski davranis (tum mevcut modeller -- backward compatible)
+            # NOT: config anahtari 'models' (mevcut isim korundu, KURAL 31 SSoT)
+            _allowed_models = _pfaz02_cfg.get('models', None)
+            # Sprint 15: training_config_path config.json'dan, yoksa varsayilan 50
+            _train_cfg_filename = _pfaz02_cfg.get('training_config_path', 'training_configs_50.json')
+            _train_cfg_full = self.project_root / 'pfaz_modules' / 'pfaz02_ai_training' / _train_cfg_filename
+            # Sprint 15 KURAL 40: dataset whitelist (FS / scaling / scenario / anomaly)
+            # _discover_datasets dataset adini parse edip whitelist uygular.
+            # PFAZ1 tum kapsamı uretir (basit, refactor yok); PFAZ2 sadece istenenleri okur.
+            _allowed_fs       = _pfaz02_cfg.get('allowed_feature_sets', None)
+            _allowed_scalings = _pfaz02_cfg.get('allowed_scalings', None)
+            _allowed_scen     = _pfaz02_cfg.get('allowed_scenarios', None)
+            _allowed_anomaly  = _pfaz02_cfg.get('allowed_anomaly_modes', None)
+
             trainer = ParallelAITrainer(
                 datasets_dir=str(self.pfaz_outputs[1]),
                 models_dir=str(self.pfaz_outputs[2]),
-                training_config_path=str(self.project_root / 'pfaz_modules' / 'pfaz02_ai_training' / 'training_configs_50.json'),
+                training_config_path=str(_train_cfg_full),
                 gpu_enabled=_gpu_available,
                 n_workers=_n_workers,
                 use_hyperparameter_tuning=config.get('use_hyperparameter_tuning', False),
@@ -628,6 +645,11 @@ class NuclearPhysicsAIOrchestrator:
                 cv_folds=_pfaz02_cfg.get('cv_folds', 3),
                 cv_folds_large_n=_pfaz02_cfg.get('cv_folds_large_n', 5),
                 cv_large_n_threshold=_pfaz02_cfg.get('cv_large_n_threshold', 150),
+                allowed_model_types=_allowed_models,
+                allowed_feature_sets=_allowed_fs,
+                allowed_scalings=_allowed_scalings,
+                allowed_scenarios=_allowed_scen,
+                allowed_anomaly_modes=_allowed_anomaly,
             )
 
             self.status_manager.update_pfaz(pfaz_id, 'running', 50)

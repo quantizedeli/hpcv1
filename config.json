@@ -59,13 +59,9 @@
     "enabled": true,
     "models": [
       "RF",
-      "XGBoost",
-      "LightGBM",
-      "CatBoost",
-      "SVR",
-      "DNN"
+      "XGBoost"
     ],
-    "n_configurations": 50,
+    "n_configurations": 20,
     "r2_min_threshold": 0.5,
     "cv_r2_min_threshold": 0.0,
     "max_train_cv_gap": 0.6,
@@ -86,7 +82,35 @@
       "enabled": true,
       "device": "cuda:0"
     },
-    "_models_active_note": "BUG-92: Aktif modeller: RF, XGBoost, DNN (BayesianNN, PINN dahil). LightGBM/CatBoost/SVR egitime DAHIL DEGIL -- tez kapsaminda gerekli degil, TRUBA sure butcesi kisitli. catboost TRUBA modülünde kurulu degil. Eklemek icin: parallel_ai_trainer.py MODEL_CONFIGS icerigini guncelleyin."
+    "_models_active_note": "Sprint 15 (2026-05-20) BUG-104 fix: 6 modelden 2'ye (RF + XGBoost) inildi. Veri kaynagi: 61283 metrics dosyasi kalite haritasi. DNN ort test_R²=-0.020 (RF/XGB'nin yarisi, 105-200 ornek kucuk-veride asiri uyum). LightGBM/CatBoost/SVR memory niyetinde 'dahil degil' yaziyordu ama kod otomatik ekliyordu (KURAL 38 ihlali). Artik 'models' listesi tek kaynak (SSoT, KURAL 31). main.py: _pfaz02_cfg.get('models', None) -> ParallelAITrainer(allowed_model_types=...).",
+    "_n_configurations_note": "Sprint 15: 50 -> 20. Iyi 9 FS'de top-20 config (9 XGB + 11 RF) ortalama test_R²=0.226; tum 50 ortalama=0.221 -- 0.005 fark (anlamsiz). Top-20 config training_configs_20.json'da.",
+    "training_config_path": "training_configs_20.json",
+    "_training_config_path_note": "Sprint 15: training_configs_20.json (yeni). Onceki training_configs_50.json korundu (Sprint 12 BUG-78). Sprint 15 alt-kume = top RF/XGB 20 config. main.py bu yolu config.json'dan okur (varsayilan: training_configs_50.json).",
+    "allowed_feature_sets": [
+      "AZB2EMCS",
+      "AZSB2E",
+      "AZS",
+      "ZB2EMCS",
+      "AZSMC",
+      "AZSMCB2E",
+      "AZSMCBEPA",
+      "AZSBEPA",
+      "AZSNNNP"
+    ],
+    "_allowed_feature_sets_note": "Sprint 15 KURAL 40: 24 feature setinden 9 iyi (B2E ve/veya Spin iceren). Geri kalan 15 set test_R² > 0 uretemiyor (61283 metrics analizi). Cop setler 'yeniden uretilmiyor' -- mevcut metrics dosyalari feature ablation kaniti (KURAL 37).",
+    "allowed_scenarios": [
+      "S80"
+    ],
+    "_allowed_scenarios_note": "Sprint 15 Bulgu 6: QM/S70 ort -0.20 vs S80 +0.17. MM marjinal (S70 hafifce iyi). S70 elimine, sadece S80. PFAZ1 hala her ikisini uretir; PFAZ2 _discover_datasets filtreler.",
+    "allowed_anomaly_modes": [
+      "vanilla"
+    ],
+    "_allowed_anomaly_modes_note": "Sprint 15 Bulgu 5 (KARSI-SEZGISEL): vanilla 728 model >0.8, NoAnomaly 55 (13x fark). Anomali cikarmak nukleer veride performansi dusurur -- 'anomaliler' fiziksel sinyal (sihirli sayilar, deformasyon gecisleri). Tezde §3.7'de tartisilir.",
+    "allowed_scalings": [
+      "NoScaling"
+    ],
+    "_allowed_scalings_note": "Sprint 15: NoScaling 0.046, Standard -0.001, MinMax -0.043 ortalamalar. Marjinal fark, en iyi NoScaling. PFAZ1 3'unu de uretir, PFAZ2 filtreler.",
+    "_sprint15_summary": "Sprint 15 (2026-05-20) kapsam daraltma: 6 model -> 2 (RF+XGB); 50 config -> 20; 24 FS -> 9 iyi; senaryo S70+S80 -> S80; anomaly vanilla+NoAnomaly -> vanilla; scaling 3 -> NoScaling. Toplam is hacmi: ~360k -> ~1440 (250x azalma). Tahmini sure: 110 worker x 250s ort = ~1 saat. Detay: docs/thesis-toolkit/sprints/sprint-15-truba-kriz-ve-iyilestirme.md"
   },
   "pfaz03_anfis_training": {
     "enabled": true,

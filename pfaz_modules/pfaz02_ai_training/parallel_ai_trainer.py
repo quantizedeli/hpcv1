@@ -106,6 +106,45 @@ logger = logging.getLogger(__name__)
 # Minimum val_R2 to save a model .pkl (Poor: <0.5, Failed: <0 — not saved)
 R2_MIN_SAVE_THRESHOLD = 0.5
 
+
+def _save_rejection_checkpoint(out_dir, job_id, model_type, config_id,
+                                dataset_name, metrics, training_time,
+                                error_message):
+    """
+    Sprint 15 BUG-101 fix: Kalite filtresine takilan modeller icin checkpoint.
+
+    Resume mekanizmasinin (train_single_job basinda) reddedilen is'i tekrar
+    egitmemesi icin completed.json yazar. success=False saklanir; resume okudugu
+    zaman ayni success=False ile geri doner -- model egitim tekrari yok.
+
+    KURAL 35: Checkpoint felsefesi "basarili mi" degil "denendi mi". Reddedilen
+    kalite-filtre yolu deterministik (seed=42), tekrar etmek anlamsiz.
+
+    Cagrildigi yerler (4 yol, exception HARIC):
+      - 1346 [POOR]          val_R2 < R2_MIN_SAVE_THRESHOLD
+      - 1368 [DIVERGED]      DNN val_R2 < -2
+      - 1423 [DUAL cv RET]   cv_R2 < cv_r2_min_threshold
+      - 1438 [DUAL gap RET]  train-cv gap >= max_train_cv_gap
+
+    Exception yolu (1530) HALA checkpoint yazmaz -- geçici hata olabilir,
+    tekrar denensin (B kararı).
+    """
+    try:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        with open(out_dir / 'completed.json', 'w', encoding='utf-8') as _cpf:
+            json.dump({
+                'job_id': job_id,
+                'model_type': model_type,
+                'config_id': config_id,
+                'dataset_name': dataset_name,
+                'success': False,
+                'metrics': metrics,
+                'training_time': training_time,
+                'error_message': error_message,
+            }, _cpf, indent=2)
+    except Exception as _cpe:
+        logger.warning(f"[CHECKPOINT] Could not save rejection checkpoint: {_cpe}")
+
 # Import SeedTracker (after logging is configured)
 try:
     from .seed_tracker import SeedTracker
@@ -1041,7 +1080,12 @@ class ParallelAITrainer:
                  max_train_cv_gap: float = 0.6,
                  cv_folds: int = 3,
                  cv_folds_large_n: int = 5,
-                 cv_large_n_threshold: int = 150):
+                 cv_large_n_threshold: int = 150,
+                 allowed_model_types: list = None,
+                 allowed_feature_sets: list = None,
+                 allowed_scalings: list = None,
+                 allowed_scenarios: list = None,
+                 allowed_anomaly_modes: list = None):
         """
         Initialize Parallel AI Trainer
 
@@ -1087,6 +1131,17 @@ class ParallelAITrainer:
         self.use_hyperparameter_tuning = use_hyperparameter_tuning
         self.use_model_validation = use_model_validation
         self.use_advanced_models = use_advanced_models
+
+        # Sprint 15 BUG-104: model_types whitelist (config.json'dan gelir)
+        # None ise tum mevcut modeller (eski davranis, backward compatible)
+        # ['RF', 'XGBoost'] ise sadece bu ikisi (Sprint 15+ varsayilani config.json'da)
+        self.allowed_model_types = allowed_model_types  # None or list[str]
+        # Sprint 15 KURAL 40: dataset whitelist (config.json'dan)
+        # _discover_datasets dataset adi parse edip whitelist uygular
+        self.allowed_feature_sets = allowed_feature_sets   # None or list[str]
+        self.allowed_scalings = allowed_scalings           # None or list[str]
+        self.allowed_scenarios = allowed_scenarios         # None or list[str]
+        self.allowed_anomaly_modes = allowed_anomaly_modes  # None or list[str]
 
         # PARALLEL TRAINING MODE
         # If None, will prompt user in train_all_models_parallel()
@@ -1234,14 +1289,37 @@ class ParallelAITrainer:
                     continue
 
                 for config in configs:
+                    # Sprint 15 BUG-103: model_type x config prefix eslesmesi zorunlu
+                    # Onceki: 6 model_type x 50 config = 300 is/dataset, dizin tutarsizligi
+                    #   (SVR/RF_018, LightGBM/XGB_027 gibi yanlis kombinasyonlar)
+                    # Yeni: config['id'] prefix (RF_/XGB_/DNN_) model_type ile eslesirse
+                    _cfg_prefix = config['id'].split('_')[0]  # 'RF_001' -> 'RF'
+                    _mt_norm = {
+                        'RF': 'RF', 'RandomForest': 'RF',
+                        'XGB': 'XGB', 'XGBoost': 'XGB',
+                        'DNN': 'DNN',
+                        # LGB/CB/SVR config'leri yok (BUG-104 sonrasi config.json'dan elimine)
+                    }.get(model_type)
+                    if _mt_norm is None or _cfg_prefix != _mt_norm:
+                        # eslesmeyen kombinasyonu sessizce atla -- log spam'i onle
+                        continue
+
                     job_id = f"{dataset_path.name}_{model_type}_{config['id']}"
 
                     output_dir = self.output_dir / dataset_path.name / model_type / config['id']
 
                     # Resume: skip already-trained jobs (model file exists)
+                    # Sprint 15 BUG-101 enhancement: .pkl varsa skip; ayrica completed.json
+                    # yoksa burada olusturma yapmiyoruz (resume train_single_job icinde checkpoint okur)
                     model_filename = f"model_{model_type}_{config['id']}.pkl"
                     if (output_dir / model_filename).exists():
                         logger.info(f"[SKIP] Already trained: {job_id}")
+                        continue
+
+                    # Sprint 15 BUG-101: kalite-red checkpoint'i de skip et
+                    # (success=False ama "denendi" -- tekrar etmek anlamsiz, KURAL 35)
+                    if (output_dir / 'completed.json').exists():
+                        logger.info(f"[SKIP] Already attempted (rejection checkpoint): {job_id}")
                         continue
 
                     job = TrainingJob(
@@ -1338,6 +1416,11 @@ class ParallelAITrainer:
                 metrics_file = job.output_dir / f"metrics_{job.config['id']}.json"
                 with open(metrics_file, 'w', encoding='utf-8') as f:
                     json.dump(metrics, f, indent=2)
+                _err = f"DNN diverged: val_R2={metrics.get('val',{}).get('r2', 'N/A')}"
+                _save_rejection_checkpoint(
+                    job.output_dir, job.job_id, job.model_type, job.config['id'],
+                    job.dataset_name, metrics, time.time() - start_time, _err
+                )
                 return TrainingResult(
                     job_id=job.job_id,
                     model_type=job.model_type,
@@ -1346,7 +1429,7 @@ class ParallelAITrainer:
                     success=False,
                     metrics=metrics,
                     training_time=time.time() - start_time,
-                    error_message=f"DNN diverged: val_R2={metrics.get('val',{}).get('r2', 'N/A')}"
+                    error_message=_err
                 )
 
             # QUALITY FILTER: Skip saving model if val_R2 < 0.5 (Poor or Failed category)
@@ -1360,6 +1443,11 @@ class ParallelAITrainer:
                 metrics_file = job.output_dir / f"metrics_{job.config['id']}.json"
                 with open(metrics_file, 'w', encoding='utf-8') as f:
                     json.dump(metrics, f, indent=2)
+                _err = f"Poor/Failed: val_R2={_val_r2:.4f} < {R2_MIN_SAVE_THRESHOLD}"
+                _save_rejection_checkpoint(
+                    job.output_dir, job.job_id, job.model_type, job.config['id'],
+                    job.dataset_name, metrics, time.time() - start_time, _err
+                )
                 return TrainingResult(
                     job_id=job.job_id,
                     model_type=job.model_type,
@@ -1368,7 +1456,7 @@ class ParallelAITrainer:
                     success=False,
                     metrics=metrics,
                     training_time=time.time() - start_time,
-                    error_message=f"Poor/Failed: val_R2={_val_r2:.4f} < {R2_MIN_SAVE_THRESHOLD}"
+                    error_message=_err
                 )
 
             # ─── DUAL R2 FILTER (Sprint 1 — Shang 2022, Utama 2016) ──────────────
@@ -1417,12 +1505,17 @@ class ParallelAITrainer:
                 metrics_file = job.output_dir / f"metrics_{job.config['id']}.json"
                 with open(metrics_file, 'w', encoding='utf-8') as f:
                     json.dump(metrics, f, indent=2)
+                _err = f"Dual R2 filter: cv_R2={_cv_str} < {self.cv_r2_min_threshold}"
+                _save_rejection_checkpoint(
+                    job.output_dir, job.job_id, job.model_type, job.config['id'],
+                    job.dataset_name, metrics, time.time() - start_time, _err
+                )
                 return TrainingResult(
                     job_id=job.job_id, model_type=job.model_type,
                     config_id=job.config['id'], dataset_name=job.dataset_name,
                     success=False, metrics=metrics,
                     training_time=time.time() - start_time,
-                    error_message=f"Dual R2 filter: cv_R2={_cv_str} < {self.cv_r2_min_threshold}"
+                    error_message=_err
                 )
             if not _gap_pass:
                 logger.warning(
@@ -1432,12 +1525,17 @@ class ParallelAITrainer:
                 metrics_file = job.output_dir / f"metrics_{job.config['id']}.json"
                 with open(metrics_file, 'w', encoding='utf-8') as f:
                     json.dump(metrics, f, indent=2)
+                _err = f"Dual R2 filter: gap={_gap_str} >= {self.max_train_cv_gap}"
+                _save_rejection_checkpoint(
+                    job.output_dir, job.job_id, job.model_type, job.config['id'],
+                    job.dataset_name, metrics, time.time() - start_time, _err
+                )
                 return TrainingResult(
                     job_id=job.job_id, model_type=job.model_type,
                     config_id=job.config['id'], dataset_name=job.dataset_name,
                     success=False, metrics=metrics,
                     training_time=time.time() - start_time,
-                    error_message=f"Dual R2 filter: gap={_gap_str} >= {self.max_train_cv_gap}"
+                    error_message=_err
                 )
             # ─────────────────────────────────────────────────────────────────────
 
@@ -1870,6 +1968,17 @@ class ParallelAITrainer:
         elif TF_AVAILABLE and not self.use_advanced_models:
             logger.info("DNN available (TF installed) but disabled (use_advanced_models=False)")
 
+        # Sprint 15 BUG-104: config.json'dan gelen whitelist uygula
+        # Memory niyet vs kod davranis uyumsuzlugunun (KURAL 38) cozumu.
+        # config.json -> pfaz02.model_types: ["RF", "XGBoost"] -> sadece RF+XGB egitilir.
+        if self.allowed_model_types is not None:
+            _before = list(model_types)
+            model_types = [m for m in model_types if m in self.allowed_model_types]
+            _dropped = [m for m in _before if m not in model_types]
+            if _dropped:
+                logger.info(f"[BUG-104 fix] Whitelist filtered model types: dropped {_dropped}")
+            logger.info(f"[BUG-104 fix] Active model types (from config.json): {model_types}")
+
         logger.info(f"Model types: {model_types}")
 
         # Step 4: Create training jobs
@@ -1957,11 +2066,22 @@ class ParallelAITrainer:
 
         Returns:
             List of dataset directory paths
+
+        Sprint 15 (KURAL 40): self.allowed_feature_sets None degilse, sadece
+        dataset_name'inde whitelist'ten bir feature set bulunan dizinleri donur.
+        Dataset adi formati: TGT_SIZE_Sxx_FS_SCALING_SAMPLING[_NoAnomaly]
         """
         dataset_paths = []
 
         # Directories to exclude (not datasets, but metadata/reports)
         excluded_dirs = {'quality_reports', 'metadata', 'reports', 'logs', '__pycache__', '.git'}
+
+        # Sprint 15 BUG-104 ek: feature set whitelist (config.json'dan)
+        _fs_whitelist = getattr(self, 'allowed_feature_sets', None)
+        _scaling_whitelist = getattr(self, 'allowed_scalings', None)
+        _scenario_whitelist = getattr(self, 'allowed_scenarios', None)
+        _anomaly_whitelist = getattr(self, 'allowed_anomaly_modes', None)
+        _skipped_filter = 0
 
         # Look for subdirectories that contain data files
         for subdir in datasets_dir.iterdir():
@@ -1978,9 +2098,35 @@ class ParallelAITrainer:
                     list(subdir.glob('*.tsv'))
                 )
 
-                if has_data:
-                    dataset_paths.append(subdir)
-                    logger.info(f"  Found dataset: {subdir.name}")
+                if not has_data:
+                    continue
+
+                # Sprint 15 KURAL 40: dataset adi parse + whitelist filtre
+                # TGT_SIZE_Sxx_FS_SCALING_SAMPLING[_NoAnomaly]
+                _parts = subdir.name.split('_')
+                if len(_parts) >= 6:
+                    _scenario = _parts[2]      # S70 / S80
+                    _fs       = _parts[3]      # AZB2EMCS vb
+                    _scaling  = _parts[4]      # NoScaling / Standard / MinMax
+                    _anomaly  = 'NoAnomaly' if 'NoAnomaly' in subdir.name else 'vanilla'
+                    if _fs_whitelist is not None and _fs not in _fs_whitelist:
+                        _skipped_filter += 1
+                        continue
+                    if _scaling_whitelist is not None and _scaling not in _scaling_whitelist:
+                        _skipped_filter += 1
+                        continue
+                    if _scenario_whitelist is not None and _scenario not in _scenario_whitelist:
+                        _skipped_filter += 1
+                        continue
+                    if _anomaly_whitelist is not None and _anomaly not in _anomaly_whitelist:
+                        _skipped_filter += 1
+                        continue
+
+                dataset_paths.append(subdir)
+                logger.info(f"  Found dataset: {subdir.name}")
+
+        if _skipped_filter > 0:
+            logger.info(f"[Sprint 15 KURAL 40] Filtered {_skipped_filter} datasets by whitelist (FS/scaling/scenario/anomaly)")
 
         if not dataset_paths:
             logger.warning(f"No datasets found in {datasets_dir}")

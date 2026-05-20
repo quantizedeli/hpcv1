@@ -1,0 +1,165 @@
+{
+  "_meta": {
+    "description": "Sprint 15 (2026-05-20) top-20 RF/XGBoost konfigurasyonu",
+    "source": "training_configs_50.json -- alt-kume",
+    "sprint": "Sprint 15",
+    "selection_basis": "TRUBA Job-5779758 (2026-05-15) kalite haritasi (61283 metrics dosyasi). Iyi 9 feature setinde test_R² siralamasi sonucu. Top-20 ort=0.226, genel ort=0.221 -- 0.005 fark (anlamsiz, KURAL 40).",
+    "composition": "9 XGBoost + 11 RandomForest config (DNN cikarildi -- BUG-104, KURAL 38)",
+    "generated_at": "2026-05-20",
+    "parent_meta": {
+      "description": "PFAZ2 default training configurations (deterministic)",
+      "source": "pfaz_modules/pfaz02_ai_training/parallel_ai_trainer.py:_create_default_configs",
+      "sprint": "Sprint 11 (BUG-77)",
+      "date": "2026-05-13",
+      "note": "Tez deterministikligi -- kod ile birebir ayni.",
+      "totals": {
+        "RF": 20,
+        "XGB": 15,
+        "DNN": 15,
+        "all": 50
+      }
+    }
+  },
+  "configs": [
+    {
+      "id": "XGB_021",
+      "model_type": "XGBoost",
+      "n_estimators": 50,
+      "learning_rate": 0.1,
+      "max_depth": 3
+    },
+    {
+      "id": "XGB_022",
+      "model_type": "XGBoost",
+      "n_estimators": 50,
+      "learning_rate": 0.1,
+      "max_depth": 6
+    },
+    {
+      "id": "XGB_025",
+      "model_type": "XGBoost",
+      "n_estimators": 100,
+      "learning_rate": 0.1,
+      "max_depth": 3
+    },
+    {
+      "id": "XGB_029",
+      "model_type": "XGBoost",
+      "n_estimators": 200,
+      "learning_rate": 0.05,
+      "max_depth": 5
+    },
+    {
+      "id": "XGB_026",
+      "model_type": "XGBoost",
+      "n_estimators": 100,
+      "learning_rate": 0.1,
+      "max_depth": 6
+    },
+    {
+      "id": "XGB_028",
+      "model_type": "XGBoost",
+      "n_estimators": 100,
+      "learning_rate": 0.3,
+      "max_depth": 6
+    },
+    {
+      "id": "XGB_030",
+      "model_type": "XGBoost",
+      "n_estimators": 200,
+      "learning_rate": 0.1,
+      "max_depth": 5
+    },
+    {
+      "id": "XGB_024",
+      "model_type": "XGBoost",
+      "n_estimators": 50,
+      "learning_rate": 0.3,
+      "max_depth": 6
+    },
+    {
+      "id": "XGB_033",
+      "model_type": "XGBoost",
+      "n_estimators": 150,
+      "learning_rate": 0.2,
+      "max_depth": 6
+    },
+    {
+      "id": "RF_008",
+      "model_type": "RF",
+      "n_estimators": 100,
+      "max_depth": null,
+      "min_samples_split": 2
+    },
+    {
+      "id": "RF_001",
+      "model_type": "RF",
+      "n_estimators": 50,
+      "max_depth": 5,
+      "min_samples_split": 2
+    },
+    {
+      "id": "RF_004",
+      "model_type": "RF",
+      "n_estimators": 50,
+      "max_depth": null,
+      "min_samples_split": 2
+    },
+    {
+      "id": "RF_005",
+      "model_type": "RF",
+      "n_estimators": 100,
+      "max_depth": 5,
+      "min_samples_split": 2
+    },
+    {
+      "id": "RF_012",
+      "model_type": "RF",
+      "n_estimators": 200,
+      "max_depth": null,
+      "min_samples_split": 2
+    },
+    {
+      "id": "RF_013",
+      "model_type": "RF",
+      "n_estimators": 100,
+      "max_depth": 10,
+      "min_samples_split": 5
+    },
+    {
+      "id": "RF_009",
+      "model_type": "RF",
+      "n_estimators": 200,
+      "max_depth": 5,
+      "min_samples_split": 2
+    },
+    {
+      "id": "RF_015",
+      "model_type": "RF",
+      "n_estimators": 200,
+      "max_depth": 15,
+      "min_samples_split": 5
+    },
+    {
+      "id": "RF_010",
+      "model_type": "RF",
+      "n_estimators": 200,
+      "max_depth": 10,
+      "min_samples_split": 2
+    },
+    {
+      "id": "RF_017",
+      "model_type": "RF",
+      "n_estimators": 150,
+      "max_depth": 8,
+      "min_samples_split": 3
+    },
+    {
+      "id": "RF_019",
+      "model_type": "RF",
+      "n_estimators": 300,
+      "max_depth": 10,
+      "min_samples_split": 2
+    }
+  ]
+}
