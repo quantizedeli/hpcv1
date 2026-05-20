@@ -14,8 +14,8 @@
 | Durum (2026-05-03) | running 50% (aktif hesap devam ediyor) |
 | Giris | PFAZ 01 ciktisi: train.csv / val.csv / test.csv |
 | Cikti | `outputs/trained_models/{dataset}/{model}/{config}/` |
-| Aktif Modeller | RF, XGBoost, LightGBM, CatBoost, SVR, DNN |
-| Resmi Konfig | 50 (20 RF + 15 XGB + 15 DNN) + 3 varsayilan |
+| Aktif Modeller | **RF, XGBoost** (Sprint 15 sonrasi -- LGB/CB/SVR/DNN cikarildi: BUG-104, KURAL 38) |
+| Resmi Konfig | **20** (top RF/XGB) -- Sprint 15 oncesi 50 (cikti taramasi sonucu 30 cop config) |
 | CV Stratejisi | 5-fold (CrossValidationAnalyzer) |
 | Paralel | ThreadPoolExecutor |
 | Seed | 42 sabit (parallel_ai_trainer.py:1363) |
@@ -534,3 +534,79 @@ Tez metni icin §4.4 Saglamlik Analizi:
 
 *PFAZ 02 Belgesi v3.0 | Son Guncelleme: 2026-05-14*
 *Kaynak: parallel_ai_trainer.py (2094 satir) + training_configs_50.json*
+
+---
+
+## 12. Sprint 15 Guncellemesi (2026-05-20) -- Kriz Sonrasi Yeniden Yapilandirma
+
+### 12.1 Aktif Model Listesi: 6 -> 2 (RF + XGBoost)
+
+**Onceki:** RF, XGBoost, LightGBM, CatBoost, SVR, DNN (kutuphane kuruluysa otomatik dahil).
+**Sonra:** Sadece RF + XGBoost.
+
+**Gerekce (BUG-104, KURAL 38):**
+- Kod LightGBM/CatBoost/SVR'i `if X_AVAILABLE:` ile otomatik ekliyordu -- niyet vs davranis uyumsuzlugu
+- TRUBA kalite haritasi (61283 model): DNN ort test_R² -0.020 (RF/XGB'nin yarisi), >0.8 sayisi 143
+- LGB/CB/SVR koşulmus ama dizin yapisi BUG-103 ile tutarsiz (`SVR/RF_018/...`) -- guvenilir veri yok
+- 105-200 ornek kucuk-veride agac modelleri (RF/XGB) literatur uyumlu en iyi secim (Grinsztajn 2022)
+
+**Fix:** `config.json` -> `pfaz02.model_types = ["RF", "XGBoost"]`. Kod buradan okur (SSoT, KURAL 31).
+
+### 12.2 Config Sayisi: 50 -> 20
+
+Iyi 9 feature setinde 50 config taramasinda en iyi 20 config = 9 XGB + 11 RF (DNN'ler altta). Top-20 ort 0.226 ile genel ort 0.221 farki **0.005** -- istatistiksel olarak anlamsiz. Geriye kalan 30 config silinmiyor, sadece bu kosuda kullanilmiyor.
+
+**Yeni dosya:** `training_configs_20.json` -- top 20 config (Sprint 11 BUG-78 ile tum config'ler `training_configs_50.json`'da; Sprint 15 alt-kume olusturuyor).
+
+### 12.3 BUG-101 Resume Fix
+
+`train_single_job` 5 erken-cikis yolundan 4'u (DIVERGED, POOR, dual cv RET, dual gap RET) `.pkl` ve `completed.json` yazmiyordu. Reddedilen ~54000 model her resume tekrar egitiliyordu. Yeni `_save_checkpoint()` helper'i eklendi; basari **ve** kalite-red yolu checkpoint yaziyor. Exception yolu (geçici hata) checkpoint yazmaz (B kararı, KURAL 35).
+
+```python
+# YENI: kalite filtresine takilan modeller icin checkpoint
+def _save_checkpoint(out_dir, job_id, model_type, config_id, dataset_name,
+                     success, metrics, training_time, error_message=None):
+    """Resume'un is'i tekrar denememesi icin. Basarisiz da olsa 'denendi' demek."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    with open(out_dir / 'completed.json', 'w', encoding='utf-8') as f:
+        json.dump({...}, f, indent=2)
+```
+
+Cagri 4 noktada: satir 1346 (POOR), 1368 (DIVERGED), 1423 (dual cv RET), 1438 (dual gap RET).
+
+### 12.4 BUG-103 model_type x config Cikti Tutarsizligi
+
+`create_training_jobs` 6 model_type × 50 config = 300 is/dataset uretiyordu. config_id prefix'i (RF_/XGB_/DNN_) ile model_type eslesmiyordu -> `SVR/RF_018/` tarzi cikti.
+
+**Fix:** Job uretimi sirasinda prefix kontrolu zorunlu kilindi.
+
+### 12.5 Yeni Kapsam (PFAZ1'den geliyor)
+
+Sprint 15 kapsami (config.json -> pfaz01):
+- **Feature setleri:** 9 iyi (AZB2EMCS, AZSB2E, AZS, ZB2EMCS, AZSMC, AZSMCB2E, AZSMCBEPA, AZSBEPA, AZSNNNP)
+- **Senaryo:** Sadece S80
+- **Anomaly modu:** Sadece vanilla
+- **Boyut:** 150 + ALL
+- **Sampling:** Random + Stratified
+- **Scaling:** Sadece NoScaling
+
+**Toplam dataset:** 36 (1468 -> 36, 40× azalma)
+**Toplam AI is:** 36 × 2 model × 20 config = **1440 is** (250× azalma)
+**Tahmini sure:** 110 worker × 250s ort = **~1 saat**
+
+### 12.6 KURAL Guncellemeleri (Sprint 15)
+
+| Kural | Icerik | PFAZ 02 Etkisi |
+|-------|--------|----------------|
+| KURAL 34 | Kriz aninda once teshis | TRUBA timeout'ta acil kalite haritasi |
+| KURAL 35 | Checkpoint felsefesi (denendi mi, basarili mi degil) | BUG-101 fix temeli |
+| KURAL 36 | AI/ANFIS feature seti ayrimi | DNN cikarildi, ANFIS ayri kapsamla |
+| KURAL 37 | Negatif sonuc tez katkisi | Cop 15 FS feature ablation kaniti |
+| KURAL 38 | Memory niyet != kod davranisi | BUG-104 keşfi |
+| KURAL 39 | Inter-PFAZ tarama | PFAZ8 BUG-106 tespiti |
+| KURAL 40 | Veri-bazli kucultme | Bu sprintin temel ilkesi |
+
+---
+
+*PFAZ 02 Belgesi v4.0 | Son Guncelleme: 2026-05-20 (Sprint 15)*
+*Sprint 15 ekleri: BUG-101/103/104 fix, model listesi RF+XGB, config 20, KURAL 34-40*

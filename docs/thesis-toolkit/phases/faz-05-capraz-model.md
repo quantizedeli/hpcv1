@@ -693,3 +693,13 @@ Sibling-path fallback hala devrede.
 ---
 
 *PFAZ 05 Belgesi v2.0 | Son Guncelleme: 2026-05-14*
+
+---
+
+## Sprint 15 Notu (2026-05-20)
+
+**BUG-105 [DEAD_CODE]:** `faz5_complete_cross_model.py` orphan modul. `self.ai_models = ['RandomForest', 'GradientBoosting', 'XGBoost', 'DNN', 'BNN', 'PINN']` listesi ve `ai_dir / model_name / target_predictions.csv` eski API yolu. Dosya hicbir yerde import edilmiyor. **DEAD_CODE_NOTE** header eklendi (BUG-98/99 patterni). Gercek PFAZ5 `faz5_cross_model_analysis.py` uzerinden calisiyor.
+
+**Sprint 15 kapsam etkisi:** PFAZ5 dinamik (`Model_Type.unique()`) -- DNN'in Sprint 15'te cikarilmasi otomatik adapte olur, ek değişiklik gerek yok.
+
+*PFAZ 05 Belgesi v2.1 | Son Guncelleme: 2026-05-20 (Sprint 15 BUG-105 notu)*

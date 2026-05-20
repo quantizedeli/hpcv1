@@ -2759,3 +2759,188 @@ main.py:991 `reporter.pfaz9_output_dir = str(self.pfaz_outputs[9])` aktariyor --
 ---
 
 *Sprint 13 raporu | Codex audit + Tez plani (BUG-85..99) | 15 fix/not | 2026-05-14*
+
+---
+
+# Sprint 15 -- TRUBA Kriz Yonetimi (BUG-101..110)
+
+**Tarih:** 2026-05-19/20
+**Baglam:** TRUBA Job2 2x timeout sonrasi tam denetim. 61283 metrics dosyasi + kalite haritasi analizi sonrasi 10 yeni bug tespit edildi. Numara atlamasi: BUG-100 memory'de rezerve, cakisma riski icin BUG-101'den baslandi (KURAL 6).
+
+### BUG-101 [KRITIK] PFAZ2 Resume: Kalite Filtresine Takilan Modeller Checkpoint Yazmiyor
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `pfaz_modules/pfaz02_ai_training/parallel_ai_trainer.py` |
+| Satirlar | 1346, 1368, 1423, 1438 (4 success=False return + 1530 exception) |
+| Sprint | Sprint 15 |
+| Durum | **DUZELTILDI 2026-05-20** |
+
+**Sorun:** `train_single_job` icinde model bir kalite filtresinden gecemezse (DIVERGED, val_R2<0.5 POOR, dual-R2 cv RET, dual-R2 gap RET) sadece `metrics_*.json` yazip donuyor; `.pkl` DE `completed.json` DE yazmiyor. Resume mekanizmasi (1242 + 1281. satir) yalniz `.pkl`/`completed.json` arar. Sonuc: reddedilen her model her resume'da sifirdan tekrar egitilir.
+
+**Kanit:** TRUBA Job2 5779758: METRICS=61283, PKL=6615, COMPLETED.json=5731. Yaklasik 54668 model reddedilip checkpoint yazmamis. Job2 iki kere timeout oldu; aynı 54668 model her seferinde tekrar egitildi.
+
+**Fix:** `_save_checkpoint(out_dir, ...)` helper eklendi; 4 kalite-red return yoluna cagri kondu. Exception yolu (1530) checkpoint yazmaz -- geçici hata olabilir, tekrar denensin (B kararı).
+
+**Tezsel etki:** Resume davranisi belgeli olarak tutarli. Tez §3.5'te "deterministik kalite filtresi + checkpoint" akisi anlatilir.
+
+---
+
+### BUG-102 [KRITIK] ANFIS Resume Ayni Pattern -- Reddedilen Modeller Checkpoint Yazmiyor
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `pfaz_modules/pfaz03_anfis_training/anfis_parallel_trainer_v2.py` |
+| Satirlar | 858, 871 (success=False return) + 1263, 1292 (resume check) |
+| Sprint | Sprint 15 |
+| Durum | **DUZELTILDI 2026-05-20** |
+
+**Sorun:** BUG-101 ile birebir ayni pattern. ANFIS reddedilen modeller `.pkl` yazmiyor. ANFIS henuz TRUBA'da basariyla calismadi (PFAZ2 timeout zincirinde bekledi), bu yuzden gercek etki gozlemlenmedi -- ama calistirildiginda BUG-101 ile ayni patlamayi yapacakti.
+
+**Fix:** Ayni `_save_checkpoint` pattern'i ANFIS trainer'da uygulandi.
+
+---
+
+### BUG-103 [YUKSEK] Model Tipi x Config Caprazi -- Dizin Yapisi Tutarsiz
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `pfaz_modules/pfaz02_ai_training/parallel_ai_trainer.py:create_training_jobs` |
+| Sprint | Sprint 15 |
+| Durum | **DUZELTILDI 2026-05-20** |
+
+**Sorun:** `train_all_models_parallel` `model_types` listesini (RF/XGB/LGB/CB/SVR/DNN) tum 50 config ile capraz cogaltiyor. Sonuc: `trained_models/<dataset>/SVR/RF_018/metrics_RF_018.json` gibi tutarsiz dizinler -- klasor "SVR", config "RF_018". Is hacmi beklenenin 6 kati: 6 model tipi x 50 config = 300 is/dataset.
+
+**Kanit:** TRUBA cikti dizininde gercek ornek:
+```
+QM_150_S70_AZNNP_MinMax_Stratified/SVR/RF_018/metrics_RF_018.json
+MM_150_S80_AZSBEPA_MinMax_Stratified_NoAnomaly/LightGBM/XGB_027/metrics_XGB_027.json
+```
+
+**Fix:** `create_training_jobs` icinde config['id'] prefix'i (`RF_`, `XGB_`, `DNN_`) ile `model_type` eslesmesi zorunlu kilindi. Eslesme yoksa is olusturulmuyor.
+
+---
+
+### BUG-104 [YUKSEK] model_types Listesi config.json'dan Okunmiyor -- LightGBM/CatBoost/SVR Otomatik Dahil
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `pfaz_modules/pfaz02_ai_training/parallel_ai_trainer.py:1857-1867` |
+| Sprint | Sprint 15 |
+| Durum | **DUZELTILDI 2026-05-20** |
+
+**Sorun:** Kod su sekilde model tipi ekliyor:
+```python
+model_types = ['RF']
+if XGBOOST_AVAILABLE:   model_types.append('XGBoost')
+if LIGHTGBM_AVAILABLE:  model_types.append('LightGBM')
+if CATBOOST_AVAILABLE:  model_types.append('CatBoost')
+model_types.append('SVR')  # her zaman
+if TF_AVAILABLE and self.use_advanced_models:
+    model_types.append('DNN')
+```
+TRUBA'da bu kutuphaneler kuruluysa otomatik egitiliyorlar. Memory'de "BUG-92: LightGBM/CatBoost/SVR egitime DAHIL DEGIL" notu vardi -- bu sadece KULLANICI NIYETIYDI, kod hala bunlari ekliyordu. KURAL 31 (SSoT) ihlali: config.json model listesi vs kod davranisi farkli.
+
+**Fix:** `config.json`'a `pfaz02.model_types` listesi eklendi; kod once config'i okuyor, kutuphane kuruluysa ve config'te listeleniyorsa modeli ekliyor. Config tek kaynak (SSoT).
+
+**KURAL 38 dogdu:** "Memory'deki niyet != kod davranisi" -- BUG-104'un birebir ders kaynagi.
+
+---
+
+### BUG-105 [ORTA] PFAZ5 `faz5_complete_cross_model.py` -- Ölü Kod (Eski API)
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `pfaz_modules/pfaz05_cross_model/faz5_complete_cross_model.py:432` |
+| Sprint | Sprint 15 |
+| Durum | **DEAD_CODE_NOTE EKLENDI 2026-05-20** |
+
+**Sorun:** Bu modul `self.ai_models = ['RandomForest', 'GradientBoosting', 'XGBoost', 'DNN', 'BNN', 'PINN']` listesi ve `ai_dir / model_name / target_predictions.csv` yolu ariyor -- bu eski API. Gercek PFAZ2 cikti yapisi `trained_models/<dataset>/<model_type>/<config_id>/`. Modul caligmaz, hicbir yerde import edilmiyor.
+
+**Karar:** AKTIVE EDILMEDI. Gercek PFAZ5 `faz5_cross_model_analysis.py` uzerinden calisiyor. Dosya basina DEAD_CODE_NOTE eklendi (BUG-98/99 patterni).
+
+---
+
+### BUG-106 [ORTA] PFAZ8 Visualization Hardcoded Model Listeleri
+
+| Alan | Deger |
+|------|-------|
+| Dosyalar | `pfaz_modules/pfaz08_visualization/visualization_system.py:222,251`, `model_comparison_dashboard.py:667`, `pfaz8_thesis_charts.py:53` (MODEL_COLORS), `visualization_master_system.py:1585,1698,1768,2212,2930,2999,3043` |
+| Sprint | Sprint 15 |
+| Durum | **DUZELTILDI 2026-05-20** |
+
+**Sorun:** Hardcoded `models = ['XGBoost', 'RF', 'GBM', 'DNN', 'ANFIS-M1', 'ANFIS-M2']` veya `colors = {'RF': '#2196F3', 'XGBoost': '#4CAF50', 'DNN': '#FF9800'}` Sprint 15'te DNN cikarilinca bazi gorseller bos DNN sutunu/bar gosteriyor (crash yok ama kalite dusuk).
+
+**Fix:** `models = sorted(df['Model_Type'].unique())` ve `colors = generate_colors(model_list)` -- veri dinamik okunuyor. MODEL_COLORS dict'i `.get(model, default)` ile defansif olusturuluyor.
+
+---
+
+### BUG-107 [DUSUK] Slurm Sure Limiti Tutarsiz (Belge vs Script)
+
+| Alan | Deger |
+|------|-------|
+| Dosyalar | `truba/slurm_jobs/job2_pfaz02_03.sh`, `docs/thesis-toolkit/sprints/sprint-13-final.md`, memory |
+| Sprint | Sprint 15 |
+| Durum | **DUZELTILDI 2026-05-20** |
+
+**Sorun:** Memory'de "job2 3 gun" notu vardi, scriptte `--time=1-00:00:00` (1 gun). Tutarsizlik. Sprint 15 sonrasi is hacmi 360k->36k'ya dustugu icin 1 gun fazlasiyla yetiyor; ancak belge senkronizasyonu zorunlu.
+
+**Fix:** Belgelerde "Job2 sure: 1 gun (Sprint 15 sonrasi ~1 saat gercek)" yazildi; scriptte degisiklik yok.
+
+---
+
+### BUG-108 [YUKSEK] PFAZ9 Monte Carlo ANFIS Yolu Yanlis -- Hicbir ANFIS Modeli Yuklenemiyor
+
+| Alan | Deger |
+|------|-------|
+| Dosya | `pfaz_modules/pfaz09_aaa2_monte_carlo/monte_carlo_simulation_system.py:684` |
+| Sprint | Sprint 15 |
+| Durum | **DUZELTILDI 2026-05-20** |
+
+**Sorun:** Kod su yolu ariyor:
+```python
+model_path = self.models_dir / 'ANFIS' / model_id / 'model.mat'
+```
+Gercek ANFIS kayit yapisi (KURAL 32 ile dogrulandi):
+- Dizin: `trained_anfis_models/<dataset>/<config_id>/`
+- Dosyalar: `model_{cfg_id}.pkl` (joblib), `{name}_workspace.mat`, `{name}_fis.mat`, `metrics_{cfg_id}.json`
+
+`model.mat` diye bir dosya UCRETLI YOK. PFAZ9 ANFIS Monte Carlo simulasyonu calismiyor. ANFIS hicbir zaman tam calismadigi icin (PFAZ2 timeout) fark edilmemis.
+
+**Fix:** Yol PFAZ4 ile ayni pattern'e cevrildi:
+```python
+model_path = self.anfis_models_dir / dataset_name / config_id / f'model_{config_id}.pkl'
+model = joblib.load(model_path)
+```
+
+---
+
+### BUG-109 [DUSUK -- ERTELENDI Sprint 17] PFAZ2/3 -> PFAZ12 Ters Bagimliik
+
+| Alan | Deger |
+|------|-------|
+| Dosyalar | `parallel_ai_trainer.py`, `anfis_parallel_trainer_v2.py` -> `from pfaz_modules.pfaz12_advanced_analytics.nuclear_pattern_analyzer` |
+| Sprint | Sprint 15 (tespit) / **Sprint 17 (fix)** |
+| Durum | **BELGELENDI** |
+
+**Sorun:** Alt-faz (PFAZ2/3) ust-faza (PFAZ12) bagimli. Memory'deki "BUG-65/66/74 pattern" ile ayni mimari risk. Calisir (lazy import) ama mimari kirgın.
+
+**Karar:** Sprint 15 kapsaminda fix yapilmiyor (kullanici onayli). Sprint 17'ye ertelendi. Once 22 Mayis tezi teslimi, sonra mimari temizlik.
+
+---
+
+### BUG-110 [DUSUK -- ERTELENDI Sprint 17] PFAZ6 <-> PFAZ12 Soft Circular Import
+
+| Alan | Deger |
+|------|-------|
+| Dosyalar | `pfaz06_final_reporting/pfaz6_final_reporting.py:1833` (lazy) -> `pfaz12.bootstrap_confidence_intervals`; `pfaz12_advanced_analytics/nuclear_band_analyzer.py:60` (modul-ust) -> `pfaz06.excel_standardizer` |
+| Sprint | Sprint 15 (tespit) / **Sprint 17 (fix)** |
+| Durum | **BELGELENDI** |
+
+**Sorun:** Soft circular. Lazy import sayesinde patlamiyor. Cozum: `ExcelStandardizer`'i `utils/` altina tasimak (her iki PFAZ ondan import etsin).
+
+**Karar:** Sprint 17'ye ertelendi.
+
+---
+
+*Sprint 15 raporu | TRUBA kriz yonetimi (BUG-101..110) | 8 fix + 2 ertelendi | 2026-05-20*

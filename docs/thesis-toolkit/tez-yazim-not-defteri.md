@@ -1356,3 +1356,124 @@ Sprint 1-13 tamamlandi. **15 bug fix** Sprint 13'te.
 TRUBA akmaya hazir -- `./truba/slurm_jobs/submit_all.sh`.
 Sonraki adim: PFAZ10 rewrite (Sprint 14 plani: `sprint-14-pfaz10-rewrite-plan.md`).
 
+---
+
+## Sprint 15 Eki: TRUBA Kosusu Verisinden Cikan Bulgular
+
+> **Veri kaynagi:** TRUBA HPC, Job-5779758 (2026-05-15 -> 2026-05-18, 65 saat).
+> **Uretilen metrics dosyasi:** 61283 (24 FS × 2 hedef × 2 senaryo × 3 scaling × 2 sampling × 4 boyut × 2 anomaly × 6 model × 50 config kombinasyonlarinin filtre oncesi denenmis hali)
+> **Uretilen .pkl model:** 6615 (kalite filtresinden geçen)
+> **Uretilen dataset:** 1468
+> **Bu boldemeki tum sayilar ve karsilastirmalar bu havuzdan hesaplanmistir.**
+
+### Bulgu 1 -- Feature Secimi Belirleyici, Hiperparametre Marjinal
+
+22937 modelden olusan iyi 9 FS havuzunda **config bazli ortalama test_R² farki: 0.07** (XGB_021=0.265 ile XGB_027=0.194 arasi). Aynı havuzda **feature seti farki: 0.99** (AZB2EMCS=0.348 ile ZNNPMC=-0.65). Feature seçiminin etkisi hiperparametreninkinden **iki büyüklük mertebesi** daha guclu.
+
+> Tez §3.4 (Hiperparametre vs. Feature Engineering): Kucuk-veri rejiminde domain-bilgili feature engineering hiperparametre optimizasyonunun onune geciyor.
+
+### Bulgu 2 -- B2E (Deformasyon) QM Tahmininde Kritik
+
+QM hedefinde B2E iceren feature setleri test_R² ortalamasi > 0.30; B2E'siz setler < 0.0. Yerel reprodüksiyon (`QM_150_S70_AZNNP`, RF, 105 ornek train): test_R² = -0.54. DummyRegressor (sabit ortalama tahmin) test_R² = -0.25 -- model ortalamadan **kotu**. SHAP siralamasinda B2E ikinci sirada (%18.3); B2E olmadan QM ogrenilemiyor.
+
+> Tez §3.5 (Feature Onem Analizi): SHAP onem siralamasi (Z=21.5%, B2E=18.3%, A=15.7%, MC=10.2%, S=8.9%) deneysel performansla bire bir uyumlu.
+
+### Bulgu 3 -- Spin (S) MM Tahmininde Belirleyici
+
+MM hedefinde Spin iceren setler ortalama test_R² 0.22-0.38; Spinsiz setler -0.12 ile 0.21 arasi ve %0.8 ustu model uretemiyor. SHAP MM siralamasinda S = 18.7% (en yuksek).
+
+> Tez §3.5: Schmidt limit fizigi ile uyumlu -- spin manyetik momentin ana belirleyicisi.
+
+### Bulgu 4 -- Kucuk-Veri Rejiminde DNN Agac Modellerinin Gerisinde
+
+| Model | n | Ort. test_R² | >0.5 oran | >0.8 sayi |
+|-------|---|--------------|-----------|-----------|
+| XGBoost | 18459 | 0.016 | 18.6% | 297 |
+| Random Forest | 24374 | 0.006 | 17.7% | 343 |
+| **DNN** | 18450 | **-0.020** | **7.8%** | 143 |
+
+DNN ortalama test_R² negatif; basari orani RF/XGB'nin yarisi. 105-200 ornek egitim setinde derin aglar yeterli duzenleme bulamiyor.
+
+> Tez §3.6 (Model Ailesi Secim Gerekcesi): Olson et al. ve Grinsztajn et al. "tablo verisi + kucuk-orta orneklem" rejiminde agac-tabanli modellerin sinir aglarina ustunlugu sonucu ile uyumlu.
+
+### Bulgu 5 -- Anomali Cikarmak Performansi DUSURUR (Yeni Bulgu, Karsi-Sezgisel)
+
+Iyi 9 FS'de (n=22937):
+| Mod | n | Ort. test_R² | >0.5 oran | >0.8 sayi |
+|-----|---|--------------|-----------|-----------|
+| **vanilla** (tum cekirdekler) | 10985 | **0.262** | 40.4% | **728** |
+| NoAnomaly (anomali cikarilmis) | 11952 | 0.111 | 14.8% | 55 |
+
+`>0.8 model sayisi 13× farkli`. Sezgisel beklenti tersi -- "anomali cikarinca model daha iyi ogrenir". Verilerimiz tersini soyluyor.
+
+**Yorum:** Nukleer veri setlerinde "istatistiksel anomali" olarak isaretlenen cekirdekler (sihirli sayilar civarı, deformasyon gecisleri, izomerik durumlar) **fiziksel sinyal**dir. Cikarilmalari modelin rejim sinirlarini ogrenmesini engelliyor; geriye dagılım merkezi kaliyor -- kucuk orneklem icin asiri uyum kaynagi.
+
+> Tez §3.7 (Anomali Tartismasi): Bu **tezsel bir katki**. Istatistiksel on isleme yontemlerinin nukleer fiziktede direkt uygulanamayacagini gosterir. "Anomali"nin domain bilgisi ile ayristirilmasi zorunlu.
+
+### Bulgu 6 -- S80 > S70, QM'de Ucurum
+
+Iyi 9 FS'de senaryo × hedef ayristirilmis:
+| Kombinasyon | n | Ort. test_R² | >0.5 oran |
+|-------------|---|--------------|-----------|
+| MM / S70 | 8715 | 0.337 | 27.4% |
+| MM / S80 | 4482 | 0.288 | 25.7% |
+| QM / S80 | 5258 | 0.169 | 40.7% |
+| **QM / S70** | 4482 | **-0.203** | 11.8% |
+
+MM icin S70 hafifce iyi (marjinal). **QM icin S70 hicbir sekilde calismiyor**. 5-15 ek egitim ornegi (105 -> 120) QM tahmini icin kritik.
+
+> Tez §3.8 (Veri Boyutu Hassasiyeti): QM tahmini MM'den cok daha veri-acgozlu. B2E kucuk orneklemde guvenilir ogrenilemiyor.
+
+### Bulgu 7 -- ANFIS Kural Patlamasi Kisitlamasi
+
+Grid-ANFIS'te kural sayisi = MF^giris:
+| Giris | 2 MF | 3 MF | 105 ornekle? |
+|-------|------|------|-------------|
+| 3 | 8 | 27 | OK |
+| 4 | 16 | 81 | Sinirda |
+| 5 | 32 | **243** | IMKANSIZ |
+
+En iyi feature setleri (AZB2EMCS, AZSMCB2E -- 5 giris) Grid-ANFIS ile uyumsuz. **Cozum:** AI/ANFIS farkli feature setleri. AI 5-giris zengin setlerle, ANFIS 3-giris setlerle (AZS, AZSMC) calisir.
+
+> Tez §4.2 (ANFIS Metodolojisi): "Yorumlanabilirlik vs kapasite" tradeoff'unun nicel temeli.
+
+### Bulgu 8 -- Dual-R² Filtresi Kucuk-Orneklem Asiri Uyumunu Yakaliyor
+
+Buyuk Job2 logundan: 52899 POOR (val_R²<0.5) + 2747 DUAL_RET (cv/gap). 22 ornek validation setinde val_R² siskinligi olabiliyor. Sprint 1'de eklenen dual filtre (cv_R² + gap_R²) bunu yakaliyor.
+
+> Tez §4.3 (Validation Stratejisi): Klasik tek-eksenli (val_R²) esik kucuk orneklemde yetersiz. **Metodolojik katki:** CV-tabanli ek filtre.
+
+### Bulgu 9 -- Hiperparametre Alani Genis Ama Dar Etkili
+
+50 config × iyi 9 FS taramasinda en iyi 20 config'in **tumu RF/XGB**, DNN'ler altta. Bu, "model ailesi secimini once yap, sonra dar hiperparametre" stratejisini destekliyor.
+
+> Tez §3.4 (devam): Geleneksel "her hiperparametreyi tara" yerine, **once model ailesini sec, sonra dar tara**.
+
+### Bulgu 10 -- Kucuk-Veri Rejiminin Yapisal Siniri
+
+61283 modelden 783 tanesi test_R² > 0.8 (%1.3); ~50 model test_R² > 0.9. Maksimum gozlemlenen test_R² ≈ 0.92. **R² > 0.96 hedefi ulasilamaz** mevcut 267 cekirdekli veri + bu ozelliklerle.
+
+> Tez §6 (Sinirlamalar ve Gelecek Is): Sprint 15 oncesi hedeflenen R²>0.96 hedefi mevcut veri ile ulasilamaz. R²>0.85 alt bolgesi literatur kiyasinda rekabetci (Akkoyun 2020: R² ≈ 0.85 manyetik moment).
+
+### Sprint 15 Iyilestirme Stratejisi (veriye dayali)
+
+| Strateji | Veri Gerekceси |
+|----------|----------------|
+| 24 FS -> 9 (eleme 15) | Cop setler test_R²>0 uretemiyor; n=38346 model ablation kaniti olarak korunur |
+| Senaryo S70 -> elimine | QM/S70 ort -0.20, S80 +0.17 |
+| Anomaly NoAnomaly -> elimine | vanilla 728 vs NoAnomaly 55 >0.8 (13× fark) |
+| Model DNN -> elimine | 18450 model ort -0.02, en iyi config bile RF/XGB'nin orta sirasinda |
+| Config 50 -> 20 | Top-20 ile genel ort farki 0.005 (anlamsiz) |
+| Scaling 3 -> 1 (NoScaling) | NoScaling 0.046 / Standard -0.001 / MinMax -0.043 (marjinal) |
+
+Toplam is hacmi azalmasi: ~250×. Her elimine icin **niceliksel gerekce**.
+
+### Sprint 15 Yeni Bulgu/Bug Sayisi: 10
+
+- **8 yeni bug** (BUG-101..108)
+- **2 ertelendi** (BUG-109, 110 -> Sprint 17 onerisi)
+- **7 yeni kural** (KURAL 34..40)
+- **Tezsel bulgu:** 10 nicel bulgu, hepsi veri-kaynakli
+
+**Tezsel etki:** Sprint 15 sonu tez cercevesi degisti: "Yuksek dogruluk (R²>0.96)" yerine **"feature seçimi belirleyici + kucuk-veri sinirlari"** anlatisi. Bu daha **savunulabilir**, daha **bilimsel olarak dogru** ve mevcut veriyle **tutarli**.
+

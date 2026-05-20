@@ -150,3 +150,40 @@ outputs/thesis/                      # LaTeX + compile.bat
 - Python 3.8+, RAM ≥ 16 GB, Disk ≥ 50 GB
 - CUDA 11.0+ and GPU ≥ 8 GB VRAM (optional, for PFAZ 2/3 acceleration)
 - MATLAB engine (optional, for native ANFIS in PFAZ 3; Python fallback exists)
+
+---
+
+## Sprint 15 Scope Changes (2026-05-20)
+
+**KAPSAMLI DEGISIKLIK:** TRUBA Job2 timeout krizi sonrasi veri-bazli kucultme. Detaylar `docs/thesis-toolkit/sprints/sprint-15-truba-kriz-ve-iyilestirme.md`.
+
+### Active Models
+**Eski:** RF, GBM, XGBoost, DNN, BNN, PINN (belgede) / RF, XGBoost, LightGBM, CatBoost, SVR, DNN (kodda otomatik)
+**Yeni (Sprint 15+):** **Sadece RF + XGBoost** (config.json -> pfaz02.model_types)
+
+### Dataset Scope
+**Eski:** 848-1468 dataset (24 FS × 2 senaryo × 3 scaling × 2 anomaly × 4 boyut × 2 sampling)
+**Yeni:** **36 dataset** (9 FS × 1 senaryo S80 × 1 anomaly vanilla × 1 scaling NoScaling × 2 boyut 150+ALL × 2 sampling)
+
+### Config Count
+**Eski:** 50 (training_configs_50.json)
+**Yeni:** **20** (training_configs_20.json -- top RF/XGB)
+
+### Tahmini Sure
+**Eski:** Job1: 2-3h | Job2: 14-27h | Job3: 7-15h | Job4: 2-3h | Toplam: 25-48h
+**Yeni:** Job1: 5dk | Job2+3 (RF+XGB+ANFIS): ~1h | Job4 (PFAZ4-12): ~30dk | **Toplam: ~2h**
+
+### Yeni BUG'lar
+BUG-101..108 (Sprint 15 fix), BUG-109/110 (Sprint 17 ertelendi). Detaylar `pipeline-hatalari.md`.
+
+### Yeni KURAL'lar
+KURAL 34..40. Detaylar `claude-hatalarim-ve-dersler.md`.
+
+### Sprint 15 Tezsel Bulgular (10 niceliksel)
+Detaylar `tez-yazim-not-defteri.md` Sprint 15 eki. Ana iki bulgu:
+- **B2E (Beta_2) ve Spin (S) feature'lari kritik** -- iceren setler test_R²>0.3, icermeyenler <0
+- **Anomali cikarmak performansi DUSURUR** (vanilla 728 model >0.8, NoAnomaly 55 -- 13× fark)
+
+### Tez Cercevesi Degisikligi
+**Eski:** "R²>0.96 yuksek dogruluk"
+**Yeni:** "Feature secimi belirleyici + kucuk-veri sinirlari" (R² max gozlemlenen ~0.92, R²>0.85 alt bolge literatur kiyasinda rekabetci)
