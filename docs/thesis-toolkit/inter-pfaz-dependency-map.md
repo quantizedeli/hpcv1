@@ -108,3 +108,74 @@ grep -rn "output_dir\.parent" pfaz_modules/*/*.py | grep -v test_ | wc -l
 ---
 
 *Sprint 10 ek inceleme | Inter-PFAZ bağımlılık denetimi*
+
+---
+
+## Sprint 15 Eki -- ANFIS Dosya Formatlari ve Yeni Bagimliik Tespitleri
+
+**Tarih:** 2026-05-20
+
+### ANFIS Cikti Dosya Formatlari -- TAM HARITA (KURAL 32 ile dogrulanmis)
+
+ANFIS Python yolu (TRUBA'da MATLAB yok) **egitim basina 6 dosya** uretir:
+
+| Dosya | Icerik | Ureten | Tuketen |
+|-------|--------|--------|---------|
+| `model_<cfg>.pkl` | joblib `TakagiSugenoANFIS` nesnesi | `anfis_parallel_trainer_v2.py:914` | **PFAZ4** ✓ |
+| `metrics_<cfg>.json` | train/val/test R²/RMSE/MAE + meta | `:918` | PFAZ6/8 |
+| `<name>_workspace.mat` | FIS + hata egrileri + metrics (MATLAB format) | `anfis_model_saver.py:74` | `load_anfis_model` |
+| `<name>_fis.mat` | Sadece FIS yapisi (MATLAB) | `:80` | aynı |
+| `<name>_metrics.json` | Yedek metrics | `:95` | -- |
+| `<name>_errors.npz`, `<name>_summary.json`, `<name>_outliers.csv` | Yardimci | `:100+` | gorselleştirme |
+
+**Dizin yapisi:** `trained_anfis_models/<dataset_name>/<config_id>/`
+**Resume kontrolu:** Sadece `model_<cfg>.pkl` ariyor (BUG-102 fix sonrasi: `completed.json` da yaziyor).
+
+### BUG-108 Yakalandi -- PFAZ9 Monte Carlo ANFIS Yolu Yanlis
+
+`pfaz_modules/pfaz09_aaa2_monte_carlo/monte_carlo_simulation_system.py:684`:
+```python
+model_path = self.models_dir / 'ANFIS' / model_id / 'model.mat'  # YANLIS
+```
+ANFIS bu dosyayi hicbir zaman uretmemis. Dizin yapisi da farkli. **Fix Sprint 15'te uygulandi:** PFAZ4 ile aynı pattern (`.pkl` joblib.load).
+
+### Sprint 15 PFAZ Etkilenme Matrisi (yeni kapsama gore)
+
+DNN cikarma + LGB/CB/SVR cikarma + feature setlerinin 9'a daralmasi su PFAZ'lari etkiler:
+
+| PFAZ | Etki | Beklenen Davranis | Test Yontemi |
+|------|------|-------------------|--------------|
+| PFAZ4 | `.pkl` glob dinamik | DNN/LGB/CB/SVR .pkl olmadigi icin sadece RF+XGB+ANFIS yuklenir | smoke test |
+| PFAZ5 | `Model_Type.unique()` dinamik | Excel'de sadece RF+XGB+ANFIS satirlari | excel inspector |
+| PFAZ6 | sheet dinamik | All_AI_Models DNN sutunu icermez (otomatik) | excel read test |
+| PFAZ7 | ensemble dinamik | DNN olmayinca ensemble RF+XGB+ANFIS karisimi | |
+| PFAZ8 | hardcoded model lists -> dinamik (BUG-106 fix) | DNN bar yok, RF+XGB tek tek var | gorsel ureitm |
+| PFAZ9 | BUG-108 fix sonrasi calisir | RF+XGB+ANFIS Monte Carlo | skip optional |
+| PFAZ10 | dinamik | Tez Excel'de DNN bolumu yok | excel render |
+| PFAZ12 | dinamik | Bootstrap CI RF+XGB+ANFIS | |
+| PFAZ13 | dinamik | AutoML RF+XGB | |
+
+### Excel Sheet Zinciri (PFAZ6 -> PFAZ8) -- Tam Kontrol
+
+| Sheet | Ureten | Tuketen | Sprint 15 Durumu |
+|-------|--------|---------|------------------|
+| `All_AI_Models` | `pfaz6_final_reporting.py:642` | `pfaz8_thesis_charts.py:129`, `visualization_master_system.py:1509` | Tutarli, dinamik ✓ |
+| `All_ANFIS_Models` | `pfaz6_final_reporting.py` | `pfaz8_thesis_charts.py:135`, `visualization_master_system.py:2563` | Tutarli ✓ |
+| `Uncertainty` | PFAZ12 bootstrap_confidence_intervals | `supplemental_visualizer.py:66`, `pfaz8_thesis_charts.py:176` | OK (Sprint 13 BUG-97 ile aktif) |
+| `Korelasyon` | (kontrol gerek) | `supplemental_visualizer.py:327` | "if X in sheet_names" defansif |
+| `Sicrama_Analizi` | (kontrol gerek) | `supplemental_visualizer.py:375` | "if X in sheet_names" defansif |
+
+**Savunmaci kod:** PFAZ8 tum sheet okumalari `if 'X' in xl.sheet_names:` ile korunuyor. Sheet yoksa crash etmez, log atip atlar.
+
+### Ertelenen Bagimliik Sorunlari (Sprint 17 onerilen)
+
+| Bug | Aciklama | Etki |
+|-----|----------|------|
+| BUG-109 | PFAZ2/3 -> PFAZ12 ters bagimliik | Calisir (lazy), mimari kirgin |
+| BUG-110 | PFAZ6 <-> PFAZ12 soft circular | Calisir (lazy), risk |
+
+Cozum yaklasimi (Sprint 17): `ExcelStandardizer`'i `utils/` altina tasi, ortak bagimliik ortaya cikariltabilir.
+
+---
+
+*Sprint 15 ek inceleme | ANFIS dosya formatlari + BUG-108 + Sprint 15 kapsam haritasi | 2026-05-20*

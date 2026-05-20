@@ -713,4 +713,22 @@ Cikti: `outputs/visualizations/robustness_per_model/*.png` (PFAZ2 BUG-96 ile uyu
 
 *PFAZ 08 Belgesi v2.0 | Son Guncelleme: 2026-05-14*
 
+---
+
+## Sprint 15 Notu (2026-05-20) -- BUG-106 Dinamik Model Listesi
+
+**BUG-106:** Sprint 15 oncesi 9 dosyada hardcoded model listeleri:
+- `visualization_system.py:222,251`: `models = ['XGBoost', 'RF', 'GBM', 'DNN', 'ANFIS-M1', 'ANFIS-M2']`
+- `model_comparison_dashboard.py:667`: aynı pattern
+- `pfaz8_thesis_charts.py:53`: `MODEL_COLORS = {'DNN': '#1565C0', 'RF': '#2E7D32', 'XGBoost': '#E65100', ...}`
+- `visualization_master_system.py:1585,1698,1768,2212,2930,2999,3043`: `colors = {'RF': ..., 'XGBoost': ..., 'DNN': ...}`
+
+Sprint 15'te DNN cikarildigi icin (BUG-104, KURAL 38), bu hardcoded listeler bos DNN cubuklari olusturuyordu (crash yok, gorsel kalite dusuk).
+
+**Fix:** Model listeleri Excel'den `df['Model_Type'].unique()` ile dinamik okunur; renkler `.get(model, default_color)` ile defansif olusturulur.
+
+**KURAL 39 (Inter-PFAZ tarama):** Bu BUG sadece bir PFAZ2 değişikliği (DNN cikarma) sonucu dogan downstream etki. 9 dosya × 1 sprint = kapsamli tarama gerek (QA_PLAYBOOK Bolum 3).
+
+*PFAZ 08 Belgesi v2.1 | Son Guncelleme: 2026-05-20 (Sprint 15 BUG-106 dinamik model listesi)*
+
 *Belge v1.2 | 2026-05-09 | Sprint 1/2 + BUG-32 guncellendi*

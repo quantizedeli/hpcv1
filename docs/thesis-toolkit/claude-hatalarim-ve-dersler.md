@@ -1007,3 +1007,149 @@ Hepsi senkron mu? Bir katman zinciri kopariyorsa downstream tamamen yaniltici ol
 
 **Pratik test:** "Bu hata Slurm'a ulasir mi?" sorusunu sor ve her katmanı izle.
 
+---
+
+## KURAL 34 — Kriz Aninda Once Teshis, Sonra Cozum
+
+**Olay (Sprint 15, 2026-05-19):** TRUBA Job2 2x timeout. Ilk reflex "is yavas, kucult" oldu. Ama kalite haritasi gosterdi ki gercek sorun resume BUG (~54000 model her resume tekrar egitiliyordu) ve feature seti kalitesizligi. Yuzeysel teshis ("is yavas") yanlis cozume goturecekti.
+
+**Kural:**
+
+TRUBA'da bir saat bile harcamadan once:
+1. **Gercek metrics/log verisini topla** -- log dosyalari, metrics_*.json sayilari
+2. **Yerelde reprodüksiyon yap** -- kontrollu ortamda RF egit, ayni R² alabilirsin
+3. **Kok nedeni KANITLA** -- TRUBA'daki sayilara bak, kodu oku, varsayim yapma
+
+**Pratik:** "Cozumu uygulayabilmek icin teshis yeterli mi?" sorusu zorunlu. Veri olmadan strateji = varsayim (KURAL 32 bagi).
+
+Sprint 15 ornegi: "Senaryo S70 mi S80 mi" sorusu sezgisel cevaplanamazdi; 22937 model uzerinde 3 satirlik tarama scripti S80'in QM'de 0.37 birim ustun oldugunu gosterdi -- kor kucultme yerine veri-bazli kucultme.
+
+---
+
+## KURAL 35 — Checkpoint Felsefesi: "Basarili mi" Degil "Denendi mi" Sor
+
+**Olay (Sprint 15, BUG-101):** PFAZ2 resume yalnizca basariyla biten modelleri "tamamlanmis" sayiyor. Kalite filtresine takilan modeller her resume'da yeniden egitiliyor. Ama bunlar **deterministik (seed=42)** -- sonuc aynı olacak. Sonsuz dongu.
+
+**Kural:**
+
+Bir is kalite filtresinden gecemese bile "denenmis ve sonuclanmis"tir. Checkpoint/resume mantigi `basarili_mi?` degil `denendi_mi?` sorusuna gore kurulmali.
+
+```python
+# YANLIS
+if metrics['val']['r2'] >= R2_MIN:
+    save_checkpoint()  # sadece basariliyi kaydet
+return ResultObject(success=False, ...)  # checkpoint YOK
+
+# DOGRU
+save_checkpoint(success=False, reason='POOR')  # her kosulda
+return ResultObject(success=False, ...)
+```
+
+**Tek istisna:** Gercek exception (try/except'in catch'i) -- bu geçici olabilir (bellek, dosya kilidi), checkpoint yazmazsan tekrar denenir.
+
+**Pratik test:** "Bu is bir daha denenirse aynı sonucu uretir mi?" Evet ise checkpoint zorunlu (BUG-101).
+
+---
+
+## KURAL 36 — AI ve ANFIS Ayni Feature Setini Paylasmak Zorunda Degil
+
+**Olay (Sprint 15):** En iyi feature setleri 5 girisli (AZB2EMCS, AZSMCBEPA). Grid-ANFIS'te 5 giris × 3 MF = 243 kural, 105 ornekle imkansiz (parametre sayisi orneklem sayisini katbekat asar). Ilk reflex "ANFIS'i de cikar" idi -- yanlis. AI ve ANFIS farkli feature setleriyle calisabilir.
+
+**Kural:**
+
+Model ailesi secimini feature seti secimi ile **birlikte** dusun. Agac modelleri (RF/XGB) yuksek boyuttan etkilenmez. Grid-ANFIS giris sayisinda ustel. Subtractive clustering ANFIS daha esnek (kural sayisi veriden cikiyor, 4-5 giris kaldirabilir).
+
+Sprint 15 tablosu:
+
+| Set boyutu | AI (RF/XGB) | Grid-ANFIS | SubClust-ANFIS |
+|-----------|-------------|------------|----------------|
+| 3 giris | OK | OK (8/27 kural) | OK |
+| 4 giris | OK | Sinırda (81 kural) | OK |
+| 5 giris | OK (zengin) | YASAK (243 kural) | OK (typically ~10-30 kural) |
+
+**Tezsel etki:** Bu, AI/ANFIS arasi feature seti ayrımı "metodoloji tasarim karari" olarak savunulur. Tez §4.2 ANFIS metodoloji kisitlamasi bolumu.
+
+---
+
+## KURAL 37 — Negatif Sonuc Da Tez Katkisidir
+
+**Olay (Sprint 15):** 61283 modelden 38346'si "cop" feature setlerinden. Ilk reflex "yeniden uret, kaliteyi yukselt". Ama bu cop setler **feature ablation kaniti** -- "B2E ve Spin icermeyen setler kucuk-veri rejiminde basarisiz" tezi icin somut deney verisi.
+
+**Kural:**
+
+test_R² < 0 veren feature setleri "basarisiz" degil "ablation calismasi". Yeniden uretmeye gerek yok; mevcut metrics dosyalari yeterli.
+
+**Tez yazimi yontemi:**
+- "Cop" feature setleri -> Bolum §3.4 (Feature Ablation Study)
+- "B2E + S iceren setler basarili, digerleri degil" -> niceliksel tablo (n=22937 vs n=38346 karsilastirma)
+- SHAP onem sirasinin (Z=21.5%, B2E=18.3%, ..., S=8.9%) deneysel performansla bire bir eslestigi gozlem -> Tez §3.5
+
+**Pratik:** Veriyi atmadan once "bu veri ne anlatiyor?" diye sor. Yetersiz performans, dogru kullaninca, tez katkisi olur.
+
+---
+
+## KURAL 38 — Memory'deki Niyet != Kod Davranisi (KURAL 32'nin Somut Uygulanmasi)
+
+**Olay (Sprint 15, BUG-104):** Memory'de "BUG-92: LightGBM/CatBoost/SVR egitime DAHIL DEGIL" diye yazdim. Sonra koda baktigimda `if LIGHTGBM_AVAILABLE: model_types.append('LightGBM')` gordum -- kod hala bunlari ekliyordu. Memory bir KARAR, kod aynı kararı uygulamiyor olabilir.
+
+**Kural:**
+
+Memory'de "X yapildi/yapilmadi" notu = bir GECMIS NIYET. Kodun aynı niyetle uyumlu olup olmadigini her seferinde `grep`/`view` ile dogrula.
+
+**Pratik kontrol:**
+- Memory: "DNN egitime dahil degil"
+- Grep: `grep -n "model_types.append" parallel_ai_trainer.py` -> kod hala ekliyor mu?
+- Eslesmezlik varsa: ya kod duzeltilmeli ya memory guncellenmeli (SSoT -- KURAL 31)
+
+Sprint 15'te: Memory hatasi degildi, kod uygulanmamisti. SSoT cozumu: `config.json` -> `pfaz02.model_types` -> kod oradan okur. Tek kaynak.
+
+**Pratik:** Memory'i "kod davranisini dogrulayan" degil "tarihi karari hatirlatan" olarak kullan.
+
+---
+
+## KURAL 39 — Inter-PFAZ Veri/Format Degisikliklerinde TUM Tuketici Modulleri Tara (QA_PLAYBOOK Bolum 3)
+
+**Olay (Sprint 15):** DNN'i cikarma karari verdik. Ama PFAZ8 visualization 8 farkli dosyada hardcoded `colors = {'RF':..., 'XGBoost':..., 'DNN':...}` tasiyor. Test etmeden gerçekleştirilseydi bos DNN cubuklari olusurdu (gorsel kalite dusus). Inter-PFAZ taramasi sayesinde BUG-106 yakalandi.
+
+**Kural:**
+
+Bir PFAZ'in cikti formati, dosya yapisi, sheet adi, model listesi degisirse:
+1. `grep -rn "read_excel\|to_excel.*sheet\|joblib.load\|model_types\|colors.*model" pfaz_modules/`
+2. Hangi modulu etkileyecegini tablola
+3. Her etki noktasi icin: davranis sergileyecek bir test yaz (KURAL 30 runtime simulation)
+4. **inter-pfaz-dependency-map.md** belgesini guncelle
+
+Sprint 15 etkilenen tuketici sayisi: PFAZ4, 5, 6, 7, 8, 9, 10, 12, 13 -- 9 PFAZ tek bir PFAZ2 ciktisini tuketiyor. Her birinin DNN cikisi ile uyumu kontrol edildi.
+
+**Pratik:** Tek bir kararin etki radyusunu **kod-icinden** olçmek zorunda. Tahmin ile degil.
+
+---
+
+## KURAL 40 — Veriye Dayali Kucultme, Kor Kucultme Degil
+
+**Olay (Sprint 15):** TRUBA Job2 timeout sonrasi ilk reflex "is hacmini kucult" idi. Once "senaryo sayisini 1'e indirelim, scaling'i kaldiralim" gibi sezgisel oneriler vardi.
+
+Veri konustuktan sonra anladim:
+- 24 feature setinden 15'i cop (>0.8 model = 0) -> elimine et: %63 kayip yok, tez katkisi
+- DNN gercekten basarisiz (ort -0.02) -> elimine et: %33 azalma + kaliteyi koruma
+- S70 vs S80: QM/S70 ort -0.20 vs QM/S80 +0.17 -> S70 elimine: net karar
+- Anomaly: vanilla 728 model >0.8, NoAnomaly 55 -> NoAnomaly elimine: 13x fark
+- Scaling: marjinal fark -> sadece NoScaling (kaybedilen az)
+
+**Kural:**
+
+Is hacmini dusurmek icin:
+1. **Once kalite haritasi cikar** -- her boyutu (feature seti, model, senaryo, anomaly, scaling) niceliksel siralayarak
+2. **En kotu dilimi (>%30 etki olabilecek) ele** -- veri-bazli, sezgi degil
+3. **Kalan dilimi koru** -- onemli kalite kaybi olmamali
+
+Sprint 15 ornegi: 24 FS × 3 scaling × 2 anomaly × 2 senaryo × 4 boyut × 6 model × 50 config = ~360k is
+-> 9 FS × 1 scaling × 1 anomaly × 1 senaryo × 2 boyut × 2 model × 20 config = ~1440 is
+**250x kucultme**, ama her kucultme adimi icin tablo verisi var.
+
+**Pratik test:** "Her elimine kararim icin nicel kanitim var mi?" Yoksa once kaniti topla.
+
+---
+
+*Claude-Hatalarim-ve-Dersler v2.3 | 2026-05-20*
+*Sprint 15 ekleri: KURAL 34..40 (kriz yonetimi, checkpoint felsefesi, AI/ANFIS feature ayrimi, negatif sonuc tez katkisi, memory!=kod, inter-PFAZ tarama, veri-bazli kucultme)*

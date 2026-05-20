@@ -512,4 +512,72 @@ Tez metni icin §4.3 ornek cumle:
 
 *PFAZ 03 Belgesi v2.0 | Son Guncelleme: 2026-05-14*
 
+---
+
+## Sprint 15 Guncellemesi (2026-05-20) -- ANFIS Giris Kisitlamasi ve BUG-102
+
+### ANFIS Kural Patlamasi Sorunu ve Cozumu (KURAL 36)
+
+Grid-partition ANFIS'te kural sayisi = MF^giris:
+
+| Giris | 2 MF | 3 MF | 105 ornek egitilebilir? |
+|-------|------|------|-------------------------|
+| 3 | 8 | 27 | OK (tum 8 config) |
+| 4 | 16 | 81 | Sinirda (sadece subclust onerilir) |
+| 5 | 32 | **243** | IMKANSIZ |
+
+Sprint 15 oncesi: `ANFIS_MAX_INPUTS = 5` -- tum TARGET_RECOMMENDED_SETS gecer (belge). Ama yerel egitim testleri 5-giris setlerde grid-ANFIS'in **eğitilemediğini** gosterdi.
+
+### Yeni Tasarim: AI ve ANFIS Farkli Feature Setleri (KURAL 36)
+
+Iyi 9 feature setinin ANFIS uyumlulugu:
+
+| Set | Giris | AI (RF/XGB) | ANFIS Grid | ANFIS SubClust |
+|-----|-------|-------------|------------|----------------|
+| AZS | 3 | ✓ | ✓ (tum config) | ✓ |
+| AZSMC | 3 | ✓ | ✓ (tum config) | ✓ |
+| AZSB2E | 4 | ✓ | ⚠ Sinirda | ✓ (CFG006-008) |
+| AZSBEPA | 4 | ✓ | ⚠ Sinirda | ✓ |
+| AZSNNNP | 4 | ✓ | ⚠ Sinirda | ✓ |
+| AZB2EMCS | 5 | ✓ | ✗ SKIP | (kontrol gerek) |
+| ZB2EMCS | 5 | ✓ | ✗ SKIP | (kontrol gerek) |
+| AZSMCB2E | 5 | ✓ | ✗ SKIP | (kontrol gerek) |
+| AZSMCBEPA | 5 | ✓ | ✗ SKIP | (kontrol gerek) |
+
+**Kod degişikligi:** `anfis_parallel_trainer_v2.py`'ye giris-sayisi-bazli filtre eklendi:
+- 3-giris dataset: tum 8 config (CFG001-008)
+- 4-giris dataset: sadece subclust 3 config (CFG006-008)
+- 5+ giris dataset: SKIP (log mesaji ile)
+
+ANFIS toplam is: ~100 (Sprint 15 oncesi binlerce).
+
+### BUG-102 Resume Fix
+
+ANFIS resume PFAZ2 ile aynı pattern (BUG-101). `anfis_parallel_trainer_v2.py` satir 858/871 success=False return'lari `.pkl` yazmiyordu. Resume (1263/1292) yalniz `.pkl` ariyordu.
+
+**Fix:** Aynı `_save_checkpoint()` helper'i ANFIS trainer'a uygulandi.
+
+### ANFIS Cikti Dosya Formatlari (KURAL 32 ile dogrulandi)
+
+Egitim basina **6 dosya** uretir:
+- `model_<cfg>.pkl` (joblib `TakagiSugenoANFIS`) ← PFAZ4 ve PFAZ9 (BUG-108 fix sonrasi) bunu okur
+- `metrics_<cfg>.json`
+- `<name>_workspace.mat` (MATLAB FIS + hata)
+- `<name>_fis.mat` (sadece FIS)
+- `<name>_metrics.json` (yedek)
+- `<name>_errors.npz`, `<name>_summary.json`, `<name>_outliers.csv`
+
+**Dizin yapisi:** `trained_anfis_models/<dataset_name>/<config_id>/`
+
+### Sprint 15 KURAL Etkileri
+
+- **KURAL 32:** "ANFIS_MAX_INPUTS=5 belgede yazar" varsayimi yerine matematiksel sınır (243 kural × parametre vs 105 ornek) ile dogrulama yapildi
+- **KURAL 35:** Checkpoint felsefesi (BUG-102 temeli)
+- **KURAL 36:** AI/ANFIS feature seti ayrimi (bu doc'un ana karari)
+
+---
+
+*PFAZ 03 Belgesi v3.0 | Son Guncelleme: 2026-05-20 (Sprint 15)*
+*Sprint 15 ekleri: BUG-102 resume fix, ANFIS giris kisitlamasi (3-giris tum config, 4-giris subclust, 5+giris SKIP)*
+
 *PFAZ 03 Belgesi v1.2 | 2026-05-08 | Güncelleme: ANFISDatasetSelector AKTİF edildi (Top=50 Mid=50 Low=100), configurations alanı not, ANFIS_MAX_INPUTS keşifleri*

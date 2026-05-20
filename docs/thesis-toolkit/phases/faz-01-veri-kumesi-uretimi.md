@@ -1032,3 +1032,63 @@ Geçerli kombinasyon kümesinin kesişimi ≈ 848
 Tek kapalı kabuk çekirdekler: Z veya N'i sihirli olan diğerleri  
 Bunların 267 içindeki oranı ve örnekleme stratejilerindeki temsil durumu PFAZ 02 analizinde ele alınacaktır.
 
+---
+
+## Sprint 15 Guncellemesi (2026-05-20) -- Kapsam Daraltma
+
+TRUBA Job2 kalite haritasi (61283 model) sonrasi PFAZ 01 kapsami **veri-bazli kucultuldu** (KURAL 40):
+
+### Yeni Aktif Kapsam (config.json -> pfaz01)
+
+| Boyut | Onceki (Sprint 14'e kadar) | Yeni (Sprint 15+) | Veri Gerekceси |
+|-------|---------------------------|-------------------|----------------|
+| Feature setleri | 24 (tüm kombinasyonlar) | **9 iyi set** | Cop 15 set test_R²<0 (BUG-104 sonrasi RF+XGB ile) |
+| Senaryo | S70 + S80 | **Sadece S80** | QM/S70 ort -0.20, S80 +0.17 |
+| Anomaly modu | vanilla + NoAnomaly | **Sadece vanilla** | vanilla 728 model >0.8, NoAnomaly 55 (13× fark) |
+| Boyut | 75 / 100 / 150 / 200 / ALL | **150 + ALL** | 100 yetersiz, ALL referans |
+| Scaling | NoScaling + Standard + MinMax | **Sadece NoScaling** | Marjinal fark, hafif iyi |
+| Sampling | Random + Stratified | Random + Stratified | Marjinal, ikisi tezde |
+
+### Aktif Feature Setleri (9)
+
+| Set | Giris | Tip | Hedef Uyumlugu |
+|-----|-------|-----|----------------|
+| AZB2EMCS | 5 | AI-only (ANFIS 5-giris yasak) | MM ve QM |
+| AZSB2E | 4 | AI + ANFIS subclust | MM ve QM |
+| AZS | 3 | AI + ANFIS (tum config) | MM |
+| ZB2EMCS | 5 | AI-only | QM |
+| AZSMC | 3 | AI + ANFIS (tum config) | MM |
+| AZSMCB2E | 5 | AI-only | MM ve QM |
+| AZSMCBEPA | 5 | AI-only | MM |
+| AZSBEPA | 4 | AI + ANFIS subclust | MM |
+| AZSNNNP | 4 | AI + ANFIS subclust | MM ve QM |
+
+### Elimine Edilen Cop Feature Setleri (Tezde Feature Ablation)
+
+15 set test_R²<0 ile ortalanmasi:
+**ZNNPMC, AMCBEPA, AZNNP, AZB2EMC, NNPMC, ZB2EMC, AZB2E, AZNNPMC, AZMCBEPA, B2EMCBEA, AZB2EBEA, AZB2EMCBEA, ASMC (sinirda), AZBEPA, AZMC.**
+
+Bu setler **yeniden uretilmiyor** -- mevcut 38346 metrics dosyasi (Sprint 14 oncesi TRUBA cikti) yeterli ablation kaniti.
+
+### Anomali Modu Karari -- KARSI-SEZGISEL BULGU
+
+| Anomaly modu | n | Ort. test_R² | >0.8 sayisi |
+|--------------|---|--------------|-------------|
+| **vanilla** | 10985 | 0.262 | **728** |
+| NoAnomaly | 11952 | 0.111 | 55 |
+
+Anomali cikarmak performansi **dusurur**. "Anomaliler" istatistiksel degil fiziksel sinyallerdir (sihirli sayilar civarı, deformasyon gecisleri, izomerik durumlar) -- cikarilmalari rejim sinirlarini siler. Bu bulgu tez **§3.7 (Veri On Isleme)** bolumunde detayli tartisilir.
+
+### Toplam Uretilen Dataset Sayisi
+
+9 FS × 1 senaryo × 1 anomaly × 2 sampling × 1 scaling × 2 boyut = **36 dataset** (Sprint 15+).
+Onceki: 1468 dataset (40× azalma).
+
+### KURAL Etkileri
+
+- **KURAL 37:** Cop setler "basarisiz" degil "feature ablation kaniti" -- tezsel katki
+- **KURAL 40:** Her kapsam daraltma icin nicel kanit, kor kucultme yok
+
+---
+
+*PFAZ 01 Belgesi -- Son Guncelleme: 2026-05-20 (Sprint 15 ekleri)*

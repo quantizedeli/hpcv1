@@ -528,3 +528,30 @@ Tezde her ikisi de **§4.4 Saglamlik + Belirsizlik** kombineli olarak sunulur.
 ---
 
 *PFAZ 09 Belgesi v2.0 | Son Guncelleme: 2026-05-14*
+
+---
+
+## Sprint 15 Notu (2026-05-20) -- BUG-108 ANFIS Yolu Fix
+
+**BUG-108 [YUKSEK]:** `monte_carlo_simulation_system.py:684` ANFIS modeli icin yanlis yol ariyordu:
+```python
+model_path = self.models_dir / 'ANFIS' / model_id / 'model.mat'  # YOK
+```
+
+ANFIS gercek kayit yapisi (KURAL 32 dogrulamasi):
+- Dizin: `trained_anfis_models/<dataset_name>/<config_id>/`
+- Asıl model: `model_<cfg_id>.pkl` (joblib `TakagiSugenoANFIS`)
+- Ek dosyalar: `<name>_workspace.mat`, `<name>_fis.mat`, `metrics_<cfg>.json`
+
+`model.mat` diye bir dosya hicbir zaman uretilmemis. ANFIS hicbir zaman tam calismadigi icin (PFAZ2 timeout zincirinde bekledi) bu BUG fark edilmemis.
+
+**Fix:** Yol PFAZ4 ile aynı pattern'e cevrildi:
+```python
+config_dir = self.anfis_models_dir / dataset_name / config_id
+model_path = config_dir / f'model_{config_id}.pkl'
+model = joblib.load(model_path)
+```
+
+**Inter-PFAZ etki (KURAL 39):** PFAZ4 ve PFAZ9 artik **ayni ANFIS yolunu** okuyor -- tutarli. PFAZ9 ANFIS belirsizligi analizi artik calisir hale geldi.
+
+*PFAZ 09 Belgesi v2.1 | Son Guncelleme: 2026-05-20 (Sprint 15 BUG-108 fix)*
