@@ -2915,32 +2915,65 @@ model = joblib.load(model_path)
 
 ---
 
-### BUG-109 [DUSUK -- ERTELENDI Sprint 17] PFAZ2/3 -> PFAZ12 Ters Bagimliik
+### BUG-109 [DOKUMANTE EDILDI -- KASITLI TASARIM KARARI] PFAZ2/3 -> PFAZ12 Ters Bagimliik
 
 | Alan | Deger |
 |------|-------|
-| Dosyalar | `parallel_ai_trainer.py`, `anfis_parallel_trainer_v2.py` -> `from pfaz_modules.pfaz12_advanced_analytics.nuclear_pattern_analyzer` |
-| Sprint | Sprint 15 (tespit) / **Sprint 17 (fix)** |
-| Durum | **BELGELENDI** |
+| Dosyalar | `parallel_ai_trainer.py:2019`, `anfis_parallel_trainer_v2.py:1609` -> `from pfaz_modules.pfaz12_advanced_analytics.nuclear_pattern_analyzer` |
+| Sprint | Sprint 15 (tespit) / **Sprint 16 (dokumante: tasarim karari)** |
+| Durum | **DOKUMANTE EDILDI 2026-05-20 (kod yorum eklendi, refactor yapilmadi)** |
 
-**Sorun:** Alt-faz (PFAZ2/3) ust-faza (PFAZ12) bagimli. Memory'deki "BUG-65/66/74 pattern" ile ayni mimari risk. Calisir (lazy import) ama mimari kirgın.
+**Sorun:** Alt-faz (PFAZ2/3) ust-faza (PFAZ12) bagimli. Memory'deki "BUG-65/66/74 pattern" ile ayni mimari risk gibi gorunur.
 
-**Karar:** Sprint 15 kapsaminda fix yapilmiyor (kullanici onayli). Sprint 17'ye ertelendi. Once 22 Mayis tezi teslimi, sonra mimari temizlik.
+**Sprint 16 ANALIZ SONUCU (KASITLI TASARIM KARARI):** Bu bir BUG degil, bilincli mimari karar:
+1. NuclearPatternAnalyzer egitim SONRASI cagrilir (predict-time, not train-time)
+2. Lazy import (try/except icinde, fonksiyon icinde) -- runtime'da modul yoksa PFAZ2/3 calismaya devam eder
+3. PFAZ12 kategorisi "ileri analitik"; PFAZ2/3 "egitim". Sinifi PFAZ2'ye tasimak kategori karistirmaktan kacinmak icin yapilmadi
+4. Mevcut kosulda kod calisiyor, davranissal bir sorun yok
+
+**Fix (Sprint 16):** Iki import noktasina aciklayici yorum eklendi (kasitli tasarim karari, refactor not). Kod davranisi degismedi.
+
+**Tez-sonrasi opsiyonel iyilestirme:** NuclearPatternAnalyzer cagrisini main.py'ye tasimak (PFAZ2 sonrasi callback). Bu Sprint 18+ icin not edildi -- tezin akademik iddialarini etkilemez.
 
 ---
 
-### BUG-110 [DUSUK -- ERTELENDI Sprint 17] PFAZ6 <-> PFAZ12 Soft Circular Import
+### BUG-110 [DUZELTILDI Sprint 16] PFAZ6 <-> PFAZ12 Soft Circular Import
 
 | Alan | Deger |
 |------|-------|
-| Dosyalar | `pfaz06_final_reporting/pfaz6_final_reporting.py:1833` (lazy) -> `pfaz12.bootstrap_confidence_intervals`; `pfaz12_advanced_analytics/nuclear_band_analyzer.py:60` (modul-ust) -> `pfaz06.excel_standardizer` |
-| Sprint | Sprint 15 (tespit) / **Sprint 17 (fix)** |
-| Durum | **BELGELENDI** |
+| Dosyalar | `utils/excel_standardizer.py` (yeni canonical), `pfaz_modules/pfaz06_final_reporting/excel_standardizer.py` (stub), `pfaz_modules/pfaz12_advanced_analytics/nuclear_band_analyzer.py:60`, `pfaz_modules/pfaz12_advanced_analytics/nuclear_pattern_analyzer.py:66`, `utils/warning_tracker.py:233`, `pfaz_modules/pfaz06_final_reporting/__init__.py` |
+| Sprint | Sprint 15 (tespit) / **Sprint 16 (DUZELTILDI)** |
+| Durum | **DUZELTILDI 2026-05-20** |
 
-**Sorun:** Soft circular. Lazy import sayesinde patlamiyor. Cozum: `ExcelStandardizer`'i `utils/` altina tasimak (her iki PFAZ ondan import etsin).
+**Sorun:**
+- ESKI: `pfaz06_final_reporting/pfaz6_final_reporting.py` -> `pfaz12.bootstrap_confidence_intervals` (lazy)
+- ESKI: `pfaz12_advanced_analytics/nuclear_band_analyzer.py:60` -> `pfaz06.excel_standardizer` (modul-ustu try/except)
+- DAIRE: PFAZ6 -> PFAZ12 ve PFAZ12 -> PFAZ6
 
-**Karar:** Sprint 17'ye ertelendi.
+Lazy import sayesinde su an patlamiyor ama tehlikeli. Yarin biri lazy'i modul-ustune cekerse circular import hatasi.
+
+**Fix (Sprint 16, KAPSAMLI QA ile dogrulandi):**
+
+1. **`utils/excel_standardizer.py` yeni CANONICAL kaynak** -- ExcelStandardizer'in tam kodu (468 satir) buraya tasindi
+2. **`pfaz_modules/pfaz06_final_reporting/excel_standardizer.py` stub haline geldi** -- sadece `from utils.excel_standardizer import *` yapar (backward compat)
+3. **PFAZ12 modulleri (`nuclear_band_analyzer.py`, `nuclear_pattern_analyzer.py`)** artik direkt `utils/`'den import ediyor
+4. **`utils/warning_tracker.py`** (BUG-110 KAPSAMLI QA ile bulundu, 4. kullanici!) artik in-package `utils/excel_standardizer` import ediyor
+5. **`utils/__init__.py`** ExcelStandardizer'i top-level re-export ediyor (`from utils import ExcelStandardizer`)
+6. **`pfaz_modules/pfaz06_final_reporting/__init__.py`** stub uzerinden re-export (backward compat korundu)
+
+**Yapisal sonuc:**
+- ONCEKI: PFAZ12 -> PFAZ6 (1 yon) + PFAZ6 -> PFAZ12 (3 yer) = DONGU
+- SONRA: PFAZ12 -> utils (1 yon) + PFAZ6 -> PFAZ12 (3 yer) = TEK YONLU, DONGU YOK
+- Grep dogrulamasi: `grep "from pfaz_modules.pfaz06" pfaz12/*.py` -> 0 sonuc
+
+**Test sonuclari (Sprint 16 KURAL 42 KAPSAMLI QA):**
+- Sentaks: 8 dosya OK
+- Real import: 4 yol calisir (utils canonical, utils paketinden, PFAZ6 stub, PFAZ6 paketten) -- hepsi ayni sinifi donduruyor
+- Fonksiyonel: gercek Excel dosyasi yazildi (5709 bytes, 1 sayfa)
+- Regression: Sprint 15 helper'lari yerinde
 
 ---
 
 *Sprint 15 raporu | TRUBA kriz yonetimi (BUG-101..110) | 8 fix + 2 ertelendi | 2026-05-20*
+
+*Sprint 16 raporu | SON SPRINT -- BUG-109 dokumante, BUG-110 fix, KURAL 41-42 | 2026-05-20*

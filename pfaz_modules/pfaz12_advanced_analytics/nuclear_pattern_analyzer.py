@@ -63,7 +63,7 @@ except ImportError:
 # ExcelStandardizer opsiyonel
 # ---------------------------------------------------------------------------
 try:
-    from pfaz_modules.pfaz06_final_reporting.excel_standardizer import ExcelStandardizer
+    from utils.excel_standardizer import ExcelStandardizer  # Sprint 16 BUG-110: utils/ tercih edilen
     _ES = True
 except ImportError:
     _ES = False

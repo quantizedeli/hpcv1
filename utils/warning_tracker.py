@@ -230,7 +230,7 @@ class WarningTracker:
         )
 
         try:
-            from pfaz_modules.pfaz06_final_reporting.excel_standardizer import ExcelStandardizer
+            from utils.excel_standardizer import ExcelStandardizer  # Sprint 16 BUG-110: in-package
             with ExcelStandardizer(self.excel_path) as es:
                 es.write_sheet("Tüm_Uyarılar",  df,            freeze_header=True)
                 es.write_sheet("PFAZ_Özeti",     pfaz_summary,  freeze_header=True)

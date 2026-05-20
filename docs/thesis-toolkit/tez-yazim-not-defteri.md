@@ -1477,3 +1477,34 @@ Toplam is hacmi azalmasi: ~250×. Her elimine icin **niceliksel gerekce**.
 
 **Tezsel etki:** Sprint 15 sonu tez cercevesi degisti: "Yuksek dogruluk (R²>0.96)" yerine **"feature seçimi belirleyici + kucuk-veri sinirlari"** anlatisi. Bu daha **savunulabilir**, daha **bilimsel olarak dogru** ve mevcut veriyle **tutarli**.
 
+---
+
+## Sprint 16 Eki: SON SPRINT -- Mimari Temizlik
+
+**Sprint 16 (2026-05-20) bu projenin SON sprintidir.** Hicbir yeni iddia yok, sadece teknik temizlik:
+
+- BUG-109 (PFAZ2/3 -> PFAZ12 ters bagimliik) **kasitli tasarim karari** olarak dokumante. NuclearPatternAnalyzer eğitim sonrasi lazy import, davranissal sorun yok.
+- BUG-110 (PFAZ6 <-> PFAZ12 soft circular import) gerçek refactor ile cozuldu. `ExcelStandardizer` `utils/` paketine tasindi. PFAZ6 ve PFAZ12 artik direkt `utils/`'den okur, dairesel bagimliik kirildi.
+
+### Tez Etkisi: SIFIR
+Sprint 16 mimari temizliktir, tez bulgularini etkilemez. 10 tezsel bulgu Sprint 15'te belirlendi, Sprint 16'da degismedi.
+
+### Audit (Sprint 15 fix'leri Sprint 16 tarafindan yeniden denetlendi)
+`SPRINT15_AUDIT_REPORT.md`'de detayli: BUG-101..108 hepsi CONFIRMED, config.json 7 anahtar dogru, training_configs_20.json yapisi dogru.
+
+### TRUBA Submit Sirada
+`TRUBA_SUBMIT_CHECKLIST.md` -- adim adim talimat. Tahmini sure ~2 saat. Sonra tez metnine veri entegrasyonu.
+
+### Tez Sonrasi Opsiyonel Iyilestirmeler (Sprint Olarak Planlanmadi)
+
+Bunlar tez kapsami disi, tez sonrasi opsiyonel:
+
+| Konu | Aciklama | Oncelik |
+|------|----------|---------|
+| BUG-109 refactor | NuclearPatternAnalyzer'i main.py'ye tasi (alt-faz uzerine cikan) | DUSUK |
+| XGBoost .json save | Native XGBoost save_model('.json') destegi (versiyon-bagimsizlik) | DUSUK |
+| PFAZ8 inline color dict refactor | 8 dosyada hardcoded color sozlukleri MODEL_COLORS dict'ine tasinmali | ORTA |
+| v10 sync | Sprint 15+16 v10 dev-updates branch'ine tasinmali (~22 commit) | YUKSEK (tez sonrasi) |
+
+Bu liste tezin akademik iddialarini etkilemez. Tez teslim asamasinda **hicbir degisiklik gerekli degil**.
+

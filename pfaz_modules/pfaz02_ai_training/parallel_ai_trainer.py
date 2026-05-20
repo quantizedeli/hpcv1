@@ -2015,6 +2015,18 @@ class ParallelAITrainer:
                 logger.warning(f"[WARNING] Could not save seed tracking report: {e}")
 
         # Step 8: NuclearPatternAnalyzer — nükleer desen analizi
+        #
+        # Sprint 16 BUG-109 ANALIZ NOTU (2026-05-20) -- KASITLI TASARIM KARARI:
+        # PFAZ2 (alt-faz) PFAZ12'den (ust-faz) bir sinif import ediyor. Bu mimari olarak
+        # "ters bagimliik" gibi gorunur ama BILINCLI bir tasarim karari:
+        #   1. NuclearPatternAnalyzer egitim SONRASI analiz yapar (predict-time, not train-time)
+        #   2. Lazy import (try/except icinde, fonksiyon icinde) -- runtime'da PFAZ12 modul
+        #      yuklenmemis olsa bile PFAZ2 caliscaya devam eder
+        #   3. NuclearPatternAnalyzer'i PFAZ2'ye tasimak kategori karisikligi yaratir
+        #      (PFAZ12 "ileri analitik" kategorisi -- biz alt faz icin bu kategoriyi karistirmiyoruz)
+        #
+        # Alternatif refactor (main.py'den cagri) Sprint 18+ icin not edildi; tezin akademik
+        # iddialarini etkilemez, sadece kod organizasyonu meselesi.
         try:
             from pfaz_modules.pfaz12_advanced_analytics.nuclear_pattern_analyzer import NuclearPatternAnalyzer
             from pathlib import Path as _Path
