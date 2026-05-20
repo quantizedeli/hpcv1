@@ -3120,6 +3120,21 @@ Ayrıca `val_r2 < -2` filtresi kaldırıldı (sadece NaN filtresi kaldı).
 
 *Sprint 17 ek bug | 2026-05-20*
 
+### BUG-119
+**Başlık:** AutoMLRetrainingLoop — target/dataset field eksik, 0 aday seçiliyor
+**Dosya:** `pfaz_modules/pfaz13_automl/automl_retraining_loop.py`
+**Durum:** KAPATILDI (Sprint 17)
+
+**Sorun:** `find_categorized_candidates` içinde `rec.get('target')` ve
+`rec.get('dataset_name')` çekiyor. BUG-118 ile aynı kök neden: metrics_*.json'da
+bu field'lar yok → `if not target or not dataset: continue` → 880 kayıt taranıyor
+ama 0 aday seçiliyor → ANFIS ve AI retraining hiç çalışmıyor.
+
+**Fix:** BUG-118 ile aynı pattern — `_source_file` path'inden dataset adını çıkar,
+prefix'ten target'ı tespit et.
+
+*Sprint 17 ek bug | 2026-05-20*
+
 ### BUG-120
 **Başlık:** PFAZ4 single_nucleus_predictor — target field eksik, tüm modeller atlanıyor
 **Dosya:** `pfaz_modules/pfaz04_unknown_predictions/single_nucleus_predictor.py`
