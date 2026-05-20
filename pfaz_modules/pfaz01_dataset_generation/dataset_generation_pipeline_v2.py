@@ -1220,7 +1220,8 @@ class DatasetGenerationPipelineV2:
                 'n_nuclei_total': dataset['metadata']['n_nuclei_total'],
                 'n_features': dataset['metadata']['n_features'],
                 'data_file_csv': str(dataset['data_file_csv']),
-                'data_file_mat': str(dataset['data_file_mat'])
+                'data_file_xlsx': str(dataset.get('split_files', {}).get('train', {}).get('xlsx')),
+                'data_file_mat': str(dataset.get('data_file_mat')) if dataset.get('data_file_mat') else None,
             })
 
         # Save master metadata (sanitized for JSON)

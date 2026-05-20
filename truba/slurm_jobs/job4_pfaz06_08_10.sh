@@ -17,6 +17,7 @@
 #SBATCH --time=0-10:00:00
 #SBATCH --output=/arf/scratch/ahmacar/hpcv1_outputs/logs/job4_rapor_%j.out
 #SBATCH --error=/arf/scratch/ahmacar/hpcv1_outputs/logs/job4_rapor_%j.err
+#SBATCH --chdir=/arf/scratch/ahmacar/hpcv1_outputs
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ahmetkemalacar@gmail.com
 
