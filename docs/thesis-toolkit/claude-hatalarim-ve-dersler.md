@@ -1213,3 +1213,28 @@ Bu test seviyesi olmaadan "kapsamli QA" demek aldatici. Sprint 16'da bu seviyeyi
 
 *Claude-Hatalarim-ve-Dersler v2.4 | 2026-05-20*
 *Sprint 16 ekleri: KURAL 41 (kullanici sprint kapsamini atlamama), KURAL 42 (kapsamli QA tanimi)*
+---
+
+## KURAL 43 — Default param `"outputs/"` prefix tüm TRUBA path'lerini bozar
+
+**Kaynak:** Sprint 17, BUG-111..116 (PFAZ10 path audit)
+
+TRUBA'da `--chdir` scratch'e set edildiğinden `cwd = /arf/scratch/.../hpcv1_outputs`.
+Hiçbir modülün default parametresi `"outputs/"` ile başlamamalı.
+
+**Kural:** Yeni modül/fonksiyon yazarken `output_dir='outputs/...'` gibi default parametre koymak YASAK.
+Ya `output_dir='.'` (cwd) ya da zorunlu parametre (default yok) yap.
+Mevcut `"outputs/"` gördüğünde → çağıran kodda override edilip edilmediğini kontrol et.
+
+## KURAL 44 — `pfaz_outputs` inject dict'i integer key ile gelir, string key beklemek yanlış
+
+**Kaynak:** Sprint 17, BUG-111 (DataReader key mismatch)
+
+main.py `pfaz_outputs = {1: Path(...), 2: Path(...)}` şeklinde integer key kullanır.
+Bir modül `pfaz_outputs.get("pfaz2_summary")` yapıyorsa override HİÇ ÇALIŞMAZ.
+
+**Kural:** `pfaz_outputs` alan her sınıfın `__init__`'inde key tipi dönüşümü yapılmalı.
+`_PFAZ_INT_TO_SUBDIR` harita pattern'ini kullan (BUG-111 fix'ine bak).
+
+*Claude-Hatalarim-ve-Dersler v2.5 | 2026-05-20*
+*Sprint 17 ekleri: KURAL 43 (outputs/ default param yasağı), KURAL 44 (pfaz_outputs integer key)*

@@ -1508,3 +1508,19 @@ Bunlar tez kapsami disi, tez sonrasi opsiyonel:
 
 Bu liste tezin akademik iddialarini etkilemez. Tez teslim asamasinda **hicbir degisiklik gerekli degil**.
 
+## Sprint 17 — PFAZ10 Path Fix Özeti
+
+**Tarih:** 2026-05-20
+**Kapsam:** PFAZ10 tez derlemesinin gerçek TRUBA çıktılarını okuması
+
+PFAZ10 statik analiz ile incelendi. 6 path bug tespit edildi (BUG-111..116):
+- PFAZ10DataReader 15 dosyayı yanlış path'te arıyordu (çift `outputs/`, integer key mismatch)
+- pfaz8_thesis_charts grafik datasını kod dizininde arıyordu (scratch yerine)
+- WarningTracker TRUBA'da sessizce başarısız oluyordu
+
+**Akademik etki:** PFAZ10 çalışsaydı tez tamamen boş (sadece PLACEHOLDER) üretecekti.
+Fix sonrası gerçek TRUBA çıktıları (PFAZ2-13 Excel/JSON dosyaları) doğru okunacak.
+
+**Tez §3/§4 için not:** PFAZ10 TRUBA'da ilk kez çalışacak (Job4). 
+Önceki sprint'lerde hiç çalışmamıştı. Bug'lar erken tespit edildi.
+

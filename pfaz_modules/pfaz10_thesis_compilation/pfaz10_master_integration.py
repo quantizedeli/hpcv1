@@ -84,8 +84,11 @@ class MasterThesisIntegration:
 
         # Bilesenler
         self.reader = PFAZ10DataReader(self.project_dir, pfaz_outputs)
+        # BUG-C FIX (Sprint 17): results_dir=project_dir/"outputs" yanlistı.
+        # project_dir zaten output_dir (scratch) oldugu icin fazladan /outputs ekliyordu.
+        # Dogru: results_dir=project_dir (yani /arf/scratch/ahmacar/hpcv1_outputs)
         self.content_gen = ComprehensiveContentGenerator(
-            results_dir=self.project_dir / "outputs",
+            results_dir=self.project_dir,
             output_dir=self.chapters_dir,
             project_dir=self.project_dir,
         )
@@ -170,7 +173,7 @@ class MasterThesisIntegration:
     def _copy_figures(self) -> list[Path]:
         """PFAZ8 ciktilarindan figures/ dizinine PNG kopyalar."""
         copied: list[Path] = []
-        visualizations_dir = self._resolve_pfaz_dir("visualizations", "outputs/visualizations")
+        visualizations_dir = self._resolve_pfaz_dir("visualizations", "visualizations")
         if not visualizations_dir or not visualizations_dir.exists():
             logger.warning("[PFAZ10] PFAZ8 visualizations dizini yok: %s", visualizations_dir)
             return copied
@@ -417,14 +420,28 @@ class MasterThesisIntegration:
     # ---------------------------------------------------------------------
 
     def _resolve_pfaz_dir(self, key: str, fallback_subpath: str) -> Path:
-        """pfaz_outputs inject haritasinda anahtarini ara, yoksa default doner."""
+        """pfaz_outputs inject haritasinda anahtarini ara, yoksa default doner.
+
+        BUG-F FIX (Sprint 17): Integer key lookup duzeltildi ve fallback'teki
+        'outputs/' prefix kaldirildi. project_dir zaten output_dir (scratch) oldugu icin
+        'outputs/visualizations' -> '/scratch/.../outputs/visualizations' yanlistir.
+        Dogru fallback: project_dir / 'visualizations' (prefix'siz).
+        """
         if key in self.pfaz_outputs:
             return Path(self.pfaz_outputs[key])
-        # int anahtar destegi (main.py'da)
+        # int anahtar destegi (main.py'da {8: Path('.../visualizations')} seklinde gelir)
+        # key='visualizations' ise pfaz_outputs[8]'in son parcasina bak
         for k, v in self.pfaz_outputs.items():
-            if str(k) == key:
-                return Path(v)
-        return self.project_dir / fallback_subpath
+            try:
+                if Path(v).name == key or str(k) == key:
+                    return Path(v)
+            except Exception:
+                pass
+        # BUG-F FIX: fallback_subpath'ten 'outputs/' prefix'ini cikar
+        clean = fallback_subpath
+        if clean.startswith("outputs/"):
+            clean = clean[len("outputs/"):]
+        return self.project_dir / clean
 
 
 # Backwards-compatible aliases

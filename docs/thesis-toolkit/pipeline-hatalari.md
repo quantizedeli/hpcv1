@@ -2977,3 +2977,110 @@ Lazy import sayesinde su an patlamiyor ama tehlikeli. Yarin biri lazy'i modul-us
 *Sprint 15 raporu | TRUBA kriz yonetimi (BUG-101..110) | 8 fix + 2 ertelendi | 2026-05-20*
 
 *Sprint 16 raporu | SON SPRINT -- BUG-109 dokumante, BUG-110 fix, KURAL 41-42 | 2026-05-20*
+
+---
+
+## Sprint 17 — PFAZ10 Path Bug'ları (BUG-111..116)
+
+*Keşif tarihi: 2026-05-20 | Etki: PFAZ10 tez derlemesi tamamen boş çıkıyor*
+
+**Köken:** PFAZ10 TRUBA'da hiç çalışmadı (ilk çalışma Sprint 17 öncesi henüz yok).
+Statik analiz + simülasyon ile tespit edildi.
+
+---
+
+### BUG-111
+**Başlık:** PFAZ10DataReader — pfaz_outputs integer key mismatch
+**Dosya:** `pfaz_modules/pfaz10_thesis_compilation/pfaz10_data_reader.py`
+**Durum:** KAPATILDI (Sprint 17)
+
+**Sorun:** `pfaz_outputs` dict'i main.py'den `{2: Path(...), 3: Path(...)}` integer key ile
+inject ediliyordu. Ama `PFAZ10DataReader.__init__` `overrides.get("pfaz2_summary")` yapıyor —
+integer key ile string lookup eşleşmiyor → `None` → `DEFAULT_PATHS` fallback kullanılıyor.
+
+**Fix:** `_PFAZ_INT_TO_SUBDIR` haritası eklendi. Integer key'ler subdir adına dönüştürülüp
+`DEFAULT_PATHS` relatif path'lerinin ilk parçasıyla eşleştiriliyor.
+
+---
+
+### BUG-112
+**Başlık:** PFAZ10DataReader — DEFAULT_PATHS fazladan `outputs/` prefix
+**Dosya:** `pfaz_modules/pfaz10_thesis_compilation/pfaz10_data_reader.py`
+**Durum:** KAPATILDI (Sprint 17)
+
+**Sorun:** `DEFAULT_PATHS` değerleri `"outputs/trained_models/..."` şeklindeydi.
+`project_dir` = `output_dir` = `/arf/scratch/ahmacar/hpcv1_outputs` olduğunda:
+→ `/arf/scratch/.../hpcv1_outputs/outputs/trained_models/...` (çift `outputs/`)
+Gerçek path: `.../hpcv1_outputs/trained_models/...`
+
+**Fix:** `DEFAULT_PATHS`'ten tüm `outputs/` prefix'leri kaldırıldı.
+
+---
+
+### BUG-113
+**Başlık:** ComprehensiveContentGenerator — results_dir fazladan `/outputs` suffix
+**Dosya:** `pfaz_modules/pfaz10_thesis_compilation/pfaz10_master_integration.py`
+**Durum:** KAPATILDI (Sprint 17)
+
+**Sorun:** `MasterThesisIntegration.__init__` içinde:
+```python
+results_dir=self.project_dir / "outputs"
+```
+`project_dir` = scratch output dir olduğundan → `.../hpcv1_outputs/outputs` — yok.
+
+**Fix:** `results_dir=self.project_dir` (suffix olmadan).
+
+---
+
+### BUG-114
+**Başlık:** main.py WarningTracker — `outputs/` relative path TRUBA'da çalışmıyor
+**Dosya:** `main.py` (setup_logging fonksiyonu)
+**Durum:** KAPATILDI (Sprint 17)
+
+**Sorun:** `WarningTracker(json_path='outputs/pipeline_warnings.json', ...)` —
+TRUBA job'larında `--chdir=/arf/scratch/ahmacar/hpcv1_outputs` olduğundan
+cwd=scratch. Scratch altında `outputs/` dizini yok → `FileNotFoundError` (try/except
+ile sessizce yutuluyordu, warning log'ları kayboluyordu).
+
+**Fix:** `OUTPUT_DIR` env var'ından okur (job script'leri set ediyor), yoksa `logs/` fallback.
+
+---
+
+### BUG-115
+**Başlık:** pfaz8_thesis_charts — load_all_data `project_root/outputs/` yanlış path
+**Dosya:** `pfaz_modules/pfaz08_visualization/pfaz8_thesis_charts.py`
+**Durum:** KAPATILDI (Sprint 17)
+
+**Sorun:** `load_all_data` içinde `project_root / 'outputs' / 'reports'` kullanılıyordu.
+`project_root` = `/arf/home/ahmacar/hpcv1` (kod dizini) → raporlar orada değil, scratch'te.
+
+**Fix:** `self.out.parent` (= `hpcv1_outputs/`) kullanılıyor. Bu her zaman doğru scratch path'ini verir.
+
+---
+
+### BUG-116
+**Başlık:** `_resolve_pfaz_dir` — fallback `outputs/` prefix ve integer key lookup
+**Dosya:** `pfaz_modules/pfaz10_thesis_compilation/pfaz10_master_integration.py`
+**Durum:** KAPATILDI (Sprint 17)
+
+**Sorun:** 
+1. Fallback: `project_dir / "outputs/visualizations"` → çift `outputs/`
+2. Integer key lookup: `str(k) == key` → `"8" == "visualizations"` hiç eşleşmiyor
+
+**Fix:** 
+1. Fallback subpath'ten `outputs/` prefix otomatik çıkarılıyor
+2. Integer key lookup: `Path(v).name == key` ile dizin adı karşılaştırması
+
+---
+
+**Sprint 17 özeti:**
+| Bug | Dosya | Etki |
+|-----|-------|------|
+| BUG-111 | pfaz10_data_reader.py | 15 dosya yolu yanlış okuma |
+| BUG-112 | pfaz10_data_reader.py | çift outputs/ → path yok |
+| BUG-113 | pfaz10_master_integration.py | results_dir yok |
+| BUG-114 | main.py | warning log kaybolması |
+| BUG-115 | pfaz8_thesis_charts.py | grafik verisi yanlış yerden aranıyor |
+| BUG-116 | pfaz10_master_integration.py | _resolve_pfaz_dir çalışmıyor |
+
+*Sprint 17 raporu | PFAZ10 path fix'leri (BUG-111..116) | 6 fix | 2026-05-20*
