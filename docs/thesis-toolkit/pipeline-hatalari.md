@@ -3101,3 +3101,21 @@ TRUBA'da PFAZ3 2 saat çalıştıktan sonra `save_summary_report` aşamasında p
 scope'unun başına taşındı — her iki blok da erişebilir.
 
 *Sprint 17 ek bug | 2026-05-20*
+
+### BUG-118
+**Başlık:** PFAZ13 — `target` field metrics_*.json'da yok, best_by_target boş kalıyor
+**Dosya:** `main.py` (run_pfaz_13)
+**Durum:** KAPATILDI (Sprint 17)
+
+**Sorun:** PFAZ13 `best_by_target` doldururken `m.get('target', '')` yapıyor.
+Ama `parallel_ai_trainer.py` metrics_*.json'a `target` field yazmıyor → boş string
+→ `if not target: continue` → tüm modeller atlanıyor → `best_by_target = {}` 
+→ `skipped_no_pfaz2_results` → strict_truba ile job patlaması.
+
+Gerçekte 212 model Test_R²>0.5, en iyisi QM_150_S80_AZB2EMCS test_R²=0.896!
+
+**Fix:** Dataset adından target çıkarma eklendi:
+`QM_150_S80_...` → `QM`, `MM_150_S80_...` → `MM`
+Ayrıca `val_r2 < -2` filtresi kaldırıldı (sadece NaN filtresi kaldı).
+
+*Sprint 17 ek bug | 2026-05-20*
