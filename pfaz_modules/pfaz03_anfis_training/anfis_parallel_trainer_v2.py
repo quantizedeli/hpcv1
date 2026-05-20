@@ -1605,6 +1605,11 @@ class ANFISParallelTrainerV2:
         # (yukarida, dataset_paths filtrelemesi yapildi). Burada bir sey yapmiyoruz.
 
         # ---- NuclearPatternAnalyzer: ANFIS sonrasi nuklear desen analizi ----
+        #
+        # Sprint 16 BUG-109 ANALIZ NOTU (2026-05-20) -- KASITLI TASARIM KARARI:
+        # Ayni gerekce PFAZ2 ile (bkz parallel_ai_trainer.py'da Sprint 16 BUG-109 yorum):
+        # PFAZ3 (alt-faz) PFAZ12'den bilincli olarak lazy import yapar. NuclearPatternAnalyzer
+        # egitim-sonrasi cagrilir, modul yukunden kacinma stratejisi. Refactor Sprint 18+ icin not.
         try:
             from pfaz_modules.pfaz12_advanced_analytics.nuclear_pattern_analyzer import NuclearPatternAnalyzer
             from pathlib import Path as _Path3

@@ -187,3 +187,26 @@ Detaylar `tez-yazim-not-defteri.md` Sprint 15 eki. Ana iki bulgu:
 ### Tez Cercevesi Degisikligi
 **Eski:** "R²>0.96 yuksek dogruluk"
 **Yeni:** "Feature secimi belirleyici + kucuk-veri sinirlari" (R² max gozlemlenen ~0.92, R²>0.85 alt bolge literatur kiyasinda rekabetci)
+
+---
+
+## Sprint 16 -- SON SPRINT (2026-05-20)
+
+**Bu son sprint.** Sprint 16'da geriye kalan iki BUG kapatildi, tum testler gecti, TRUBA submit'e hazir.
+
+### Yapilanlar
+- **BUG-109 dokumante** (kasitli tasarim karari, kod yorum eklendi, refactor yok)
+- **BUG-110 fix** (ExcelStandardizer `utils/`'e tasindi, PFAZ6 -> stub, dairesel import kirildi)
+- **KURAL 41-42** eklendi (sprint atlamama, kapsamli QA tanimi)
+- **Sprint 15 audit raporu** yazildi (`docs/thesis-toolkit/SPRINT15_AUDIT_REPORT.md`)
+- **TRUBA submit checklist** olusturuldu (`docs/thesis-toolkit/TRUBA_SUBMIT_CHECKLIST.md`)
+
+### Tum BUG Durumu
+- BUG-1..110: hepsi DUZELTILDI veya dokumante edildi
+- Sprint 17 yok, Sprint 18+ yok
+- Tez teslim sonrasi opsiyonel iyilestirmeler `tez-yazim-not-defteri.md`'de
+
+### Bu Sprint'ten Sonra Ne Var?
+Sadece TRUBA submit + tez metnine veri entegrasyonu. Detay: `TRUBA_SUBMIT_CHECKLIST.md`.
+
+Tahmini sure: ~2 saat TRUBA + 1 gun tez metni guncelleme = 22 Mayis teslime hazir.
