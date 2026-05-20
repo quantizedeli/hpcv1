@@ -431,6 +431,13 @@ class SingleNucleusPredictor:
                     with open(mf, encoding='utf-8') as f:
                         m = json.load(f)
                     mtarget = m.get('target') or m.get('Target', '')
+                    # BUG-120 FIX (Sprint 17): target field metrics'te yok, dataset adından çıkar
+                    if not mtarget:
+                        ds_name = mf.parents[2].name  # trained_models/{dataset}/
+                        if ds_name.startswith('MM_QM_'):    mtarget = 'MM_QM'
+                        elif ds_name.startswith('Beta_2_'): mtarget = 'Beta_2'
+                        elif ds_name.startswith('MM_'):     mtarget = 'MM'
+                        elif ds_name.startswith('QM_'):     mtarget = 'QM'
                     if mtarget != target:
                         continue
                     val_r2 = float(m.get('val', {}).get('r2')
@@ -462,6 +469,13 @@ class SingleNucleusPredictor:
                     with open(mf, encoding='utf-8') as f:
                         m = json.load(f)
                     mtarget = m.get('target') or m.get('Target', '')
+                    # BUG-120 FIX (Sprint 17): target field metrics'te yok, dataset adından çıkar
+                    if not mtarget:
+                        ds_name = mf.parents[1].name  # anfis_models/{dataset}/
+                        if ds_name.startswith('MM_QM_'):    mtarget = 'MM_QM'
+                        elif ds_name.startswith('Beta_2_'): mtarget = 'Beta_2'
+                        elif ds_name.startswith('MM_'):     mtarget = 'MM'
+                        elif ds_name.startswith('QM_'):     mtarget = 'QM'
                     if mtarget != target:
                         continue
                     val_r2 = float(m.get('val', {}).get('r2')

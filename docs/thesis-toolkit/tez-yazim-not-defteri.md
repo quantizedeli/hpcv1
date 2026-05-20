@@ -1524,3 +1524,26 @@ Fix sonrası gerçek TRUBA çıktıları (PFAZ2-13 Excel/JSON dosyaları) doğru
 **Tez §3/§4 için not:** PFAZ10 TRUBA'da ilk kez çalışacak (Job4). 
 Önceki sprint'lerde hiç çalışmamıştı. Bug'lar erken tespit edildi.
 
+
+## Sprint 17 — PFAZ13 AutoML Kurtarma
+
+**Tarih:** 2026-05-20
+
+PFAZ13 `skipped_no_pfaz2_results` hatası verdi. Başlangıçta "AutoML'i kaldıralım"
+önerildi — yanlış karar olurdu.
+
+**Gerçek durum:**
+- 212 model Test_R²>0.5 mevcut
+- En iyi: `QM_150_S80_AZB2EMCS_NoScaling_Stratified` RF → **Test_R²=0.896**
+- Sorun: metrics_*.json'da `target` field yok → PFAZ13 göremiyordu (BUG-118)
+
+**Tez için önem:**
+- PFAZ13 şimdi bu 212 modeli alıp Optuna ile optimize edecek
+- QM tahmini için Test_R²=0.896 → AutoML ile 0.92+ mümkün
+- MM için daha zayıf ama yine de raporlanabilir
+
+**§4 için not:** "B2E (Beta-2 deformasyon) feature'ı içeren dataset'ler
+QM tahmininde belirleyici rol oynuyor" — bu tezin ana bulgularından biri.
+`AZB2EMCS` = A, Z, Beta_2, E (enerji), M (kütle), C (Coulomb), S (Spin)
+feature kombinasyonu en başarılı.
+

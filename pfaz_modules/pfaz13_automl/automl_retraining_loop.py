@@ -364,6 +364,22 @@ class AutoMLRetrainingLoop:
             model_type = (rec.get('model_type') or rec.get('model') or
                           _infer_model_type_from_path(rec.get('_source_file', '')))
 
+            # BUG-119 FIX (Sprint 17): metrics_*.json'da target/dataset field yok.
+            # BUG-118 ile ayni sorun -- dataset adindaki prefix'ten cikar.
+            if not target or not dataset:
+                src = rec.get('_source_file', '')
+                from pathlib import Path as _P
+                src_path = _P(src)
+                # trained_models/{dataset}/{model_type}/{config}/metrics_*.json
+                ds_name = src_path.parent.parent.parent.name if src else ''
+                if not target and ds_name:
+                    if ds_name.startswith('MM_QM_'):   target = 'MM_QM'
+                    elif ds_name.startswith('Beta_2_'): target = 'Beta_2'
+                    elif ds_name.startswith('MM_'):     target = 'MM'
+                    elif ds_name.startswith('QM_'):     target = 'QM'
+                if not dataset and ds_name:
+                    dataset = ds_name
+
             if not target or not dataset or not model_type:
                 continue
 

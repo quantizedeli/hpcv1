@@ -1501,7 +1501,7 @@ class NuclearPhysicsAIOrchestrator:
                         with open(metrics_file, encoding='utf-8') as f:
                             m = json.load(f)
                         val_r2 = m.get('val', {}).get('r2', -999)
-                        if val_r2 < -2 or np.isnan(val_r2):
+                        if np.isnan(val_r2):
                             continue
                         # BUG-65 FIX: PFAZ2 yapisi:
                         #   trained_models/{dataset}/{model_type}/{config}/metrics_*.json
@@ -1509,7 +1509,20 @@ class NuclearPhysicsAIOrchestrator:
                         # train.csv / val.csv generated_datasets/{dataset}/ icinde.
                         trained_ds_dir = metrics_file.parent.parent.parent
                         ds_dir = self.pfaz_outputs[1] / trained_ds_dir.name  # generated_datasets/{dataset}
+                        # BUG-118 FIX (Sprint 17): 'target' field metrics_*.json'a yazilmiyor.
+                        # Dataset adi her zaman {TARGET}_{size}_... formatinda:
+                        # MM_150_S80_... -> MM, QM_150_S80_... -> QM
                         target = m.get('target', '')
+                        if not target:
+                            ds_name = trained_ds_dir.name
+                            if ds_name.startswith('MM_QM_'):
+                                target = 'MM_QM'
+                            elif ds_name.startswith('Beta_2_'):
+                                target = 'Beta_2'
+                            elif ds_name.startswith('MM_'):
+                                target = 'MM'
+                            elif ds_name.startswith('QM_'):
+                                target = 'QM'
                         if not target:
                             continue
                         if target not in best_by_target or val_r2 > best_by_target[target]['r2']:
