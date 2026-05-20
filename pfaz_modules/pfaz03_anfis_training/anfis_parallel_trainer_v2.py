@@ -46,6 +46,60 @@ logger = logging.getLogger(__name__)
 R2_MIN_SAVE_THRESHOLD = 0.5
 
 
+def _save_anfis_rejection_checkpoint(out_dir, job_id, config_id,
+                                      dataset_name, metrics, error_message):
+    """
+    Sprint 15 BUG-102 fix: ANFIS kalite filtresine takilan modeller icin checkpoint.
+
+    PFAZ2 BUG-101 ile birebir aynı problem. Resume (anfis_parallel_trainer_v2.py
+    1263, 1292) yalnizca model_<cfg>.pkl ariyor. Reddedilen modeller .pkl yazmiyor.
+    Sonuc: deterministik (seed=42) reddi her resume tekrar egitiliyor.
+
+    Cozum: success=False yollarinda completed.json yaz. Resume okur, ayni success=False
+    sonucuyla doner, egitim tekrar etmez.
+
+    KURAL 35: Checkpoint felsefesi -- "denendi mi" sorusuna gore.
+    """
+    try:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        import time as _t
+        with open(out_dir / 'completed.json', 'w', encoding='utf-8') as _cpf:
+            json.dump({
+                'job_id': job_id,
+                'config_id': config_id,
+                'dataset_name': dataset_name,
+                'success': False,
+                'metrics': metrics,
+                'training_time': 0.0,
+                'error_message': error_message,
+            }, _cpf, indent=2)
+    except Exception as _cpe:
+        logger.warning(f"[CHECKPOINT] Could not save ANFIS rejection checkpoint: {_cpe}")
+
+
+def _adaptive_anfis_filter(n_inputs: int, method: str, cfg_id: str) -> tuple:
+    """
+    Sprint 15 BUG-102 ek (KURAL 36): ANFIS giris sayisi kisitlamasi.
+
+    Grid-partition ANFIS'te kural sayisi = MF^giris:
+      3 giris (2/3 MF): 8/27 kural -- OK
+      4 giris (2/3 MF): 16/81 kural -- 3 MF sinirda, 2 MF OK
+      5+ giris: 32-243 kural -- 105 ornekle imkansiz
+    Subtractive clustering kural sayisi veriden cikiyor, 4-5 girisi tasiyabilir.
+
+    Returns:
+      (skip: bool, reason: str)
+    """
+    if n_inputs >= 5 and method == 'grid':
+        return True, (f"5+ giris ({n_inputs}) Grid-ANFIS'te 243+ kural -> 105 ornekle "
+                      f"egitilemez. Sadece subclust onerilir. SKIP.")
+    if n_inputs == 4 and method == 'grid' and cfg_id == 'CFG005':
+        # 4 giris × 3 MF = 81 kural, sinirda. Olabilirse atla.
+        return True, f"4 giris × 3 MF = 81 kural ({n_inputs}), sinirda. SKIP."
+    # 3 giris tum config OK; 4 giris subclust OK; 4 giris 2 MF grid OK
+    return False, ""
+
+
 # ============================================================================
 # DATA STRUCTURES
 # ============================================================================
@@ -856,12 +910,19 @@ class ANFISParallelTrainerV2:
             val_r2_value = val_metrics.get('r2', 0.0)
             if isinstance(val_r2_value, float) and val_r2_value < DIVERGENCE_R2_THRESHOLD:
                 logger.warning(f"[DIVERGED] {job.job_id} | val_R2={val_r2_value:.4f} < {DIVERGENCE_R2_THRESHOLD} -- skipping save")
+                _metrics = {'train': train_metrics, 'val': val_metrics, 'test': test_metrics}
+                _err = f"ANFIS diverged: val_R2={val_r2_value:.4f}"
+                # Sprint 15 BUG-102: reddedilen modele de checkpoint yaz (KURAL 35)
+                _save_anfis_rejection_checkpoint(
+                    job.output_dir, job.job_id, job.config['id'], job.dataset_name,
+                    _metrics, _err
+                )
                 return ANFISTrainingResult(
                     job_id=job.job_id,
                     config_id=job.config['id'],
                     dataset_name=job.dataset_name,
                     success=False,
-                    error_message=f"ANFIS diverged: val_R2={val_r2_value:.4f}"
+                    error_message=_err
                 )
 
             # ---- Quality filter -----------------------------------------------
@@ -870,13 +931,20 @@ class ANFISParallelTrainerV2:
                     f"[POOR] {job.job_id} | val_R2={val_r2_value:.4f} < {R2_MIN_SAVE_THRESHOLD} "
                     f"(Poor/Failed category) — skipping save"
                 )
+                _metrics = {'train': train_metrics, 'val': val_metrics, 'test': test_metrics}
+                _err = f"Poor/Failed: val_R2={val_r2_value:.4f} < {R2_MIN_SAVE_THRESHOLD}"
+                # Sprint 15 BUG-102: reddedilen modele de checkpoint yaz (KURAL 35)
+                _save_anfis_rejection_checkpoint(
+                    job.output_dir, job.job_id, job.config['id'], job.dataset_name,
+                    _metrics, _err
+                )
                 return ANFISTrainingResult(
                     job_id=job.job_id,
                     config_id=job.config['id'],
                     dataset_name=job.dataset_name,
                     success=False,
-                    metrics={'train': train_metrics, 'val': val_metrics, 'test': test_metrics},
-                    error_message=f"Poor/Failed: val_R2={val_r2_value:.4f} < {R2_MIN_SAVE_THRESHOLD}",
+                    metrics=_metrics,
+                    error_message=_err,
                     training_mode=job.training_mode,
                 )
 
@@ -1257,12 +1325,27 @@ class ANFISParallelTrainerV2:
 
         # ---- Wave 1: Pilot -----------------------------------------------
         pilot_jobs = []
+        # Sprint 15 BUG-102 (KURAL 36): giris-sayisi tabanli ANFIS config filtresi
+        _skipped_input_count = 0
         for dp in dataset_paths:
+            _n_inputs = self._get_n_inputs_from_metadata(dp)
             for cfg in pilot_configs:
                 out_dir = self.output_dir / dp.name / cfg['id']
+                # Resume: model dosyasi varsa atla (eski)
                 if (out_dir / f"model_{cfg['id']}.pkl").exists():
                     skipped_existing += 1
                     continue
+                # Sprint 15 BUG-102 enhancement: kalite-red checkpoint'i de atla
+                if (out_dir / 'completed.json').exists():
+                    skipped_existing += 1
+                    continue
+                # Sprint 15 KURAL 36: ANFIS giris sayisi filtresi
+                if _n_inputs is not None:
+                    _skip, _reason = _adaptive_anfis_filter(_n_inputs, cfg.get('method', 'grid'), cfg['id'])
+                    if _skip:
+                        logger.info(f"[ANFIS-INPUT-FILTER] {dp.name}/{cfg['id']}: {_reason}")
+                        _skipped_input_count += 1
+                        continue
                 pilot_jobs.append(ANFISTrainingJob(
                     job_id=f"{dp.name}_ANFIS_{cfg['id']}",
                     config=cfg, dataset_path=dp,
@@ -1270,7 +1353,7 @@ class ANFISParallelTrainerV2:
                     training_mode='pilot',
                 ))
 
-        logger.info(f"Wave 1 PILOT: {len(pilot_jobs)} jobs ({skipped_existing} skipped)")
+        logger.info(f"Wave 1 PILOT: {len(pilot_jobs)} jobs ({skipped_existing} skipped, {_skipped_input_count} input-filter)")
         pilot_results = self._run_parallel_wave(pilot_jobs, start_time, 'PILOT')
         results.extend(pilot_results)
 
@@ -1286,12 +1369,25 @@ class ANFISParallelTrainerV2:
         # ---- Wave 2: Advanced --------------------------------------------
         advanced_jobs = []
         for dp in dataset_paths:
+            _n_inputs = self._get_n_inputs_from_metadata(dp)
             best_r2 = pilot_best_r2.get(dp.name, 0.0)
             for cfg in advanced_configs:
                 out_dir = self.output_dir / dp.name / cfg['id']
+                # Resume: model dosyasi varsa atla
                 if (out_dir / f"model_{cfg['id']}.pkl").exists():
                     skipped_existing += 1
                     continue
+                # Sprint 15 BUG-102 enhancement: kalite-red checkpoint'i de atla
+                if (out_dir / 'completed.json').exists():
+                    skipped_existing += 1
+                    continue
+                # Sprint 15 KURAL 36: ANFIS giris sayisi filtresi
+                if _n_inputs is not None:
+                    _skip, _reason = _adaptive_anfis_filter(_n_inputs, cfg.get('method', 'grid'), cfg['id'])
+                    if _skip:
+                        logger.info(f"[ANFIS-INPUT-FILTER] {dp.name}/{cfg['id']}: {_reason}")
+                        _skipped_input_count += 1
+                        continue
                 cfg_copy = dict(cfg)
                 if best_r2 < 0.3:
                     cfg_copy['max_iter'] = 100

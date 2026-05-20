@@ -10,6 +10,25 @@ Date: 2025-10-17
 Version: 1.0 COMPLETE
 """
 
+# =========================================================================
+# DEAD_CODE_NOTE (Sprint 15 BUG-105) -- 2026-05-20
+# =========================================================================
+# Bu modul GERCEKTE KULLANILMIYOR (orphan/legacy).
+# Sorunlar:
+#   1. self.ai_models = ['RandomForest', 'GradientBoosting', 'XGBoost', 'DNN',
+#      'BNN', 'PINN'] -- eski API listesi; gercek PFAZ2 cikti yapisi
+#      trained_models/<dataset>/<model_type>/<config_id>/ formatinda.
+#   2. _collect_all_predictions() trained_models/AI/<model_name>/ ariyor --
+#      boyle bir klasor uretilmiyor.
+#   3. Bu dosya hicbir yerde import edilmiyor.
+#
+# Gercek PFAZ5: pfaz_modules/pfaz05_cross_model/faz5_cross_model_analysis.py
+# (main.py:801'den cagiriliyor). Bu dosya gelecekte silinebilir veya yeni API
+# ile yeniden yazilabilir (Sprint 17 onerisi).
+#
+# BUG-98/99 patterni: dead code AKTIF EDILMEDI, future work olarak isaretlendi.
+# =========================================================================
+
 import pandas as pd
 import numpy as np
 from pathlib import Path

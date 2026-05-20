@@ -681,7 +681,21 @@ class MonteCarloSimulationSystem:
                 model_type = model_id.split('_')[0]  # RF, GBM, XGBoost, DNN, etc.
                 
                 if model_type == 'ANFIS':
-                    model_path = self.models_dir / 'ANFIS' / model_id / 'model.mat'
+                    # Sprint 15 BUG-108 fix: ANFIS yolu PFAZ4 pattern'i ile ayni.
+                    # Onceki yanlis yol: self.models_dir / 'ANFIS' / model_id / 'model.mat'
+                    # (model.mat dosyasi hicbir zaman uretilmedi -- ANFIS gercekte
+                    # workspace.mat + fis.mat + model_<cfg>.pkl yaziyor)
+                    # Yeni: dataset/config bilgisi model_id'den cikariliyor.
+                    # NOT: model_id formati: '<dataset_name>_<config_id>' beklenir;
+                    # row'da varsa 'dataset_name' ve 'config_id' kullanilir.
+                    _ds_name = row.get('dataset_name')
+                    _cfg_id  = row.get('config_id', model_id.replace('ANFIS_', '', 1))
+                    if _ds_name is None:
+                        logger.warning(f"    ANFIS model_id '{model_id}': dataset_name eksik, atlaniyor")
+                        continue
+                    # ANFIS kayit dizini: trained_anfis_models/<dataset>/<cfg>/
+                    _anfis_root = getattr(self, 'anfis_models_dir', None) or (self.models_dir.parent / 'trained_anfis_models')
+                    model_path = Path(_anfis_root) / _ds_name / _cfg_id / f'model_{_cfg_id}.pkl'
                 else:
                     model_path = self.models_dir / 'AI' / model_type / model_id / 'model.pkl'
                 
@@ -697,9 +711,8 @@ class MonteCarloSimulationSystem:
                         logger.warning(f"    TensorFlow not available, skipping {model_id}")
                         continue
                 elif model_type == 'ANFIS':
-                    # Skip ANFIS for now (requires MATLAB engine)
-                    logger.info(f"    Skipping ANFIS model: {model_id}")
-                    continue
+                    # Sprint 15 BUG-108 fix: artik joblib ile yukle (Python ANFIS)
+                    model = joblib.load(model_path)
                 else:
                     model = joblib.load(model_path)
                 
