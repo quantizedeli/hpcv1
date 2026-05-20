@@ -1081,7 +1081,11 @@ class ParallelAITrainer:
                  cv_folds: int = 3,
                  cv_folds_large_n: int = 5,
                  cv_large_n_threshold: int = 150,
-                 allowed_model_types: list = None):
+                 allowed_model_types: list = None,
+                 allowed_feature_sets: list = None,
+                 allowed_scalings: list = None,
+                 allowed_scenarios: list = None,
+                 allowed_anomaly_modes: list = None):
         """
         Initialize Parallel AI Trainer
 
@@ -1132,6 +1136,12 @@ class ParallelAITrainer:
         # None ise tum mevcut modeller (eski davranis, backward compatible)
         # ['RF', 'XGBoost'] ise sadece bu ikisi (Sprint 15+ varsayilani config.json'da)
         self.allowed_model_types = allowed_model_types  # None or list[str]
+        # Sprint 15 KURAL 40: dataset whitelist (config.json'dan)
+        # _discover_datasets dataset adi parse edip whitelist uygular
+        self.allowed_feature_sets = allowed_feature_sets   # None or list[str]
+        self.allowed_scalings = allowed_scalings           # None or list[str]
+        self.allowed_scenarios = allowed_scenarios         # None or list[str]
+        self.allowed_anomaly_modes = allowed_anomaly_modes  # None or list[str]
 
         # PARALLEL TRAINING MODE
         # If None, will prompt user in train_all_models_parallel()
@@ -2056,11 +2066,22 @@ class ParallelAITrainer:
 
         Returns:
             List of dataset directory paths
+
+        Sprint 15 (KURAL 40): self.allowed_feature_sets None degilse, sadece
+        dataset_name'inde whitelist'ten bir feature set bulunan dizinleri donur.
+        Dataset adi formati: TGT_SIZE_Sxx_FS_SCALING_SAMPLING[_NoAnomaly]
         """
         dataset_paths = []
 
         # Directories to exclude (not datasets, but metadata/reports)
         excluded_dirs = {'quality_reports', 'metadata', 'reports', 'logs', '__pycache__', '.git'}
+
+        # Sprint 15 BUG-104 ek: feature set whitelist (config.json'dan)
+        _fs_whitelist = getattr(self, 'allowed_feature_sets', None)
+        _scaling_whitelist = getattr(self, 'allowed_scalings', None)
+        _scenario_whitelist = getattr(self, 'allowed_scenarios', None)
+        _anomaly_whitelist = getattr(self, 'allowed_anomaly_modes', None)
+        _skipped_filter = 0
 
         # Look for subdirectories that contain data files
         for subdir in datasets_dir.iterdir():
@@ -2077,9 +2098,35 @@ class ParallelAITrainer:
                     list(subdir.glob('*.tsv'))
                 )
 
-                if has_data:
-                    dataset_paths.append(subdir)
-                    logger.info(f"  Found dataset: {subdir.name}")
+                if not has_data:
+                    continue
+
+                # Sprint 15 KURAL 40: dataset adi parse + whitelist filtre
+                # TGT_SIZE_Sxx_FS_SCALING_SAMPLING[_NoAnomaly]
+                _parts = subdir.name.split('_')
+                if len(_parts) >= 6:
+                    _scenario = _parts[2]      # S70 / S80
+                    _fs       = _parts[3]      # AZB2EMCS vb
+                    _scaling  = _parts[4]      # NoScaling / Standard / MinMax
+                    _anomaly  = 'NoAnomaly' if 'NoAnomaly' in subdir.name else 'vanilla'
+                    if _fs_whitelist is not None and _fs not in _fs_whitelist:
+                        _skipped_filter += 1
+                        continue
+                    if _scaling_whitelist is not None and _scaling not in _scaling_whitelist:
+                        _skipped_filter += 1
+                        continue
+                    if _scenario_whitelist is not None and _scenario not in _scenario_whitelist:
+                        _skipped_filter += 1
+                        continue
+                    if _anomaly_whitelist is not None and _anomaly not in _anomaly_whitelist:
+                        _skipped_filter += 1
+                        continue
+
+                dataset_paths.append(subdir)
+                logger.info(f"  Found dataset: {subdir.name}")
+
+        if _skipped_filter > 0:
+            logger.info(f"[Sprint 15 KURAL 40] Filtered {_skipped_filter} datasets by whitelist (FS/scaling/scenario/anomaly)")
 
         if not dataset_paths:
             logger.warning(f"No datasets found in {datasets_dir}")
