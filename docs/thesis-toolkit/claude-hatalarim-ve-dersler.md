@@ -1238,3 +1238,37 @@ Bir modül `pfaz_outputs.get("pfaz2_summary")` yapıyorsa override HİÇ ÇALIŞ
 
 *Claude-Hatalarim-ve-Dersler v2.5 | 2026-05-20*
 *Sprint 17 ekleri: KURAL 43 (outputs/ default param yasağı), KURAL 44 (pfaz_outputs integer key)*
+
+---
+
+## KURAL 45 — Hata mesajı "veri yok" diyorsa ÖNCE veriyi kontrol et, fazı silme
+
+**Kaynak:** Sprint 17, BUG-118 (PFAZ13 target field eksik)
+
+PFAZ13 `skipped_no_pfaz2_results` hatası verdi. İlk tepkim: "AutoML'i Job3'ten çıkaralım,
+tezden kaldıralım." Hatalıydı.
+
+Gerçekte 212 model Test_R²>0.5, en iyisi Test_R²=0.896 vardı.
+Sorun modellerin yokluğu değil, PFAZ13'ün `target` field'ı okuyamamasıydı.
+
+**Kural:** Bir faz "veri bulunamadı / sonuç yok" diye başarısız olduğunda:
+1. ÖNCE verinin gerçekten var olup olmadığını doğrula (find, python analiz)
+2. Varsa → kod okuma hatası veya path hatası ara
+3. Yoksa → o zaman "faz atla / kaldır" kararı ver
+
+"Faz atlama / kaldırma" kararı SON çare, ilk çare DEĞİL.
+
+## KURAL 46 — metrics_*.json'da olmayan field'lar için dataset adından çıkarım yap
+
+**Kaynak:** Sprint 17, BUG-118
+
+`parallel_ai_trainer.py` metrics_*.json'a `target` field yazmıyor.
+Bu tür eksik field'lar için dataset adı her zaman güvenilir kaynak:
+`MM_150_S80_...` → target=MM, `QM_150_S80_...` → target=QM
+
+**Kural:** Yeni modül yazarken metrics/output dosyalarından field okuyorsan,
+o field'ın gerçekten yazılıp yazılmadığını `grep` ile doğrula.
+Yazılmıyorsa → ya yazma koduna ekle, ya da okuma koduna fallback ekle.
+
+*Claude-Hatalarim-ve-Dersler v2.6 | 2026-05-20*
+*Sprint 17 ekleri: KURAL 45 (faz silme son çare), KURAL 46 (eksik field fallback)*
