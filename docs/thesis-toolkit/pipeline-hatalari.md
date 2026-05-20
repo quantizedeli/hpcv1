@@ -3119,3 +3119,26 @@ Gerçekte 212 model Test_R²>0.5, en iyisi QM_150_S80_AZB2EMCS test_R²=0.896!
 Ayrıca `val_r2 < -2` filtresi kaldırıldı (sadece NaN filtresi kaldı).
 
 *Sprint 17 ek bug | 2026-05-20*
+
+### BUG-120
+**Başlık:** PFAZ4 single_nucleus_predictor — target field eksik, tüm modeller atlanıyor
+**Dosya:** `pfaz_modules/pfaz04_unknown_predictions/single_nucleus_predictor.py`
+**Durum:** KAPATILDI (Sprint 17)
+**Etki:** KRİTİK — PFAZ4 hiçbir tahmin yapamıyor, tüm modeller `mtarget != target` ile atlanıyor.
+**Fix:** AI (parents[2]) ve ANFIS (parents[1]) için dataset adından target çıkarma eklendi.
+
+### BUG-121
+**Başlık:** PFAZ8 supplemental_visualizer — ANFIS target grouping yanlış ('all')
+**Dosya:** `pfaz_modules/pfaz08_visualization/supplemental_visualizer.py`
+**Durum:** KAPATILDI (Sprint 17)
+**Etki:** ORTA — ANFIS grafikleri MM/QM ayrımı yapamıyor, hepsi 'all' grubunda.
+**Fix:** ANFIS metrics path'inden (parents[1]) dataset adı → target çıkarma.
+
+### BUG-122
+**Başlık:** PFAZ12 nuclear_band_analyzer — jump records'a target field yazılmıyor
+**Dosya:** `pfaz_modules/pfaz12_advanced_analytics/nuclear_band_analyzer.py`
+**Durum:** KAPATILDI (Sprint 17)
+**Etki:** DÜŞÜK — prediction accuracy cross-check'te target bazlı gruplama yanlış.
+**Fix:** `records.append` içine `"target": target` eklendi.
+
+*Sprint 17 ek buglar | 2026-05-20*

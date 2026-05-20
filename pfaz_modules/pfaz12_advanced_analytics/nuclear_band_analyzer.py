@@ -438,6 +438,7 @@ class NuclearMomentBandAnalyzer:
                     records.append({
                         "zincir_turu":       label,
                         "zincir_degeri":     int(chain_val),
+                        "target":            target,  # BUG-122 FIX: target field eklendi
                         "cekirdek_A":        str(nuc0),
                         "cekirdek_B":        str(nuc1),
                         f"{step_key}_A":     int(r0[step_key]),

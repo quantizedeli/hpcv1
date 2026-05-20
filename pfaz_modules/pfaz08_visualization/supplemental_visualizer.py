@@ -990,7 +990,16 @@ class Statistical12Extended:
                     try:
                         with open(mf, encoding='utf-8') as f:
                             m = json.load(f)
-                        tgt = m.get('target', 'all')
+                        tgt = m.get('target', '')
+                        # BUG-121 FIX (Sprint 17): target field yok, dataset adından çıkar
+                        # anfis_models/{dataset}/{config}/metrics_*.json
+                        if not tgt:
+                            ds_name = mf.parents[1].name
+                            if ds_name.startswith('MM_QM_'):    tgt = 'MM_QM'
+                            elif ds_name.startswith('Beta_2_'): tgt = 'Beta_2'
+                            elif ds_name.startswith('MM_'):     tgt = 'MM'
+                            elif ds_name.startswith('QM_'):     tgt = 'QM'
+                            else:                               tgt = 'all'
                         r2  = m.get('val', {}).get('r2', None)
                         if r2 is not None and not np.isnan(r2) and r2 > -10:
                             anfis_scores_by_tgt.setdefault(tgt, []).append(float(r2))
